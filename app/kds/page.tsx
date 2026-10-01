@@ -5,6 +5,8 @@ import OrderKanbanCard, { KdsOrder } from '../../components/kds/OrderKanbanCard'
 import { getSocket } from '../../lib/socket';
 import { Volume2, VolumeX, RefreshCw, ChefHat, Bell, Clock, Ban } from 'lucide-react';
 import apiFetch from '../../lib/api';
+import { useI18n } from '../../context/i18nContext';
+import { LanguageSwitcher } from '../../components/common/LanguageSwitcher';
 
 /**
  * Chuẩn hóa status order từ server về kanban local: backend (team A) dùng
@@ -17,6 +19,7 @@ function normalizeOrderStatus<T extends { status?: string }>(order: T): T {
 }
 
 export default function KdsPage() {
+  const { t } = useI18n();
   const [orders, setOrders] = useState<KdsOrder[]>([
     {
       id: 'ord-101',
@@ -96,7 +99,11 @@ export default function KdsPage() {
   const notifyNewOrder = (orderCode?: string) => {
     try {
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted' && document.hidden) {
-        new Notification('Đơn mới cần chế biến', { body: orderCode ? `Mã đơn ${orderCode}` : 'Có đơn mới từ QR Menu / POS' });
+        new Notification(t('kds.newOrderNotifyTitle', 'Đơn mới cần chế biến'), {
+          body: orderCode
+            ? `${t('kds.orderCodePrefix', 'Mã đơn')} ${orderCode}`
+            : t('kds.newOrderNotifyBody', 'Có đơn mới từ QR Menu / POS'),
+        });
       }
     } catch {
       // ignore notification errors
@@ -237,7 +244,7 @@ export default function KdsPage() {
           </div>
           <div>
             <h1 className="font-extrabold text-base tracking-wide text-zinc-100">
-              MÀN HÌNH BẾP REALTIME (KDS)
+              {t('kds.title', 'MÀN HÌNH BẾP REALTIME (KDS)')}
             </h1>
             <div className="flex items-center gap-2 text-xs">
               <span className="flex items-center gap-1.5 text-zinc-400">
@@ -246,10 +253,10 @@ export default function KdsPage() {
                     isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'
                   }`}
                 />
-                {isConnected ? 'Realtime Connected' : 'Mất kết nối'}
+                {isConnected ? t('kds.realtimeConnected', 'Realtime Connected') : t('kds.disconnected', 'Mất kết nối')}
               </span>
               <span className="text-zinc-600">•</span>
-              <span className="text-amber-400 font-semibold">Chi Nhánh Q.1</span>
+              <span className="text-amber-400 font-semibold">{t('kds.branchName', 'Chi Nhánh Q.1')}</span>
             </div>
           </div>
         </div>
@@ -273,7 +280,9 @@ export default function KdsPage() {
             }`}
           >
             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-            <span className="hidden sm:inline">{soundEnabled ? 'Chuông Bật' : 'Tắt Chuông'}</span>
+            <span className="hidden sm:inline">
+              {soundEnabled ? t('kds.soundOn', 'Chuông Bật') : t('kds.soundOff', 'Tắt Chuông')}
+            </span>
           </button>
 
           {/* Refresh */}
@@ -285,10 +294,13 @@ export default function KdsPage() {
               });
             }}
             className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition"
-            title="Làm mới danh sách"
+            title={t('kds.refreshTitle', 'Làm mới danh sách')}
           >
             <RefreshCw className="w-4 h-4" />
           </button>
+
+          {/* Language Switcher */}
+          <LanguageSwitcher />
         </div>
       </header>
 
@@ -300,14 +312,14 @@ export default function KdsPage() {
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-amber-500" />
               <h2 className="font-bold text-sm tracking-wider uppercase text-zinc-200">
-                Chờ Làm ({pendingOrders.length})
+                {t('kds.colPending', 'Chờ Làm')} ({pendingOrders.length})
               </h2>
             </div>
           </div>
           <div className="flex-1 space-y-4 overflow-y-auto pr-1">
             {pendingOrders.length === 0 ? (
               <div className="h-48 flex items-center justify-center text-zinc-600 text-xs">
-                Không có đơn chờ
+                {t('kds.emptyPending', 'Không có đơn chờ')}
               </div>
             ) : (
               pendingOrders.map((order) => (
@@ -328,14 +340,14 @@ export default function KdsPage() {
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-sky-500" />
               <h2 className="font-bold text-sm tracking-wider uppercase text-zinc-200">
-                Đang Nấu ({preparingOrders.length})
+                {t('kds.colPreparing', 'Đang Nấu')} ({preparingOrders.length})
               </h2>
             </div>
           </div>
           <div className="flex-1 space-y-4 overflow-y-auto pr-1">
             {preparingOrders.length === 0 ? (
               <div className="h-48 flex items-center justify-center text-zinc-600 text-xs">
-                Chưa có món đang nấu
+                {t('kds.emptyPreparing', 'Chưa có món đang nấu')}
               </div>
             ) : (
               preparingOrders.map((order) => (
@@ -356,14 +368,14 @@ export default function KdsPage() {
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-emerald-500" />
               <h2 className="font-bold text-sm tracking-wider uppercase text-zinc-200">
-                Đã Xong / Chờ Bưng ({doneOrders.length})
+                {t('kds.colDone', 'Đã Xong / Chờ Bưng')} ({doneOrders.length})
               </h2>
             </div>
           </div>
           <div className="flex-1 space-y-4 overflow-y-auto pr-1">
             {doneOrders.length === 0 ? (
               <div className="h-48 flex items-center justify-center text-zinc-600 text-xs">
-                Chưa có đơn hoàn tất
+                {t('kds.emptyReady', 'Chưa có đơn hoàn tất')}
               </div>
             ) : (
               doneOrders.map((order) => (

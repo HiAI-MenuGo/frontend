@@ -7,6 +7,7 @@ import { SelectedModifier } from '../../stores/cart.store';
 import apiFetch from '../../lib/api';
 import { NoteLinesDark } from '../../lib/format-note';
 import { QRCodeSVG } from 'qrcode.react';
+import { useI18n } from '../../context/i18nContext';
 import {
   Search,
   Plus,
@@ -34,11 +35,12 @@ interface PosOrderItem {
 }
 
 export function CashierClient() {
+  const { t } = useI18n();
   const [categories] = useState([
-    { id: 'all', name: 'Tất cả' },
-    { id: 'cat-1', name: 'Trà Trái Cây' },
-    { id: 'cat-2', name: 'Cà Phê' },
-    { id: 'cat-3', name: 'Đồ Ăn Nhẹ' },
+    { id: 'all', nameKey: 'common.all', fallback: 'Tất cả' },
+    { id: 'cat-1', nameKey: 'pos.catFruitTea', fallback: 'Trà Trái Cây' },
+    { id: 'cat-2', nameKey: 'pos.catCoffee', fallback: 'Cà Phê' },
+    { id: 'cat-3', nameKey: 'pos.catSnacks', fallback: 'Đồ Ăn Nhẹ' },
   ]);
 
   const [activeCategory, setActiveCategory] = useState('all');
@@ -134,20 +136,20 @@ export function CashierClient() {
   const handleApplyVoucher = async () => {
     const code = voucherCode.trim();
     if (!code) {
-      setVoucherMsg('Nhập mã voucher trước khi áp dụng');
+      setVoucherMsg(t('pos.enterVoucherCode', 'Nhập mã voucher trước khi áp dụng'));
       return;
     }
-    setVoucherMsg('Đang kiểm tra mã...');
+    setVoucherMsg(t('pos.checkingVoucher', 'Đang kiểm tra mã...'));
     const res = await apiFetch('/vouchers/validate', {
       method: 'POST',
       body: JSON.stringify({ code, subTotal }),
     });
     if (res.success && res.data) {
       setVoucherDiscount(Number(res.data.discountAmount) || 0);
-      setVoucherMsg(`Đã giảm ${Number(res.data.discountAmount || 0).toLocaleString('vi-VN')}đ (${res.data.code})`);
+      setVoucherMsg(`${t('pos.discountApplied', 'Đã giảm')} ${Number(res.data.discountAmount || 0).toLocaleString('vi-VN')}đ (${res.data.code})`);
     } else {
       setVoucherDiscount(0);
-      setVoucherMsg(res.message || 'Mã voucher không hợp lệ');
+      setVoucherMsg(res.message || t('pos.voucherInvalid', 'Mã voucher không hợp lệ'));
     }
   };
 
@@ -258,7 +260,7 @@ export function CashierClient() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm món nhanh..."
+                placeholder={t('pos.searchQuick', 'Tìm món nhanh...')}
                 className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
               />
             </div>
@@ -288,7 +290,7 @@ export function CashierClient() {
                     : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
                 }`}
               >
-                {cat.name}
+                {t(cat.nameKey, cat.fallback)}
               </button>
             ))}
           </div>
@@ -335,7 +337,7 @@ export function CashierClient() {
                   : 'bg-zinc-800 text-zinc-400'
               }`}
             >
-              Tại bàn
+              {t('pos.dineIn', 'Tại bàn')}
             </button>
             <button
               type="button"
@@ -346,7 +348,7 @@ export function CashierClient() {
                   : 'bg-zinc-800 text-zinc-400'
               }`}
             >
-              Mang về
+              {t('pos.takeaway', 'Mang về')}
             </button>
           </div>
           <span className="text-xs font-bold text-amber-400">{selectedTable}</span>
@@ -356,7 +358,7 @@ export function CashierClient() {
         <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
           {cartItems.length === 0 ? (
             <div className="h-48 flex items-center justify-center text-zinc-500 text-xs">
-              Chưa có món trong đơn
+              {t('pos.emptyTicket', 'Chưa có món trong đơn')}
             </div>
           ) : (
             cartItems.map((item) => (
@@ -405,7 +407,7 @@ export function CashierClient() {
                     className="text-rose-400 border border-rose-500/20 hover:bg-rose-500/10 rounded-lg px-2 py-1 text-[11px] font-semibold flex items-center gap-1"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Hủy món</span>
+                    <span>{t('pos.cancelItem', 'Hủy món')}</span>
                   </button>
                 </div>
               </div>
@@ -421,7 +423,7 @@ export function CashierClient() {
               <input
                 value={voucherCode}
                 onChange={(e) => setVoucherCode(e.target.value)}
-                placeholder="Mã voucher (VD: GIAM10)"
+                placeholder={t('pos.voucherPlaceholder', 'Mã voucher (VD: GIAM10)')}
                 className="flex-1 bg-zinc-800/60 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500 uppercase"
               />
               <button
@@ -430,7 +432,7 @@ export function CashierClient() {
                 className="px-3 py-2 bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold rounded-xl hover:bg-amber-500/25 flex items-center gap-1"
               >
                 <Tag className="w-3.5 h-3.5" />
-                <span>Áp mã</span>
+                <span>{t('pos.applyVoucher', 'Áp mã')}</span>
               </button>
             </div>
             {voucherMsg && <p className="text-[11px] text-amber-300">{voucherMsg}</p>}
@@ -438,7 +440,7 @@ export function CashierClient() {
               <input
                 value={memberPhone}
                 onChange={(e) => setMemberPhone(e.target.value)}
-                placeholder="SĐT tích điểm (tùy chọn)"
+                placeholder={t('pos.memberPhonePlaceholder', 'SĐT tích điểm (tùy chọn)')}
                 inputMode="tel"
                 className="flex-1 bg-zinc-800/60 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
               />
@@ -447,28 +449,28 @@ export function CashierClient() {
                 onClick={handleLookupMember}
                 className="px-3 py-2 bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-semibold rounded-xl hover:bg-zinc-700"
               >
-                Tra điểm
+                {t('pos.lookupPoints', 'Tra điểm')}
               </button>
             </div>
             {memberInfo && (
               <p className="text-[11px] text-emerald-300">
                 {memberInfo.name}
-                {memberInfo.tier ? ` • Hạng ${memberInfo.tier}` : ''}
-                {memberInfo.points !== undefined ? ` • ${memberInfo.points} điểm` : ''}
+                {memberInfo.tier ? ` • ${t('pos.tier', 'Hạng')} ${memberInfo.tier}` : ''}
+                {memberInfo.points !== undefined ? ` • ${memberInfo.points} ${t('pos.points', 'điểm')}` : ''}
               </p>
             )}
           </div>
           <div className="space-y-1 text-xs text-zinc-400">
             <div className="flex justify-between">
-              <span>Tạm tính</span>
+              <span>{t('receipt.subTotal', 'Tạm tính')}</span>
               <span className="text-zinc-200">{subTotal.toLocaleString('vi-VN')}đ</span>
             </div>
             <div className="flex justify-between">
-              <span>Giảm voucher</span>
+              <span>{t('pos.voucherDiscount', 'Giảm voucher')}</span>
               <span className="text-emerald-400">-{discountAmount.toLocaleString('vi-VN')}đ</span>
             </div>
             <div className="flex justify-between font-bold text-sm text-zinc-100 pt-1 border-t border-zinc-800">
-              <span>Cần thanh toán</span>
+              <span>{t('pos.totalDue', 'Cần thanh toán')}</span>
               <span className="text-amber-400 text-base">
                 {finalTotal.toLocaleString('vi-VN')}đ
               </span>
@@ -481,7 +483,7 @@ export function CashierClient() {
               onClick={() => setCartItems([])}
               className="py-2.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-300 rounded-xl transition"
             >
-              Hủy đơn
+              {t('pos.cancelOrder', 'Hủy đơn')}
             </button>
             <button
               type="button"
@@ -489,7 +491,7 @@ export function CashierClient() {
               onClick={openCheckout}
               className="py-2.5 px-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 font-bold text-zinc-950 text-xs rounded-xl shadow-lg shadow-amber-500/20 transition active:scale-[0.98]"
             >
-              Thanh Toán
+              {t('pos.checkout', 'Thanh Toán')}
             </button>
           </div>
         </div>
@@ -508,7 +510,7 @@ export function CashierClient() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-              <h3 className="font-extrabold text-base text-zinc-100">Xác Nhận Thanh Toán</h3>
+              <h3 className="font-extrabold text-base text-zinc-100">{t('pos.confirmPaymentTitle', 'Xác Nhận Thanh Toán')}</h3>
               <button
                 type="button"
                 onClick={() => setIsPayModalOpen(false)}
@@ -520,7 +522,7 @@ export function CashierClient() {
 
             {/* Total due display */}
             <div className="text-center py-2 bg-zinc-950/60 rounded-2xl border border-zinc-800">
-              <span className="text-xs text-zinc-400">Số tiền cần thu</span>
+              <span className="text-xs text-zinc-400">{t('pos.amountDue', 'Số tiền cần thu')}</span>
               <p className="text-2xl font-black text-amber-400">
                 {finalTotal.toLocaleString('vi-VN')}đ
               </p>
@@ -538,7 +540,7 @@ export function CashierClient() {
                 }`}
               >
                 <DollarSign className="w-4 h-4" />
-                <span>Tiền Mặt</span>
+                <span>{t('pos.cash', 'Tiền Mặt')}</span>
               </button>
               <button
                 type="button"
@@ -550,7 +552,7 @@ export function CashierClient() {
                 }`}
               >
                 <QrCode className="w-4 h-4" />
-                <span>VietQR Động</span>
+                <span>{t('pos.vietqrDynamic', 'VietQR Động')}</span>
               </button>
             </div>
 
@@ -573,12 +575,12 @@ export function CashierClient() {
                     onClick={() => setReceivedCash(finalTotal)}
                     className="py-1.5 px-2 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 text-[11px] font-bold rounded-lg border border-amber-500/40"
                   >
-                    Đủ
+                    {t('pos.exactCash', 'Đủ')}
                   </button>
                 </div>
 
                 <div className="flex justify-between items-center text-xs bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-                  <span className="text-zinc-400">Tiền thừa trả khách:</span>
+                  <span className="text-zinc-400">{t('pos.changeDue', 'Tiền thừa trả khách:')}</span>
                   <span className="font-bold text-emerald-400 text-sm">
                     {changeAmount.toLocaleString('vi-VN')}đ
                   </span>
@@ -595,7 +597,7 @@ export function CashierClient() {
                   level="H"
                 />
                 <span className="text-[10px] text-zinc-600 font-semibold mt-2">
-                  Quét bằng ứng dụng Ngân hàng để thanh toán tự động
+                  {t('pos.scanVietqrInstruction', 'Quét bằng ứng dụng Ngân hàng để thanh toán tự động')}
                 </span>
               </div>
             )}
@@ -603,7 +605,7 @@ export function CashierClient() {
             {isPaidSuccess ? (
               <div className="py-3 text-center text-emerald-400 font-bold text-sm animate-bounce flex items-center justify-center gap-2">
                 <CheckCircle className="w-5 h-5" />
-                <span>Thanh toán thành công! Đang in hóa đơn...</span>
+                <span>{t('pos.paidSuccessMessage', 'Thanh toán thành công! Đang in hóa đơn...')}</span>
               </div>
             ) : (
               <button
@@ -611,7 +613,7 @@ export function CashierClient() {
                 onClick={handleCompletePayment}
                 className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 font-bold text-zinc-950 rounded-xl shadow-lg shadow-emerald-500/20 text-xs transition"
               >
-                Xác Nhận Đã Thu Tiền & In Bill
+                {t('pos.confirmPaidAndPrint', 'Xác Nhận Đã Thu Tiền & In Bill')}
               </button>
             )}
           </div>
