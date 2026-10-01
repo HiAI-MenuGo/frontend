@@ -1,0 +1,72 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save Changes",
+    "search": "Search...",
+    "all": "All",
+    "actions": "Actions",
+    "status": "Status",
+    "price": "Price",
+    "quantity": "Quantity",
+    "total": "Total",
+    "delete": "Delete",
+    "edit": "Edit"
+  },
+  "menu": {
+    "title": "Our Menu",
+    "soldOut": "Sold Out",
+    "addToCart": "Add to Cart",
+    "customize": "Customize",
+    "emptyMenu": "No items found in this category",
+    "size": "Size",
+    "sugar": "Sugar Level",
+    "ice": "Ice Level",
+    "topping": "Toppings",
+    "note": "Special instructions",
+    "notePlaceholder": "e.g., less ice, no sugar..."
+  },
+  "cart": {
+    "title": "Table Cart",
+    "empty": "Your cart is currently empty",
+    "sendOrder": "Send Order to Kitchen",
+    "totalAmount": "Total Due",
+    "subTotal": "Subtotal",
+    "discount": "Discount",
+    "voucherCode": "Promo Code",
+    "applyVoucher": "Apply"
+  },
+  "kds": {
+    "title": "Kitchen Display System",
+    "pending": "Pending",
+    "preparing": "Preparing",
+    "ready": "Ready",
+    "startCooking": "Start Cooking",
+    "markDone": "Mark as Done",
+    "urgent": "RUSH"
+  },
+  "pos": {
+    "title": "Point of Sale (POS)",
+    "quickOrder": "Takeaway / Quick Order",
+    "tables": "Table Floor",
+    "checkout": "Checkout",
+    "cash": "Cash",
+    "vietqr": "VietQR Payment",
+    "receivedAmount": "Cash Received",
+    "change": "Change",
+    "printReceipt": "Print Receipt"
+  },
+  "admin": {
+    "dashboard": "Dashboard",
+    "menu": "Menu Management",
+    "inventory": "Inventory & BOM",
+    "vouchers": "Vouchers & Promos",
+    "zreport": "Shift & Z-Report",
+    "roles": "Staff & RBAC",
+    "branding": "Branding",
+    "tables": "Tables & QR",
+    "settings": "Settings"
+  }
+}

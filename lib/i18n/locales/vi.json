@@ -1,0 +1,72 @@
+{
+  "common": {
+    "loading": "Đang tải...",
+    "confirm": "Xác nhận",
+    "cancel": "Hủy bỏ",
+    "close": "Đóng",
+    "save": "Lưu thay đổi",
+    "search": "Tìm kiếm...",
+    "all": "Tất cả",
+    "actions": "Thao tác",
+    "status": "Trạng thái",
+    "price": "Giá",
+    "quantity": "Số lượng",
+    "total": "Tổng tiền",
+    "delete": "Xóa",
+    "edit": "Chỉnh sửa"
+  },
+  "menu": {
+    "title": "Thực Đơn Món",
+    "soldOut": "Hết Hàng",
+    "addToCart": "Thêm Vào Giỏ",
+    "customize": "Tùy chọn",
+    "emptyMenu": "Hiện chưa có món nào trong danh mục này",
+    "size": "Kích cỡ",
+    "sugar": "Độ ngọt",
+    "ice": "Lượng đá",
+    "topping": "Topping",
+    "note": "Ghi chú món ăn",
+    "notePlaceholder": "Ví dụ: ít ngọt, không lấy đá..."
+  },
+  "cart": {
+    "title": "Giỏ Hàng Của Bàn",
+    "empty": "Giỏ hàng của bạn đang trống",
+    "sendOrder": "Gửi Đơn Đến Bếp",
+    "totalAmount": "Tổng thanh toán",
+    "subTotal": "Tạm tính",
+    "discount": "Giảm giá",
+    "voucherCode": "Mã khuyến mãi",
+    "applyVoucher": "Áp dụng"
+  },
+  "kds": {
+    "title": "Màn Hình Bếp (KDS)",
+    "pending": "Chờ xác nhận",
+    "preparing": "Đang chế biến",
+    "ready": "Đã xong",
+    "startCooking": "Bắt đầu nấu",
+    "markDone": "Hoàn tất món",
+    "urgent": "GẤP"
+  },
+  "pos": {
+    "title": "Điểm Bán Hàng (POS)",
+    "quickOrder": "Bán mang về / Tại quầy",
+    "tables": "Sơ đồ bàn",
+    "checkout": "Thanh toán",
+    "cash": "Tiền mặt",
+    "vietqr": "Quét mã VietQR",
+    "receivedAmount": "Tiền khách đưa",
+    "change": "Tiền thừa trả khách",
+    "printReceipt": "In hóa đơn"
+  },
+  "admin": {
+    "dashboard": "Tổng Quan",
+    "menu": "Quản Lý Thực Đơn",
+    "inventory": "Kho & Định Lượng BOM",
+    "vouchers": "Khuyến Mãi",
+    "zreport": "Chốt Ca & Báo Cáo",
+    "roles": "Nhân Sự & Phân Quyền",
+    "branding": "Nhận Diện Quán",
+    "tables": "Sơ Đồ Bàn & QR",
+    "settings": "Cài Đặt Hệ Thống"
+  }
+}
