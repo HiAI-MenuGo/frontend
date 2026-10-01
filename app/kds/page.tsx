@@ -179,7 +179,7 @@ export default function KdsPage() {
 
     apiFetch(`/orders/${orderId}/status`, {
       method: 'PATCH',
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify({ status: newStatus === 'PREPARING' ? 'CONFIRMED' : newStatus }),
     });
   };
 
@@ -205,7 +205,7 @@ export default function KdsPage() {
 
     apiFetch(`/orders/items/${itemId}/status`, {
       method: 'PATCH',
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify({ orderId, status: newStatus }),
     });
   };
 

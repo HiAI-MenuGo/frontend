@@ -91,10 +91,25 @@ export function CartDrawer({
         totalAmount: totalDue,
       };
 
-      const res = await apiFetch(`/sessions/${tableId}/order`, {
+      let res = await apiFetch(`/sessions/${tableId}/order`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });
+
+      // Fallback: nếu team A chưa mount route /sessions/:tableId/order theo TECHS §9, fallback sang /orders
+      if (!res.success && (res.errorCode === 'NOT_FOUND' || !res.data)) {
+        res = await apiFetch('/orders', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...payload,
+            total: totalDue,
+            tableName,
+            orderType: 'DINE_IN',
+            paymentStatus: 'UNPAID',
+            items: payload.items.map((i) => ({ ...i, id: i.menuItemId })),
+          }),
+        });
+      }
 
       if (res.success || res.data) {
         clearCart();
