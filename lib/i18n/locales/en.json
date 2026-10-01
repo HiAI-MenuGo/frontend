@@ -5,6 +5,7 @@
     "cancel": "Cancel",
     "close": "Close",
     "save": "Save Changes",
+    "saving": "Saving...",
     "search": "Search...",
     "all": "All",
     "actions": "Actions",
@@ -13,7 +14,16 @@
     "quantity": "Quantity",
     "total": "Total",
     "delete": "Delete",
-    "edit": "Edit"
+    "edit": "Edit",
+    "retry": "Retry",
+    "empty": "No data yet",
+    "refresh": "Refresh",
+    "download": "Download",
+    "print": "Print",
+    "create": "Create",
+    "back": "Back",
+    "success": "Success",
+    "connectionError": "Connection error, please retry"
   },
   "menu": {
     "title": "Our Menu",
@@ -67,6 +77,41 @@
     "roles": "Staff & RBAC",
     "branding": "Branding",
     "tables": "Tables & QR",
-    "settings": "Settings"
+    "settings": "Settings",
+    "bank": "VietQR Account",
+    "integrations": "API & Webhooks",
+    "posShort": "POS Cashier",
+    "kdsShort": "Kitchen Display"
+  },
+  "payment": {
+    "payNow": "Pay now with VietQR",
+    "orderStatus": "Track order",
+    "orderSent": "Order sent — waiting for kitchen",
+    "cooking": "Kitchen is preparing your food",
+    "ready": "Your dishes are ready!",
+    "success": "Payment successful!",
+    "addMore": "Order more"
+  },
+  "tables": {
+    "title": "Floor Plan & Table QR",
+    "all": "All Tables",
+    "empty": "Empty",
+    "occupied": "Occupied",
+    "reserved": "Reserved",
+    "noTables": "No tables found",
+    "qrCode": "QR Code",
+    "unknownCapacity": "Capacity unknown",
+    "seats": "seats"
+  },
+  "integrations": {
+    "title": "API Keys & Webhooks",
+    "subtitle": "Integrate external systems (POS, accounting, SePay).",
+    "createKey": "Create key",
+    "keyNamePlaceholder": "Memo name (e.g. accounting-misa)",
+    "keyOnce": "Key is shown only once after creation. Revoke old keys if leaked.",
+    "noKeys": "No API keys yet.",
+    "addEndpoint": "Add",
+    "endpointPlaceholder": "https://partner.vn/webhook/menugo",
+    "noEndpoints": "No endpoints registered. Supported events: order:new, payment:completed, inventory:updated."
   }
 }

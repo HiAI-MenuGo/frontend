@@ -153,10 +153,26 @@ export default function TableMenuPage({ params }: PageProps) {
   const { addItem, getTotalCount, getTotalAmount, setTableContext } = useCartStore();
 
   useEffect(() => {
-    setTableContext('default-tenant', 'default-branch', tableId, `Bàn ${tableId.toUpperCase()}`);
+    // Param có thể là token JWT mã hóa từ standee (C-023) hoặc id thô (dev).
+    const looksLikeToken = tableId.includes('.');
+    const bootstrap = async () => {
+      let tid = 'default-tenant';
+      let bid = 'default-branch';
+      let realTableId = tableId;
+      if (looksLikeToken) {
+        const resolved = await apiFetch<{ tableId: string; tenantId: string; branchId: string }>(
+          `/tables/resolve?token=${encodeURIComponent(tableId)}`
+        );
+        if (resolved.success && resolved.data) {
+          tid = resolved.data.tenantId || tid;
+          bid = resolved.data.branchId || bid;
+          realTableId = resolved.data.tableId || realTableId;
+        }
+      }
+      setTableContext(tid, bid, realTableId, `Bàn ${realTableId.toUpperCase().slice(0, 12)}`);
 
-    // Try fetch menu from API
-    apiFetch(`/menu/${tableId}`).then((res) => {
+      // Try fetch menu from API
+      apiFetch(`/menu/${realTableId}`).then((res) => {
       if (res.success && res.data) {
         if (res.data.items && res.data.items.length > 0) setRawItems(res.data.items);
         if (res.data.categories) setCategories(res.data.categories);
@@ -175,6 +191,8 @@ export default function TableMenuPage({ params }: PageProps) {
         });
       }
     });
+    };
+    bootstrap();
   }, [tableId, setTableContext]);
 
   const handleSelectItem = (item: MenuItemView) => {

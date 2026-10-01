@@ -560,3 +560,10 @@ git push origin feat/be-admin-report-c
   - `vouchers/page.tsx`, `roles/page.tsx`: toggle thất bại rollback + hiện banner lỗi đỏ.
   - Verify: `tsc --noEmit` + `next build` 23 routes xanh.
 - **Còn lại (chấp nhận, theo dõi)**: QR bàn chưa mã hóa JWT (spec C-023, cần backend phối hợp); `order.note` KDS hiển thị 1 dòng (không thuộc diện `item.note` bắt buộc); chart dashboard màu cứng (ngoài P1).
+
+### 01/10/2026 — Vòng P2 (export native, mail invite, chuông KDS, QR JWT, i18n)
+- **Chuông KDS thật**: `public/sounds/new_order.wav` (chime 2 tone tự sinh, 30KB), `kds/page.tsx` phát file qua `Audio`, fallback Web Audio beep.
+- **QR bàn JWT (C-023)**: trang `admin/tables` xin token qua `GET /tables/:id/qr-token` rồi truyền vào `TableQRCode` (`qrToken`, fallback id thô); `table/[tableId]/page.tsx` tự resolve token JWT qua `GET /tables/resolve` trước khi nạp menu (fallback id thô).
+- **Export**: `z-report` đọc tên file từ `Content-Disposition` server (`.xlsx`/`.pdf` native).
+- **i18n (C-024)**: thêm namespace `common` mở rộng + `payment`, `tables`, `integrations` (vi/en); nối `t()` vào `AdminSidebar`, trang tables, trang integrations (đã fix shadow biến `t` trong map).
+- Verify: `tsc --noEmit` + `next build` 23 routes xanh.

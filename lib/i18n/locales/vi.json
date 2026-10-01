@@ -5,6 +5,7 @@
     "cancel": "Hủy bỏ",
     "close": "Đóng",
     "save": "Lưu thay đổi",
+    "saving": "Đang lưu...",
     "search": "Tìm kiếm...",
     "all": "Tất cả",
     "actions": "Thao tác",
@@ -13,7 +14,16 @@
     "quantity": "Số lượng",
     "total": "Tổng tiền",
     "delete": "Xóa",
-    "edit": "Chỉnh sửa"
+    "edit": "Chỉnh sửa",
+    "retry": "Thử lại",
+    "empty": "Chưa có dữ liệu",
+    "refresh": "Làm mới",
+    "download": "Tải xuống",
+    "print": "In",
+    "create": "Tạo mới",
+    "back": "Quay lại",
+    "success": "Thành công",
+    "connectionError": "Lỗi kết nối, thử lại sau"
   },
   "menu": {
     "title": "Thực Đơn Món",
@@ -67,6 +77,41 @@
     "roles": "Nhân Sự & Phân Quyền",
     "branding": "Nhận Diện Quán",
     "tables": "Sơ Đồ Bàn & QR",
-    "settings": "Cài Đặt Hệ Thống"
+    "settings": "Cài Đặt Hệ Thống",
+    "bank": "Tài Khoản VietQR",
+    "integrations": "API & Webhook",
+    "posShort": "POS Thu Ngân",
+    "kdsShort": "Màn Hình Bếp"
+  },
+  "payment": {
+    "payNow": "Thanh toán ngay bằng VietQR",
+    "orderStatus": "Theo dõi đơn",
+    "orderSent": "Đã gửi đơn — Chờ bếp nhận",
+    "cooking": "Bếp đang chế biến món ngon",
+    "ready": "Món đã sẵn sàng phục vụ!",
+    "success": "Thanh toán thành công!",
+    "addMore": "Gọi thêm món"
+  },
+  "tables": {
+    "title": "Sơ Đồ Bàn Ăn & Mã QR Tại Bàn",
+    "all": "Tất Cả Bàn",
+    "empty": "Bàn Trống",
+    "occupied": "Đang Có Khách",
+    "reserved": "Đã Đặt Trước",
+    "noTables": "Không tìm thấy bàn nào",
+    "qrCode": "QR Code",
+    "unknownCapacity": "Chưa rõ sức chứa",
+    "seats": "chỗ"
+  },
+  "integrations": {
+    "title": "API Keys & Webhook",
+    "subtitle": "Tích hợp hệ thống bên ngoài (POS phụ, kế toán, SePay).",
+    "createKey": "Tạo key",
+    "keyNamePlaceholder": "Tên gợi nhớ (VD: ke-toan-misa)",
+    "keyOnce": "Key chỉ hiển thị 1 lần duy nhất sau khi tạo. Thu hồi key cũ khi rò rỉ.",
+    "noKeys": "Chưa có API key nào.",
+    "addEndpoint": "Thêm",
+    "endpointPlaceholder": "https://doi-tac.vn/webhook/menugo",
+    "noEndpoints": "Chưa đăng ký endpoint nào. Events hỗ trợ: order:new, payment:completed, inventory:updated."
   }
 }

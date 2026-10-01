@@ -93,9 +93,20 @@ export default function KdsPage() {
     }
   };
 
-  // Play beep sound using Web Audio API (fallback khi thiếu public/sounds/new_order.mp3)
+  // Chuông báo đơn mới: ưu tiên file /sounds/new_order.wav,
+  // fallback Web Audio beep khi file chưa tải được.
   const playAlertSound = () => {
     if (!soundEnabled || typeof window === 'undefined') return;
+    try {
+      const audio = new Audio('/sounds/new_order.wav');
+      audio.play().catch(() => playBeepFallback());
+    } catch {
+      playBeepFallback();
+    }
+  };
+
+  const playBeepFallback = () => {
+    if (typeof window === 'undefined') return;
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
       const osc = audioCtx.createOscillator();

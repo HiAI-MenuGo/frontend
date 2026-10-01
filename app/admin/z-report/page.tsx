@@ -128,13 +128,15 @@ export default function AdminZReportPage() {
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const serverName = disposition.match(/filename="([^"]+)"/)?.[1];
       if (format === 'pdf') {
-        // HTML in được khổ 80mm — mở tab mới để Ctrl+P.
+        // PDF native khổ 80mm — mở tab mới để xem/in.
         window.open(url, '_blank');
       } else {
         const a = document.createElement('a');
         a.href = url;
-        a.download = `z-report.${format === 'excel' ? 'csv' : format}`;
+        a.download = serverName || `z-report.${format === 'excel' ? 'xlsx' : format}`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
       }
