@@ -1,26 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Users, Plus, Shield, Check, X, Lock } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Users, Plus, Shield, Check, X, Lock, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
 import apiFetch from '../../../lib/api';
 
 interface StaffUser {
   id: string;
   name: string;
   email: string;
-  phone: string;
-  role: 'ADMIN' | 'MANAGER' | 'KITCHEN' | 'CASHIER';
-  branchName: string;
+  phone?: string;
+  role: 'ADMIN' | 'MANAGER' | 'KITCHEN' | 'CASHIER' | 'PLATFORM_ADMIN';
+  branchId?: string | null;
+  branchName?: string;
   isActive: boolean;
+  createdAt?: string;
 }
 
 export default function AdminRolesPage() {
-  const [users, setUsers] = useState<StaffUser[]>([
-    { id: '1', name: 'Trần Hoàng Đạt', email: 'admin@menu-go.vn', phone: '0901234567', role: 'ADMIN', branchName: 'Tất cả chi nhánh', isActive: true },
-    { id: '2', name: 'Lê Thanh Hải', email: 'manager@menu-go.vn', phone: '0912345678', role: 'MANAGER', branchName: 'Chi nhánh Quận 1', isActive: true },
-    { id: '3', name: 'Nguyễn Thị Mai', email: 'cashier@menu-go.vn', phone: '0987654321', role: 'CASHIER', branchName: 'Chi nhánh Quận 1', isActive: true },
-    { id: '4', name: 'Phạm Văn Bếp', email: 'kitchen@menu-go.vn', phone: '0933445566', role: 'KITCHEN', branchName: 'Chi nhánh Quận 1', isActive: true },
-  ]);
+  const [users, setUsers] = useState<StaffUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
@@ -28,26 +28,89 @@ export default function AdminRolesPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'MANAGER' | 'KITCHEN' | 'CASHIER'>('CASHIER');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const toggleUserActive = (id: string) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, isActive: !u.isActive } : u))
-    );
+  const fetchUsers = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await apiFetch<StaffUser[]>('/admin/users');
+      if (res.success && Array.isArray(res.data)) {
+        setUsers(res.data);
+      } else {
+        setError(res.message || 'Không thể tải danh sách nhân viên');
+      }
+    } catch {
+      setError('Lỗi kết nối khi tải danh sách nhân sự');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const toggleUserActive = async (id: string, currentStatus: boolean, userRole: string) => {
+    if (userRole === 'ADMIN') return;
+    try {
+      const nextStatus = !currentStatus;
+      // Optimistic
+      setUsers((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, isActive: nextStatus } : u))
+      );
+
+      const res = await apiFetch(`/admin/users/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive: nextStatus }),
+      });
+
+      if (!res.success) {
+        // Rollback
+        setUsers((prev) =>
+          prev.map((u) => (u.id === id ? { ...u, isActive: currentStatus } : u))
+        );
+      }
+    } catch {
+      // Rollback
+      setUsers((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, isActive: currentStatus } : u))
+      );
+    }
   };
 
-  const handleCreateUser = () => {
-    if (!name || !email || !password) return;
-    const newUser: StaffUser = {
-      id: `u-${Date.now()}`,
-      name,
-      email,
-      phone: phone || '0900000000',
-      role,
-      branchName: 'Chi nhánh Quận 1',
-      isActive: true,
-    };
-    setUsers([...users, newUser]);
-    setIsModalOpen(false);
+  const handleCreateUser = async () => {
+    if (!name.trim() || !email.trim() || !password.trim()) return;
+    setIsSubmitting(true);
+    try {
+      const res = await apiFetch('/admin/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          password: password.trim(),
+          phone: phone.trim() || undefined,
+          role,
+        }),
+      });
+
+      if (res.success) {
+        setMessage(`Đã tạo tài khoản cho nhân viên ${name} thành công`);
+        setIsModalOpen(false);
+        setName('');
+        setEmail('');
+        setPassword('');
+        setPhone('');
+        fetchUsers();
+        setTimeout(() => setMessage(null), 3000);
+      } else {
+        alert(res.message || 'Không thể tạo tài khoản');
+      }
+    } catch {
+      alert('Lỗi kết nối khi tạo tài khoản nhân viên');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -69,6 +132,7 @@ export default function AdminRolesPage() {
             setName('');
             setEmail('');
             setPassword('');
+            setPhone('');
             setIsModalOpen(true);
           }}
           className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 font-bold text-zinc-950 text-xs rounded-xl shadow-lg shadow-amber-500/20 transition active:scale-[0.98]"
@@ -78,62 +142,113 @@ export default function AdminRolesPage() {
         </button>
       </div>
 
+      {message && (
+        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-400 animate-in fade-in">
+          <CheckCircle className="w-4 h-4 shrink-0" />
+          <span>{message}</span>
+        </div>
+      )}
+
       {/* Staff Table */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 shadow-lg space-y-4">
-        <h3 className="font-extrabold text-sm text-zinc-100">Danh Sách Nhân Sự Trong Quán</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-zinc-950/60 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
-              <tr>
-                <th className="py-3 px-3">Họ Và Tên</th>
-                <th className="py-3 px-3">Email Đăng Nhập</th>
-                <th className="py-3 px-3">Số Điện Thoại</th>
-                <th className="py-3 px-3">Chi Nhánh</th>
-                <th className="py-3 px-3">Vai Trò (Role)</th>
-                <th className="py-3 px-3 text-center">Trạng Thái</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800/60">
-              {users.map((u) => (
-                <tr key={u.id} className="hover:bg-zinc-800/30">
-                  <td className="py-3 px-3 font-bold text-zinc-100">{u.name}</td>
-                  <td className="py-3 px-3 font-mono text-zinc-300">{u.email}</td>
-                  <td className="py-3 px-3 text-zinc-400">{u.phone}</td>
-                  <td className="py-3 px-3 text-zinc-300">{u.branchName}</td>
-                  <td className="py-3 px-3">
-                    <span
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase ${
-                        u.role === 'ADMIN'
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                          : u.role === 'MANAGER'
-                          ? 'bg-sky-500/10 text-sky-400 border border-sky-500/30'
-                          : u.role === 'KITCHEN'
-                          ? 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
-                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                      }`}
-                    >
-                      {u.role}
-                    </span>
-                  </td>
-                  <td className="py-3 px-3 text-center">
-                    <button
-                      type="button"
-                      disabled={u.role === 'ADMIN'}
-                      onClick={() => toggleUserActive(u.id)}
-                      className={`px-3 py-1 rounded-full text-[10px] font-bold transition border ${
-                        u.isActive
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                          : 'bg-zinc-800 text-zinc-500 border-zinc-700'
-                      } ${u.role === 'ADMIN' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {u.isActive ? 'HOẠT ĐỘNG' : 'TẠM KHÓA'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex items-center justify-between">
+          <h3 className="font-extrabold text-sm text-zinc-100">
+            Danh Sách Nhân Sự Trong Quán ({users.length} tài khoản)
+          </h3>
+          <button
+            type="button"
+            onClick={fetchUsers}
+            disabled={isLoading}
+            className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-white transition disabled:opacity-50"
+            title="Làm mới"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
+          </button>
         </div>
+
+        {/* Loading Skeleton */}
+        {isLoading ? (
+          <div className="space-y-3 animate-pulse">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-12 bg-zinc-950/60 border border-zinc-800/80 rounded-xl" />
+            ))}
+          </div>
+        ) : error ? (
+          /* Error State */
+          <div className="p-8 text-center space-y-3">
+            <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
+            <p className="text-xs text-zinc-300 font-semibold">{error}</p>
+            <button
+              type="button"
+              onClick={fetchUsers}
+              className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs rounded-xl inline-flex items-center gap-1.5 transition"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Thử lại</span>
+            </button>
+          </div>
+        ) : users.length === 0 ? (
+          /* Empty State */
+          <div className="p-12 text-center space-y-2">
+            <Users className="w-10 h-10 text-zinc-600 mx-auto" />
+            <p className="font-bold text-zinc-300 text-sm">Chưa có tài khoản nhân sự</p>
+            <p className="text-xs text-zinc-500">
+              Nhấn nút &quot;Thêm Nhân Viên&quot; để tạo tài khoản phân quyền đầu tiên.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-zinc-950/60 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
+                <tr>
+                  <th className="py-3 px-3">Họ Và Tên</th>
+                  <th className="py-3 px-3">Email Đăng Nhập</th>
+                  <th className="py-3 px-3">Số Điện Thoại</th>
+                  <th className="py-3 px-3">Vai Trò (Role)</th>
+                  <th className="py-3 px-3 text-center">Trạng Thái</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800/60">
+                {users.map((u) => (
+                  <tr key={u.id} className="hover:bg-zinc-800/30">
+                    <td className="py-3 px-3 font-bold text-zinc-100">{u.name}</td>
+                    <td className="py-3 px-3 font-mono text-zinc-300">{u.email}</td>
+                    <td className="py-3 px-3 text-zinc-400">{u.phone || 'Chưa cập nhật'}</td>
+                    <td className="py-3 px-3">
+                      <span
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase ${
+                          u.role === 'ADMIN'
+                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                            : u.role === 'MANAGER'
+                            ? 'bg-sky-500/10 text-sky-400 border border-sky-500/30'
+                            : u.role === 'KITCHEN'
+                            ? 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
+                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                        }`}
+                      >
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      <button
+                        type="button"
+                        disabled={u.role === 'ADMIN'}
+                        onClick={() => toggleUserActive(u.id, u.isActive, u.role)}
+                        className={`px-3 py-1 rounded-full text-[10px] font-bold transition border ${
+                          u.isActive
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                            : 'bg-zinc-800 text-zinc-500 border-zinc-700'
+                        } ${u.role === 'ADMIN' ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                      >
+                        {u.isActive ? 'HOẠT ĐỘNG' : 'TẠM KHÓA'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* RBAC Permission Matrix Reference */}
@@ -181,83 +296,85 @@ export default function AdminRolesPage() {
                 onClick={() => setIsModalOpen(false)}
                 className="p-1 text-zinc-400 hover:text-white"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="text-zinc-300 font-semibold">Họ và tên</label>
+                <label className="font-semibold text-zinc-300">Họ và tên</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ví dụ: Nguyễn Văn B"
-                  className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 focus:outline-none"
+                  placeholder="Vd: Nguyễn Văn A"
+                  className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="text-zinc-300 font-semibold">Email đăng nhập</label>
+                <label className="font-semibold text-zinc-300">Email đăng nhập</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="user@menu-go.vn"
-                  className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 focus:outline-none"
+                  placeholder="nhanvien@menu-go.vn"
+                  className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="text-zinc-300 font-semibold">Số điện thoại</label>
+                <label className="font-semibold text-zinc-300">Số điện thoại</label>
                 <input
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="0901234567"
-                  className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 focus:outline-none"
+                  className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="text-zinc-300 font-semibold">Mật khẩu ban đầu</label>
+                <label className="font-semibold text-zinc-300">Mật khẩu khởi tạo</label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Tối thiểu 6 ký tự"
-                  className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 focus:outline-none"
+                  className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="text-zinc-300 font-semibold">Vai trò phụ trách</label>
+                <label className="font-semibold text-zinc-300">Vai trò (Role)</label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as any)}
                   className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 focus:outline-none"
                 >
-                  <option value="CASHIER">Thu Ngân (CASHIER)</option>
-                  <option value="KITCHEN">Đầu Bếp / Pha Chế (KITCHEN)</option>
-                  <option value="MANAGER">Quản Lý Ca / Chi Nhánh (MANAGER)</option>
+                  <option value="CASHIER">CASHIER — Nhân viên Thu Ngân POS</option>
+                  <option value="KITCHEN">KITCHEN — Nhân viên Bếp / Bar KDS</option>
+                  <option value="MANAGER">MANAGER — Quản Lý Ca Chi Nhánh</option>
                 </select>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-zinc-800 flex justify-end gap-2 text-xs">
+            <div className="pt-3 border-t border-zinc-800 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-zinc-800 text-zinc-300 rounded-xl"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-xl"
               >
                 Hủy
               </button>
               <button
                 type="button"
                 onClick={handleCreateUser}
-                className="px-4 py-2 bg-amber-500 font-bold text-zinc-950 rounded-xl shadow"
+                disabled={isSubmitting || !name.trim() || !email.trim() || !password.trim()}
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 font-bold text-zinc-950 text-xs rounded-xl shadow-lg shadow-amber-500/20 disabled:opacity-50"
               >
-                Tạo Tài Khoản
+                {isSubmitting ? 'Đang tạo...' : 'Tạo Tài Khoản'}
               </button>
             </div>
           </div>
