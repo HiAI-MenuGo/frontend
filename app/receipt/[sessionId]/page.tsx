@@ -3,6 +3,7 @@
 import React, { use } from 'react';
 import { Printer, CheckCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { useI18n } from '../../../context/i18nContext';
 
 interface PageProps {
   params: Promise<{ sessionId: string }>;
@@ -11,6 +12,7 @@ interface PageProps {
 export default function ReceiptPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const sessionId = resolvedParams.sessionId;
+  const { t } = useI18n();
 
   const receiptData = {
     restaurantName: 'HiAI-MenuGo Flagship Store',
@@ -46,7 +48,7 @@ export default function ReceiptPage({ params }: PageProps) {
           className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Trang chủ</span>
+          <span>{t('common.back', 'Trang chủ')}</span>
         </Link>
         <button
           type="button"
@@ -54,7 +56,7 @@ export default function ReceiptPage({ params }: PageProps) {
           className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold rounded-xl text-xs shadow-md transition"
         >
           <Printer className="w-4 h-4" />
-          <span>In Hóa Đơn</span>
+          <span>{t('receipt.printButton', 'In Hóa Đơn')}</span>
         </button>
       </div>
 
@@ -75,19 +77,19 @@ export default function ReceiptPage({ params }: PageProps) {
         {/* Metadata */}
         <div className="py-3 border-b border-dashed border-zinc-300 space-y-1 text-[11px] text-zinc-600">
           <div className="flex justify-between">
-            <span>Số HĐ:</span>
+            <span>{t('receipt.billCode', 'Số HĐ')}:</span>
             <span className="font-bold text-zinc-900">{receiptData.receiptNo}</span>
           </div>
           <div className="flex justify-between">
-            <span>Vị trí:</span>
+            <span>{t('receipt.table', 'Vị trí')}:</span>
             <span className="font-bold text-zinc-900">{receiptData.table}</span>
           </div>
           <div className="flex justify-between">
-            <span>Thời gian:</span>
+            <span>{t('receipt.time', 'Thời gian')}:</span>
             <span>{receiptData.time} - {receiptData.date}</span>
           </div>
           <div className="flex justify-between">
-            <span>Thu ngân:</span>
+            <span>{t('receipt.cashier', 'Thu ngân')}:</span>
             <span>{receiptData.cashier}</span>
           </div>
         </div>
@@ -110,28 +112,28 @@ export default function ReceiptPage({ params }: PageProps) {
         {/* Totals */}
         <div className="py-3 border-b-2 border-zinc-900 space-y-1.5">
           <div className="flex justify-between text-zinc-600">
-            <span>Tạm tính:</span>
+            <span>{t('receipt.subTotal', 'Tạm tính')}:</span>
             <span>{receiptData.subTotal.toLocaleString('vi-VN')}đ</span>
           </div>
           {receiptData.discount > 0 && (
             <div className="flex justify-between text-emerald-600 font-medium">
-              <span>Khuyến mãi ({receiptData.voucherCode}):</span>
+              <span>{t('cart.discount', 'Khuyến mãi')} ({receiptData.voucherCode}):</span>
               <span>-{receiptData.discount.toLocaleString('vi-VN')}đ</span>
             </div>
           )}
           <div className="flex justify-between text-sm font-extrabold text-zinc-900 pt-1">
-            <span>TỔNG CỘNG:</span>
+            <span>{t('receipt.total', 'TỔNG CỘNG')}:</span>
             <span className="text-base">{receiptData.finalTotal.toLocaleString('vi-VN')}đ</span>
           </div>
           <div className="flex justify-between text-[11px] text-zinc-600 pt-1">
-            <span>Hình thức:</span>
+            <span>{t('receipt.paymentMethod', 'Hình thức')}:</span>
             <span className="font-medium text-zinc-900">{receiptData.paymentMethod}</span>
           </div>
         </div>
 
         {/* Footer */}
         <div className="pt-4 text-center space-y-1 text-[11px] text-zinc-500">
-          <p className="font-semibold text-zinc-800">Cảm ơn Quý Khách & Hẹn Gặp Lại!</p>
+          <p className="font-semibold text-zinc-800">{t('receipt.thankYou', 'Cảm ơn Quý Khách & Hẹn Gặp Lại!')}</p>
           <p className="text-[10px]">Powered by HiAI-MenuGo SaaS</p>
         </div>
       </div>

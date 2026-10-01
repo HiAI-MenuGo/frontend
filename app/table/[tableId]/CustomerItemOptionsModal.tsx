@@ -5,6 +5,7 @@ import { MenuItemView } from '../hooks/useMenuSoldOut';
 import { SelectedModifier } from '../../../stores/cart.store';
 import { X, Plus, Minus, Check } from 'lucide-react';
 import Image from 'next/image';
+import { useI18n } from '../../../context/i18nContext';
 
 interface CustomerItemOptionsModalProps {
   item: MenuItemView | null;
@@ -21,6 +22,7 @@ export function CustomerItemOptionsModal({
   onAddToCart,
   primaryColor = '#f59e0b',
 }: CustomerItemOptionsModalProps) {
+  const { t } = useI18n();
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string[]>>({});
   const [note, setNote] = useState('');
@@ -98,71 +100,70 @@ export function CustomerItemOptionsModal({
       });
     });
 
-    onAddToCart(item, quantity, chosenModifiers, note);
+    onAddToCart(item, quantity, chosenModifiers, note.trim());
     onClose();
   };
 
+  // Filter modifier groups: food items hide Đường & Đá
+  const visibleModifierGroups = (item.modifierGroups || []).filter(({ modifierGroup: group }) => {
+    const gName = (group.name || '').toLowerCase();
+    const isDrinkExclusive =
+      gName.includes('đường') ||
+      gName.includes('sugar') ||
+      gName.includes('đá') ||
+      gName.includes('ice');
+
+    if (!isDrink && isDrinkExclusive) {
+      return false;
+    }
+    return true;
+  });
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full sm:max-w-lg bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-2xl overflow-hidden max-h-[90vh] flex flex-col shadow-2xl">
-        {/* Header & Image */}
-        <div className="relative">
-          {item.imageUrl && (
-            <div className="relative w-full h-48 bg-zinc-800">
-              <Image
-                src={item.imageUrl}
-                alt={item.name}
-                fill
-                className="object-cover"
-                sizes="(max-width: 640px) 100vw, 500px"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-black/30" />
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-zinc-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full sm:max-w-lg bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-3xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl">
+        {/* Header with image */}
+        <div className="relative h-44 sm:h-52 w-full bg-zinc-800">
+          {item.imageUrl ? (
+            <Image
+              src={item.imageUrl}
+              alt={item.name}
+              fill
+              loading="lazy"
+              sizes="(max-width: 640px) 100vw, 512px"
+              className="object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-zinc-600 text-sm">
+              No Image
             </div>
           )}
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-3 right-3 p-2 bg-zinc-950/70 hover:bg-zinc-950 text-zinc-300 rounded-full transition"
+            className="absolute top-3 right-3 p-2 bg-zinc-950/70 hover:bg-zinc-950 text-zinc-300 hover:text-white rounded-full backdrop-blur-md transition"
           >
             <X className="w-5 h-5" />
           </button>
-        </div>
-
-        {/* Title & Price */}
-        <div className="p-4 sm:p-5 border-b border-zinc-800">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h3 className="text-xl font-bold text-zinc-100">{item.name}</h3>
-              {item.description && (
-                <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{item.description}</p>
-              )}
-            </div>
-            <span className="text-lg font-bold text-amber-400 whitespace-nowrap">
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-zinc-900 via-zinc-900/60 to-transparent p-4 flex flex-col justify-end">
+            <h3 className="text-lg sm:text-xl font-bold text-zinc-100">{item.name}</h3>
+            <span className="text-amber-400 font-bold text-base mt-0.5">
               {item.basePrice.toLocaleString('vi-VN')}đ
             </span>
           </div>
         </div>
 
         {/* Scrollable Modifier Groups */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6">
-          {item.modifierGroups?.map(({ modifierGroup: group }) => {
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-5 flex-1">
+          {item.description && (
+            <p className="text-xs text-zinc-400 leading-relaxed bg-zinc-800/40 p-3 rounded-xl border border-zinc-800">
+              {item.description}
+            </p>
+          )}
+
+          {visibleModifierGroups.map(({ modifierGroup: group }) => {
             const isSingle = group.maxSelect === 1;
             const selectedIds = selectedOptions[group.id] || [];
-
-            // Filter out sugar/ice if item is food (so khớp chữ hoa/thường + dấu).
-            const groupKey = group.name.toLowerCase();
-            const isSugarIceGroup =
-              groupKey.includes('đường') ||
-              groupKey.includes('duong') ||
-              groupKey.includes('sugar') ||
-              groupKey.includes('ngọt') ||
-              groupKey.includes('ngot') ||
-              groupKey.includes('đá') ||
-              groupKey.includes('da') ||
-              groupKey.includes('ice');
-            if (!isDrink && isSugarIceGroup) {
-              return null;
-            }
 
             return (
               <div key={group.id} className="space-y-2.5">
@@ -209,12 +210,14 @@ export function CustomerItemOptionsModal({
 
           {/* Note Input */}
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-zinc-200">Ghi chú cho bếp</label>
+            <label className="text-sm font-semibold text-zinc-200">
+              {t('menu.note', 'Ghi chú cho bếp')}
+            </label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
-              placeholder="Ví dụ: ít ngọt • không lấy ống hút nhựa..."
+              placeholder={t('menu.notePlaceholder', 'Ví dụ: ít ngọt • không lấy ống hút nhựa...')}
               className="w-full bg-zinc-800/60 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500 resize-none"
             />
           </div>
@@ -249,7 +252,7 @@ export function CustomerItemOptionsModal({
             style={{ backgroundColor: primaryColor }}
             className="flex-1 py-3 px-4 rounded-xl font-bold text-zinc-950 flex items-center justify-between shadow-lg shadow-amber-500/20 active:scale-[0.98] transition hover:brightness-105"
           >
-            <span>Thêm vào giỏ</span>
+            <span>{t('menu.addToCart', 'Thêm vào giỏ')}</span>
             <span>{totalPrice.toLocaleString('vi-VN')}đ</span>
           </button>
         </div>

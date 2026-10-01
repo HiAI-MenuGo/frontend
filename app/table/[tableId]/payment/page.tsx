@@ -6,6 +6,7 @@ import { getSocket } from '../../../../lib/socket';
 import { ArrowLeft, CheckCircle2, Copy, ShieldCheck, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useI18n } from '../../../../context/i18nContext';
 
 interface PageProps {
   params: Promise<{ tableId: string }>;
@@ -15,6 +16,7 @@ export default function TablePaymentPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const tableId = resolvedParams.tableId;
   const router = useRouter();
+  const { t } = useI18n();
 
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState(890); // ~15 minutes
@@ -41,7 +43,7 @@ export default function TablePaymentPage({ params }: PageProps) {
 
     const socket = getSocket();
 
-    const handlePaymentCompleted = (payload: any) => {
+    const handlePaymentCompleted = () => {
       setIsPaid(true);
       setTimeout(() => {
         router.push(`/receipt/SES-DEMO-${tableId.toUpperCase()}`);
@@ -71,8 +73,10 @@ export default function TablePaymentPage({ params }: PageProps) {
         <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center text-emerald-400 mb-4 animate-bounce">
           <CheckCircle2 className="w-10 h-10" />
         </div>
-        <h2 className="text-2xl font-bold text-white mb-2">Thanh toán thành công!</h2>
-        <p className="text-sm text-zinc-400">Đang chuyển tới hóa đơn điện tử...</p>
+        <h2 className="text-2xl font-bold text-white mb-2">
+          {t('payment.success', 'Thanh toán thành công!')}
+        </h2>
+        <p className="text-sm text-zinc-400">{t('common.loading', 'Đang chuyển tới hóa đơn điện tử...')}</p>
       </div>
     );
   }
@@ -86,10 +90,10 @@ export default function TablePaymentPage({ params }: PageProps) {
           className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Quay lại đơn</span>
+          <span>{t('common.back', 'Quay lại đơn')}</span>
         </Link>
         <span className="text-xs font-semibold px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full">
-          Bàn {tableId.toUpperCase()}
+          {t('table.table', 'Bàn')} {tableId.toUpperCase()}
         </span>
       </div>
 
@@ -99,7 +103,7 @@ export default function TablePaymentPage({ params }: PageProps) {
         <div className="flex items-center gap-1.5 text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full">
           <Clock className="w-3.5 h-3.5 text-amber-500" />
           <span>
-            Hết hạn sau: <strong>{minutes}:{seconds < 10 ? `0${seconds}` : seconds}</strong>
+            {t('common.status', 'Hết hạn sau')}: <strong>{minutes}:{seconds < 10 ? `0${seconds}` : seconds}</strong>
           </span>
         </div>
 
@@ -113,17 +117,17 @@ export default function TablePaymentPage({ params }: PageProps) {
         </div>
 
         <p className="text-xs text-zinc-400 text-center max-w-xs">
-          Mở ứng dụng Ngân hàng bất kỳ hoặc Ví điện tử để quét mã thanh toán tự động
+          {t('pos.scanToPay', 'Mở ứng dụng Ngân hàng bất kỳ hoặc Ví điện tử để quét mã thanh toán tự động')}
         </p>
 
         {/* Bank Transfer Details Box */}
         <div className="w-full bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 space-y-2.5 text-xs">
           <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
-            <span className="text-zinc-400">Ngân hàng</span>
+            <span className="text-zinc-400">{t('bank.bankName', 'Ngân hàng')}</span>
             <span className="font-semibold text-zinc-200">{bankInfo.bankName}</span>
           </div>
           <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
-            <span className="text-zinc-400">Số tài khoản</span>
+            <span className="text-zinc-400">{t('bank.accountNo', 'Số tài khoản')}</span>
             <div className="flex items-center gap-2">
               <span className="font-mono font-bold text-amber-400">{bankInfo.accountNo}</span>
               <button
@@ -136,17 +140,17 @@ export default function TablePaymentPage({ params }: PageProps) {
             </div>
           </div>
           <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
-            <span className="text-zinc-400">Chủ tài khoản</span>
+            <span className="text-zinc-400">{t('bank.accountName', 'Chủ tài khoản')}</span>
             <span className="font-semibold text-zinc-200">{bankInfo.accountName}</span>
           </div>
           <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
-            <span className="text-zinc-400">Số tiền</span>
+            <span className="text-zinc-400">{t('common.price', 'Số tiền')}</span>
             <span className="font-bold text-amber-400 text-sm">
               {bankInfo.amount.toLocaleString('vi-VN')}đ
             </span>
           </div>
           <div className="flex justify-between items-center py-1">
-            <span className="text-zinc-400">Nội dung chuyển</span>
+            <span className="text-zinc-400">{t('menu.note', 'Nội dung chuyển')}</span>
             <div className="flex items-center gap-2">
               <span className="font-mono font-bold text-emerald-400">{bankInfo.memo}</span>
               <button
@@ -162,7 +166,7 @@ export default function TablePaymentPage({ params }: PageProps) {
 
         {copied && (
           <div className="text-xs text-emerald-400 font-medium animate-in fade-in">
-            ✓ Đã sao chép vào bộ nhớ tạm!
+            ✓ {t('common.success', 'Đã sao chép vào bộ nhớ tạm!')}
           </div>
         )}
       </div>

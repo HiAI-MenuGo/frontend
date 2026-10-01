@@ -3,6 +3,7 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { splitNoteLines } from '../../lib/format-note';
+import { useI18n } from '../../context/i18nContext';
 
 export interface ReceiptPrintItem {
   name: string;
@@ -41,14 +42,16 @@ export function ReceiptPrintTemplate({
   loyaltyPoints,
   vietqrUrl,
 }: ReceiptPrintTemplateProps) {
+  const { t } = useI18n();
+
   return (
     <div className="print-area bg-white text-black p-2 font-mono text-xs">
       <div className="text-center space-y-0.5 pb-2 border-b border-dashed border-black">
         <h2 className="font-black text-base uppercase">{restaurantName}</h2>
         {address && <p>{address}</p>}
-        <p>Mã bill: {billCode}</p>
-        {tableName && <p>Bàn: {tableName}</p>}
-        {cashierName && <p>Thu ngân: {cashierName}</p>}
+        <p>{t('receipt.billCode', 'Mã bill')}: {billCode}</p>
+        {tableName && <p>{t('receipt.table', 'Bàn')}: {tableName}</p>}
+        {cashierName && <p>{t('receipt.cashier', 'Thu ngân')}: {cashierName}</p>}
         <p>{new Date().toLocaleString('vi-VN')}</p>
       </div>
       <div className="py-2 space-y-1.5 border-b border-dashed border-black">
@@ -73,28 +76,30 @@ export function ReceiptPrintTemplate({
       </div>
       <div className="py-2 space-y-0.5 border-b border-dashed border-black">
         <div className="flex justify-between">
-          <span>Tạm tính:</span>
+          <span>{t('receipt.subTotal', 'Tạm tính')}:</span>
           <span>{subTotal.toLocaleString('vi-VN')}</span>
         </div>
         {discount > 0 && (
           <div className="flex justify-between">
-            <span>Giảm giá:</span>
+            <span>{t('receipt.discount', 'Giảm giá')}:</span>
             <span>-{discount.toLocaleString('vi-VN')}</span>
           </div>
         )}
         <div className="flex justify-between font-black text-sm">
-          <span>TỔNG:</span>
+          <span>{t('receipt.total', 'TỔNG')}:</span>
           <span>{total.toLocaleString('vi-VN')}đ</span>
         </div>
         {payMethod && (
           <div className="flex justify-between">
-            <span>Thanh toán:</span>
+            <span>{t('receipt.paymentMethod', 'Thanh toán')}:</span>
             <span>{payMethod}</span>
           </div>
         )}
-        {loyaltyPoints !== undefined && <p>Điểm tích lũy: +{loyaltyPoints}</p>}
+        {loyaltyPoints !== undefined && (
+          <p>{t('receipt.loyaltyPoints', 'Điểm tích lũy')}: +{loyaltyPoints}</p>
+        )}
       </div>
-      <p className="text-center py-2">Cảm ơn quý khách & hẹn gặp lại!</p>
+      <p className="text-center py-2">{t('receipt.thankYou', 'Cảm ơn quý khách & hẹn gặp lại!')}</p>
       {vietqrUrl && (
         <div className="flex justify-center py-1">
           <QRCodeSVG value={vietqrUrl} size={120} level="H" includeMargin />
