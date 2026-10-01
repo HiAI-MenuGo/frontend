@@ -7,15 +7,18 @@ import apiFetch from '../../../lib/api';
 
 interface FloorTable {
   id: string;
+  code?: string;
   name: string;
   status: 'EMPTY' | 'OCCUPIED' | 'RESERVED';
   branchId?: string;
+  capacity?: number;
   customerCount?: number;
   totalAmount?: number;
 }
 
 export default function AdminTablesPage() {
   const [tables, setTables] = useState<FloorTable[]>([]);
+  const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
@@ -40,6 +43,10 @@ export default function AdminTablesPage() {
 
   useEffect(() => {
     fetchTables();
+    // Lấy logo quán để chèn giữa QR standee (TableQRCode level H).
+    apiFetch('/branding').then((res) => {
+      if (res.success && res.data?.logoUrl) setLogoUrl(res.data.logoUrl);
+    });
   }, [fetchTables]);
 
   const filtered = tables.filter((t) => {
@@ -162,10 +169,14 @@ export default function AdminTablesPage() {
                 </div>
 
                 <div className="pt-4 border-t border-zinc-800/80 flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-[11px] text-zinc-400">
-                    <Users className="w-3 h-3 text-zinc-500" />
-                    <span>{t.customerCount || 4} chỗ</span>
-                  </div>
+                  {(t.capacity ?? t.customerCount) !== undefined ? (
+                    <div className="flex items-center gap-1 text-[11px] text-zinc-400">
+                      <Users className="w-3 h-3 text-zinc-500" />
+                      <span>{t.capacity ?? t.customerCount} chỗ</span>
+                    </div>
+                  ) : (
+                    <span className="text-[11px] text-zinc-600">Chưa rõ sức chứa</span>
+                  )}
 
                   <button
                     type="button"
@@ -202,9 +213,10 @@ export default function AdminTablesPage() {
             </div>
 
             <TableQRCode
-              tableId={selectedTableForQr.id.replace('tbl-', '')}
-              tableCode={selectedTableForQr.name}
+              tableId={selectedTableForQr.id}
+              tableCode={selectedTableForQr.code || selectedTableForQr.name}
               tableName={selectedTableForQr.name}
+              logoUrl={logoUrl}
             />
           </div>
         </div>

@@ -21,6 +21,7 @@ export default function AdminRolesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
@@ -66,16 +67,20 @@ export default function AdminRolesPage() {
       });
 
       if (!res.success) {
-        // Rollback
+        // Rollback + báo lỗi để user biết thao tác chưa được lưu
         setUsers((prev) =>
           prev.map((u) => (u.id === id ? { ...u, isActive: currentStatus } : u))
         );
+        setActionError(res.message || 'Đổi trạng thái nhân viên thất bại — đã hoàn tác.');
+        setTimeout(() => setActionError(null), 4000);
       }
     } catch {
       // Rollback
       setUsers((prev) =>
         prev.map((u) => (u.id === id ? { ...u, isActive: currentStatus } : u))
       );
+      setActionError('Lỗi kết nối — đổi trạng thái nhân viên thất bại, đã hoàn tác.');
+      setTimeout(() => setActionError(null), 4000);
     }
   };
 
@@ -141,6 +146,13 @@ export default function AdminRolesPage() {
           <span>Thêm Nhân Viên</span>
         </button>
       </div>
+
+      {actionError && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-red-400 animate-in fade-in">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{actionError}</span>
+        </div>
+      )}
 
       {message && (
         <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-400 animate-in fade-in">

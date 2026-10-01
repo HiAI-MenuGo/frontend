@@ -13,8 +13,9 @@ interface BrandingBankData {
 
 export default function AdminBankSettingsPage() {
   const [bankCode, setBankCode] = useState('MB');
-  const [accountNo, setAccountNo] = useState('0901234567');
-  const [accountName, setAccountName] = useState('CONG TY CO PHAN HIAI MENUGO');
+  const [accountNo, setAccountNo] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [isConfigured, setIsConfigured] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -28,8 +29,13 @@ export default function AdminBankSettingsPage() {
       const res = await apiFetch<BrandingBankData>('/branding');
       if (res.success && res.data) {
         if (res.data.bankCode) setBankCode(res.data.bankCode);
-        if (res.data.bankAccountNo) setAccountNo(res.data.bankAccountNo);
+        if (res.data.bankAccountNo) {
+          setAccountNo(res.data.bankAccountNo);
+          setIsConfigured(true);
+        }
         if (res.data.bankAccountName) setAccountName(res.data.bankAccountName);
+      } else if (res.errorCode !== 'NETWORK_ERROR') {
+        setError(res.message || 'Không thể tải cấu hình ngân hàng');
       }
     } catch {
       setError('Lỗi kết nối khi tải cấu hình ngân hàng');
@@ -56,6 +62,7 @@ export default function AdminBankSettingsPage() {
 
       if (res.success) {
         setMessage('Đã lưu cấu hình tài khoản VietQR thành công!');
+        setIsConfigured(true);
         setTimeout(() => setMessage(null), 3000);
       } else {
         alert(res.message || 'Không thể lưu thông tin ngân hàng');
@@ -193,21 +200,29 @@ export default function AdminBankSettingsPage() {
               <span className="text-xs text-zinc-500">Mẫu QR hiển thị cho khách</span>
             </div>
 
-            <div className="relative w-48 h-48 bg-white p-2 rounded-2xl shadow-inner flex items-center justify-center overflow-hidden">
-              <Image
-                src={previewQrUrl}
-                alt="VietQR Preview"
-                width={192}
-                height={192}
-                unoptimized
-                className="w-full h-full object-contain"
-              />
-            </div>
+            {!isConfigured || !accountNo ? (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-xs text-amber-300">
+                Chưa cấu hình tài khoản ngân hàng — VietQR sẽ không hoạt động cho đến khi bạn lưu thông tin bên trái.
+              </div>
+            ) : (
+              <>
+                <div className="relative w-48 h-48 bg-white p-2 rounded-2xl shadow-inner flex items-center justify-center overflow-hidden">
+                  <Image
+                    src={previewQrUrl}
+                    alt="VietQR Preview"
+                    width={192}
+                    height={192}
+                    unoptimized
+                    className="w-full h-full object-contain"
+                  />
+                </div>
 
-            <div className="space-y-1 text-xs">
-              <p className="font-bold text-zinc-200">{bankCode} - {accountNo}</p>
-              <p className="text-[11px] text-zinc-400">{accountName}</p>
-            </div>
+                <div className="space-y-1 text-xs">
+                  <p className="font-bold text-zinc-200">{bankCode} - {accountNo}</p>
+                  <p className="text-[11px] text-zinc-400">{accountName}</p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

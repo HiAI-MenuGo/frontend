@@ -27,6 +27,7 @@ export default function AdminVouchersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Form states
   const [newCode, setNewCode] = useState('');
@@ -72,16 +73,20 @@ export default function AdminVouchersPage() {
       });
 
       if (!res.success) {
-        // Rollback
+        // Rollback + báo lỗi để user biết thao tác chưa được lưu
         setVouchers((prev) =>
           prev.map((v) => (v.id === id ? { ...v, isActive: currentStatus } : v))
         );
+        setActionError(res.message || 'Đổi trạng thái voucher thất bại — đã hoàn tác.');
+        setTimeout(() => setActionError(null), 4000);
       }
     } catch {
       // Rollback
       setVouchers((prev) =>
         prev.map((v) => (v.id === id ? { ...v, isActive: currentStatus } : v))
       );
+      setActionError('Lỗi kết nối — đổi trạng thái voucher thất bại, đã hoàn tác.');
+      setTimeout(() => setActionError(null), 4000);
     }
   };
 
@@ -175,6 +180,13 @@ export default function AdminVouchersPage() {
           <span>Tạo Voucher Mới</span>
         </button>
       </div>
+
+      {actionError && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-red-400 animate-in fade-in">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{actionError}</span>
+        </div>
+      )}
 
       {message && (
         <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-400 animate-in fade-in">

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Trash2, Save, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Save, Sparkles, Lock } from 'lucide-react';
+import apiFetch from '../../lib/api';
 
 interface RecipeItem {
   id: string;
@@ -11,8 +12,13 @@ interface RecipeItem {
   quantity: number;
 }
 
-export function BomEditor() {
-  const [selectedItemName, setSelectedItemName] = useState('Trà Đào Cam Sả');
+interface BomEditorProps {
+  menuItemId?: string;
+  itemName?: string;
+}
+
+export function BomEditor({ menuItemId, itemName = 'Trà Đào Cam Sả' }: BomEditorProps) {
+  const [selectedItemName, setSelectedItemName] = useState(itemName);
   const [recipes, setRecipes] = useState<RecipeItem[]>([
     { id: '1', ingredientId: 'ing-1', ingredientName: 'Trà Đen Earl Grey', unit: 'g', quantity: 15 },
     { id: '2', ingredientId: 'ing-2', ingredientName: 'Đào Ngâm Rhodes', unit: 'miếng', quantity: 2 },
@@ -23,6 +29,11 @@ export function BomEditor() {
   const [newQty, setNewQty] = useState<number>(10);
   const [newUnit, setNewUnit] = useState('g');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saving, setSaving] = useState(false);
+  // Backend chưa có endpoint BOM (GET/PUT /menu/items/:id/bom) — khóa nút Lưu
+  // để không tạo cảm giác "đã lưu" giả. Bật lại khi API sẵn sàng.
+  const bomApiReady = false;
 
   const handleAddIngredient = () => {
     if (!newIngName.trim()) return;
@@ -44,9 +55,26 @@ export function BomEditor() {
     setRecipes((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const handleSaveBom = () => {
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2000);
+  const handleSaveBom = async () => {
+    if (!bomApiReady || !menuItemId) {
+      setSaveError('API định lượng BOM (GET/PUT /menu/items/:id/bom) đang được hoàn thiện — tạm khóa lưu để tránh mất công thức.');
+      return;
+    }
+    setSaving(true);
+    setSaveError('');
+    const res = await apiFetch(`/menu/items/${menuItemId}/bom`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        recipes: recipes.map((r) => ({ ingredientId: r.ingredientId, quantity: r.quantity, unit: r.unit })),
+      }),
+    });
+    setSaving(false);
+    if (res.success) {
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 2000);
+    } else {
+      setSaveError(res.message || 'Lưu công thức thất bại, thử lại sau.');
+    }
   };
 
   return (
@@ -143,13 +171,21 @@ export function BomEditor() {
         {savedSuccess && (
           <span className="text-xs text-emerald-400 font-medium">✓ Đã lưu công thức BOM!</span>
         )}
+        {saveError && <span className="text-xs text-rose-400 font-medium">{saveError}</span>}
+        {!bomApiReady && (
+          <span className="text-[11px] text-zinc-500 flex items-center gap-1">
+            <Lock className="w-3 h-3" /> Chế độ xem trước — API BOM chưa sẵn sàng
+          </span>
+        )}
         <button
           type="button"
           onClick={handleSaveBom}
-          className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 font-bold text-zinc-950 text-xs rounded-xl shadow-lg shadow-amber-500/20 transition active:scale-[0.98]"
+          disabled={!bomApiReady || saving}
+          title={!bomApiReady ? 'API BOM đang được hoàn thiện' : 'Lưu định lượng'}
+          className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-zinc-950 text-xs rounded-xl shadow-lg shadow-amber-500/20 transition active:scale-[0.98]"
         >
           <Save className="w-3.5 h-3.5" />
-          <span>Lưu Định Lượng</span>
+          <span>{saving ? 'Đang lưu...' : 'Lưu Định Lượng'}</span>
         </button>
       </div>
     </div>

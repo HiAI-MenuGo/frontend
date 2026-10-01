@@ -113,20 +113,33 @@ export default function AdminZReportPage() {
     }
   };
 
-  const handleExport = (format: 'excel' | 'pdf') => {
+  const handleExport = async (format: 'excel' | 'pdf') => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
     const exportUrl = `${apiUrl}/z-report/export?format=${format}`;
-
-    if (format === 'pdf') {
-      // Open print-ready HTML window
-      const printWindow = window.open(exportUrl, '_blank');
-      if (printWindow) {
-        printWindow.focus();
+    // Tải kèm Authorization (window.open không gắn được header → dùng fetch + blob).
+    try {
+      const res = await fetch(exportUrl, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        alert(`Xuất báo cáo thất bại (HTTP ${res.status}) — kiểm tra đăng nhập.`);
+        return;
       }
-    } else {
-      // Direct download
-      window.open(exportUrl, '_blank');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (format === 'pdf') {
+        // HTML in được khổ 80mm — mở tab mới để Ctrl+P.
+        window.open(url, '_blank');
+      } else {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `z-report.${format === 'excel' ? 'csv' : format}`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }
+    } catch {
+      alert('Lỗi kết nối khi xuất báo cáo');
     }
   };
 

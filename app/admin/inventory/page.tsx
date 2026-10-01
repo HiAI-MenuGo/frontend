@@ -57,7 +57,7 @@ export default function AdminInventoryPage() {
         method: 'PATCH',
         body: JSON.stringify({
           adjustment: adjustQty,
-          type: 'ADD',
+          type: adjustQty > 0 ? 'ADD' : 'SUBTRACT',
           reason: adjustReason,
         }),
       });
