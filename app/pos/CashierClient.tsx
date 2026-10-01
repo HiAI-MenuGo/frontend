@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { MenuItemView } from '../table/hooks/useMenuSoldOut';
 import PosItemOptionsModal from './ItemOptionsModal';
 import { SelectedModifier } from '../../stores/cart.store';
+import apiFetch from '../../lib/api';
+import { NoteLinesDark } from '../../lib/format-note';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Search,
@@ -119,9 +121,47 @@ export function CashierClient() {
   const [isPaidSuccess, setIsPaidSuccess] = useState(false);
 
   const subTotal = cartItems.reduce((acc, i) => acc + i.unitPrice * i.quantity, 0);
-  const discountAmount = 0;
+  const [voucherCode, setVoucherCode] = useState('');
+  const [voucherDiscount, setVoucherDiscount] = useState(0);
+  const [voucherMsg, setVoucherMsg] = useState('');
+  const [memberPhone, setMemberPhone] = useState('');
+  const [memberInfo, setMemberInfo] = useState<{ name?: string; tier?: string; points?: number } | null>(null);
+
+  const discountAmount = voucherDiscount;
   const finalTotal = Math.max(0, subTotal - discountAmount);
   const changeAmount = Math.max(0, receivedCash - finalTotal);
+
+  const handleApplyVoucher = async () => {
+    const code = voucherCode.trim();
+    if (!code) {
+      setVoucherMsg('Nhập mã voucher trước khi áp dụng');
+      return;
+    }
+    setVoucherMsg('Đang kiểm tra mã...');
+    const res = await apiFetch('/vouchers/validate', {
+      method: 'POST',
+      body: JSON.stringify({ code, subTotal }),
+    });
+    if (res.success && res.data) {
+      setVoucherDiscount(Number(res.data.discountAmount) || 0);
+      setVoucherMsg(`Đã giảm ${Number(res.data.discountAmount || 0).toLocaleString('vi-VN')}đ (${res.data.code})`);
+    } else {
+      setVoucherDiscount(0);
+      setVoucherMsg(res.message || 'Mã voucher không hợp lệ');
+    }
+  };
+
+  const handleLookupMember = async () => {
+    const phone = memberPhone.trim();
+    if (!phone) return;
+    const res = await apiFetch(`/customers?phone=${encodeURIComponent(phone)}`);
+    if (res.success && res.data) {
+      const c = Array.isArray(res.data) ? res.data[0] : res.data;
+      setMemberInfo(c ? { name: c.name, tier: c.tier || c.membershipTier, points: c.points } : null);
+    } else {
+      setMemberInfo(null);
+    }
+  };
 
   const handleSelectItem = (item: MenuItemView) => {
     if (item.modifierGroups && item.modifierGroups.length > 0) {
@@ -337,14 +377,11 @@ export function CashierClient() {
                   </p>
                 )}
 
-                <div className="flex items-center justify-between pt-1">
-                  <button
-                    type="button"
-                    onClick={() => updateQuantity(item.cartItemId, 0)}
-                    className="text-zinc-500 hover:text-red-400"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                <div className="pl-1">
+                  <NoteLinesDark note={item.note} />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-1">
                   <div className="flex items-center gap-2 bg-zinc-900 rounded p-0.5 border border-zinc-700">
                     <button
                       type="button"
@@ -362,6 +399,14 @@ export function CashierClient() {
                       <Plus className="w-3 h-3" />
                     </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => updateQuantity(item.cartItemId, 0)}
+                    className="text-rose-400 border border-rose-500/20 hover:bg-rose-500/10 rounded-lg px-2 py-1 text-[11px] font-semibold flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hủy món</span>
+                  </button>
                 </div>
               </div>
             ))
@@ -370,10 +415,57 @@ export function CashierClient() {
 
         {/* Pricing & Checkout Actions */}
         <div className="p-4 border-t border-zinc-800 bg-zinc-950/80 space-y-3">
+          {/* Voucher + thành viên (C-012) */}
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input
+                value={voucherCode}
+                onChange={(e) => setVoucherCode(e.target.value)}
+                placeholder="Mã voucher (VD: GIAM10)"
+                className="flex-1 bg-zinc-800/60 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500 uppercase"
+              />
+              <button
+                type="button"
+                onClick={handleApplyVoucher}
+                className="px-3 py-2 bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold rounded-xl hover:bg-amber-500/25 flex items-center gap-1"
+              >
+                <Tag className="w-3.5 h-3.5" />
+                <span>Áp mã</span>
+              </button>
+            </div>
+            {voucherMsg && <p className="text-[11px] text-amber-300">{voucherMsg}</p>}
+            <div className="flex gap-2">
+              <input
+                value={memberPhone}
+                onChange={(e) => setMemberPhone(e.target.value)}
+                placeholder="SĐT tích điểm (tùy chọn)"
+                inputMode="tel"
+                className="flex-1 bg-zinc-800/60 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
+              />
+              <button
+                type="button"
+                onClick={handleLookupMember}
+                className="px-3 py-2 bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-semibold rounded-xl hover:bg-zinc-700"
+              >
+                Tra điểm
+              </button>
+            </div>
+            {memberInfo && (
+              <p className="text-[11px] text-emerald-300">
+                {memberInfo.name}
+                {memberInfo.tier ? ` • Hạng ${memberInfo.tier}` : ''}
+                {memberInfo.points !== undefined ? ` • ${memberInfo.points} điểm` : ''}
+              </p>
+            )}
+          </div>
           <div className="space-y-1 text-xs text-zinc-400">
             <div className="flex justify-between">
               <span>Tạm tính</span>
               <span className="text-zinc-200">{subTotal.toLocaleString('vi-VN')}đ</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Giảm voucher</span>
+              <span className="text-emerald-400">-{discountAmount.toLocaleString('vi-VN')}đ</span>
             </div>
             <div className="flex justify-between font-bold text-sm text-zinc-100 pt-1 border-t border-zinc-800">
               <span>Cần thanh toán</span>
@@ -500,6 +592,7 @@ export function CashierClient() {
                 <QRCodeSVG
                   value={`https://img.vietqr.io/image/MB-0901234567-compact2.png?amount=${finalTotal}&addInfo=POS%20${selectedTable}`}
                   size={160}
+                  level="H"
                 />
                 <span className="text-[10px] text-zinc-600 font-semibold mt-2">
                   Quét bằng ứng dụng Ngân hàng để thanh toán tự động

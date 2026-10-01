@@ -34,6 +34,7 @@ export default function TableMenuPage({ params }: PageProps) {
       imageUrl: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=500&h=500&fit=crop',
       isSoldOut: false,
       categoryId: 'cat-1',
+      category: { id: 'cat-1', name: 'Trà Trái Cây', isDrink: true },
       modifierGroups: [
         {
           modifierGroup: {
@@ -101,6 +102,7 @@ export default function TableMenuPage({ params }: PageProps) {
       imageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&h=500&fit=crop',
       isSoldOut: false,
       categoryId: 'cat-2',
+      category: { id: 'cat-2', name: 'Cà Phê', isDrink: true },
       modifierGroups: [
         {
           modifierGroup: {
@@ -125,6 +127,7 @@ export default function TableMenuPage({ params }: PageProps) {
       imageUrl: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=500&h=500&fit=crop',
       isSoldOut: false,
       categoryId: 'cat-3',
+      category: { id: 'cat-3', name: 'Đồ Ăn Nhẹ', isDrink: false },
     },
   ]);
 

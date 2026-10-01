@@ -13,6 +13,7 @@ import {
   Users,
   Palette,
   CreditCard,
+  Webhook,
   Store,
   ChefHat,
   LogOut,
@@ -34,6 +35,7 @@ export function AdminSidebar() {
     { label: 'Nhân Sự & Phân Quyền', href: '/admin/roles', icon: Users },
     { label: 'Nhận Diện Thương Hiệu', href: '/admin/settings/branding', icon: Palette },
     { label: 'Tài Khoản VietQR', href: '/admin/settings/bank', icon: CreditCard },
+    { label: 'API & Webhook', href: '/admin/integrations', icon: Webhook },
   ];
 
   return (

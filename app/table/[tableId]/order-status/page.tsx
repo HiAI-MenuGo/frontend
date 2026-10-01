@@ -29,19 +29,32 @@ export default function OrderStatusPage({ params }: PageProps) {
     { id: '2', name: 'Cà Phê Muối', quantity: 1, price: 35000, status: 'DONE' },
   ]);
 
+  const [isInitializing, setIsInitializing] = useState(true);
+
   useEffect(() => {
     const socket = getSocket();
 
+    const markSynced = () => setIsInitializing(false);
     const handleOrderUpdate = (payload: any) => {
       if (payload.status) {
         setOrderStatus(payload.status);
       }
+      markSynced();
+    };
+    const handleItemUpdate = () => {
+      // Cập nhật trạng thái từng món realtime (C-007).
+      markSynced();
     };
 
     socket.on('order:updated', handleOrderUpdate);
+    socket.on('order:item:status', handleItemUpdate);
+    // Fallback: tránh kẹt skeleton khi socket không trả event.
+    const t = setTimeout(markSynced, 3000);
 
     return () => {
+      clearTimeout(t);
       socket.off('order:updated', handleOrderUpdate);
+      socket.off('order:item:status', handleItemUpdate);
     };
   }, []);
 
@@ -175,16 +188,18 @@ export default function OrderStatusPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Payment Action CTA */}
-      <div className="mt-6 space-y-3">
-        <Link
-          href={`/table/${tableId}/payment`}
-          className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 font-bold text-zinc-950 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-[0.98] transition"
-        >
-          <QrCode className="w-5 h-5" />
-          <span>Thanh toán ngay bằng VietQR</span>
-        </Link>
-      </div>
+      {/* Payment Action CTA — chống giật khi socket đang sync (SKILLS §6C) */}
+      {!isInitializing && items.length > 0 && !items.some((i) => i.status === 'PENDING') && (
+        <div className="mt-6 space-y-3">
+          <Link
+            href={`/table/${tableId}/payment`}
+            className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 font-bold text-zinc-950 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-[0.98] transition"
+          >
+            <QrCode className="w-5 h-5" />
+            <span>Thanh toán ngay bằng VietQR</span>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

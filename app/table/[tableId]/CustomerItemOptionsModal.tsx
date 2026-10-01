@@ -149,8 +149,18 @@ export function CustomerItemOptionsModal({
             const isSingle = group.maxSelect === 1;
             const selectedIds = selectedOptions[group.id] || [];
 
-            // Filter out sugar/ice if item is food
-            if (!isDrink && (group.name.includes('đường') || group.name.includes('đá'))) {
+            // Filter out sugar/ice if item is food (so khớp chữ hoa/thường + dấu).
+            const groupKey = group.name.toLowerCase();
+            const isSugarIceGroup =
+              groupKey.includes('đường') ||
+              groupKey.includes('duong') ||
+              groupKey.includes('sugar') ||
+              groupKey.includes('ngọt') ||
+              groupKey.includes('ngot') ||
+              groupKey.includes('đá') ||
+              groupKey.includes('da') ||
+              groupKey.includes('ice');
+            if (!isDrink && isSugarIceGroup) {
               return null;
             }
 
@@ -200,12 +210,12 @@ export function CustomerItemOptionsModal({
           {/* Note Input */}
           <div className="space-y-1.5">
             <label className="text-sm font-semibold text-zinc-200">Ghi chú cho bếp</label>
-            <input
-              type="text"
+            <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Ví dụ: ít ngọt, không lấy ống hút nhựa..."
-              className="w-full bg-zinc-800/60 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
+              rows={2}
+              placeholder="Ví dụ: ít ngọt • không lấy ống hút nhựa..."
+              className="w-full bg-zinc-800/60 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500 resize-none"
             />
           </div>
         </div>

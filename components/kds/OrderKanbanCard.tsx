@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import KdsItemActions from './KdsItemActions';
+import { NoteLinesDark } from '../../lib/format-note';
 import { Clock, CheckCircle, Flame, AlertTriangle } from 'lucide-react';
 
 export interface KdsOrderItem {
@@ -129,12 +130,10 @@ export function OrderKanbanCard({
               </div>
             )}
 
-            {/* Note */}
-            {item.note && (
-              <p className="text-[11px] text-red-400 font-medium italic pl-8 pt-0.5">
-                ★ {item.note}
-              </p>
-            )}
+            {/* Note đa dòng (RULES §5A): tách • thành từng bullet */}
+            <div className="pl-8 pt-0.5">
+              <NoteLinesDark note={item.note} />
+            </div>
           </div>
         ))}
 

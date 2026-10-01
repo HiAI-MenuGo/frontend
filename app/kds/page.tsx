@@ -57,11 +57,43 @@ export default function KdsPage() {
     },
   ]);
 
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.localStorage.getItem('kds_muted') !== '1';
+  });
   const [currentTime, setCurrentTime] = useState('');
   const [isConnected, setIsConnected] = useState(true);
 
-  // Play beep sound using Web Audio API
+  const toggleSound = () => {
+    setSoundEnabled((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem('kds_muted', next ? '0' : '1');
+      } catch {
+        // ignore storage errors
+      }
+      return next;
+    });
+  };
+
+  // Xin quyền Notification 1 lần để báo đơn mới khi tab ẩn.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => undefined);
+    }
+  }, []);
+
+  const notifyNewOrder = (orderCode?: string) => {
+    try {
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted' && document.hidden) {
+        new Notification('Đơn mới cần chế biến', { body: orderCode ? `Mã đơn ${orderCode}` : 'Có đơn mới từ QR Menu / POS' });
+      }
+    } catch {
+      // ignore notification errors
+    }
+  };
+
+  // Play beep sound using Web Audio API (fallback khi thiếu public/sounds/new_order.mp3)
   const playAlertSound = () => {
     if (!soundEnabled || typeof window === 'undefined') return;
     try {
@@ -99,6 +131,7 @@ export default function KdsPage() {
 
     socket.on('order:new', (newOrder: any) => {
       playAlertSound();
+      notifyNewOrder(newOrder?.orderCode);
       setOrders((prev) => [newOrder, ...prev]);
     });
 
@@ -207,7 +240,7 @@ export default function KdsPage() {
           {/* Sound Toggle */}
           <button
             type="button"
-            onClick={() => setSoundEnabled(!soundEnabled)}
+            onClick={toggleSound}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
               soundEnabled
                 ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
