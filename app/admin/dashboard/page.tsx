@@ -15,8 +15,10 @@ import {
   PackageCheck,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useI18n } from '../../../context/i18nContext';
 
 export default function AdminDashboardPage() {
+  const { t } = useI18n();
   const topSellingItems = [
     { name: 'Trà Đào Cam Sả', soldCount: 84, revenue: 3780000, category: 'Trà trái cây' },
     { name: 'Cà Phê Muối Đặc Biệt', soldCount: 62, revenue: 2170000, category: 'Cà phê' },
@@ -31,10 +33,10 @@ export default function AdminDashboardPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-zinc-100 tracking-tight">
-            TỔNG QUAN HOẠT ĐỘNG KINH DOANH
+            {t('dashboard.title', 'TỔNG QUAN HOẠT ĐỘNG KINH DOANH')}
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
-            Dữ liệu trực tiếp theo thời gian thực của Chi nhánh Quận 1 hôm nay
+            {t('dashboard.subtitle', 'Dữ liệu trực tiếp theo thời gian thực của Chi nhánh Quận 1 hôm nay')}
           </p>
         </div>
 
@@ -44,13 +46,13 @@ export default function AdminDashboardPage() {
             className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 rounded-xl transition"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Thêm Món Mới</span>
+            <span>{t('dashboard.addMenuItem', 'Thêm Món Mới')}</span>
           </Link>
           <Link
             href="/pos"
             className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 font-bold text-zinc-950 text-xs rounded-xl shadow-lg shadow-amber-500/20 transition active:scale-[0.98]"
           >
-            <span>Mở POS Bán Hàng</span>
+            <span>{t('dashboard.openPos', 'Mở POS Bán Hàng')}</span>
             <ArrowUpRight className="w-4 h-4" />
           </Link>
         </div>
@@ -61,7 +63,7 @@ export default function AdminDashboardPage() {
         {/* Doanh thu */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400">Doanh thu hôm nay</span>
+            <span className="text-xs font-semibold text-zinc-400">{t('dashboard.todayRevenue', 'Doanh thu hôm nay')}</span>
             <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
               <DollarSign className="w-4 h-4" />
             </div>
@@ -70,7 +72,7 @@ export default function AdminDashboardPage() {
             <span className="text-2xl font-black text-zinc-100">14.020.000đ</span>
             <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold mt-1">
               <TrendingUp className="w-3.5 h-3.5" />
-              <span>+18.4% so với hôm qua</span>
+              <span>{t('dashboard.vsYesterday', '+18.4% so với hôm qua')}</span>
             </div>
           </div>
         </div>
@@ -78,42 +80,42 @@ export default function AdminDashboardPage() {
         {/* Hóa đơn */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400">Số lượng hóa đơn</span>
+            <span className="text-xs font-semibold text-zinc-400">{t('dashboard.orderCount', 'Số lượng hóa đơn')}</span>
             <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center">
               <Receipt className="w-4 h-4" />
             </div>
           </div>
           <div>
             <span className="text-2xl font-black text-zinc-100">266 đơn</span>
-            <p className="text-xs text-zinc-400 mt-1">Giá trị trung bình: 52.700đ/đơn</p>
+            <p className="text-xs text-zinc-400 mt-1">{t('dashboard.avgOrderValue', 'Giá trị trung bình: 52.700đ/đơn')}</p>
           </div>
         </div>
 
         {/* Thanh toán VietQR */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400">Thanh toán VietQR</span>
+            <span className="text-xs font-semibold text-zinc-400">{t('dashboard.vietqrPayment', 'Thanh toán VietQR')}</span>
             <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
               <QrCode className="w-4 h-4" />
             </div>
           </div>
           <div>
             <span className="text-2xl font-black text-zinc-100">68.4%</span>
-            <p className="text-xs text-zinc-400 mt-1">9.589.680đ qua Chuyển khoản QR</p>
+            <p className="text-xs text-zinc-400 mt-1">{t('dashboard.qrTransfers', '9.589.680đ qua Chuyển khoản QR')}</p>
           </div>
         </div>
 
         {/* Đang phục vụ */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400">Bàn đang mở</span>
+            <span className="text-xs font-semibold text-zinc-400">{t('dashboard.activeTables', 'Bàn đang mở')}</span>
             <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
               <Flame className="w-4 h-4" />
             </div>
           </div>
           <div>
             <span className="text-2xl font-black text-zinc-100">8 / 15 bàn</span>
-            <p className="text-xs text-amber-400 font-semibold mt-1">4 đơn đang chờ bếp nấu</p>
+            <p className="text-xs text-amber-400 font-semibold mt-1">{t('dashboard.ordersPendingKitchen', '4 đơn đang chờ bếp nấu')}</p>
           </div>
         </div>
       </div>
@@ -125,9 +127,9 @@ export default function AdminDashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-extrabold text-base text-zinc-100">
-                Xu Hướng Doanh Thu Theo Giờ
+                {t('dashboard.revenueHourlyTrend', 'Xu Hướng Doanh Thu Theo Giờ')}
               </h3>
-              <p className="text-xs text-zinc-400">Đỉnh doanh thu thường tập trung lúc 12:00 và 18:00 - 20:00</p>
+              <p className="text-xs text-zinc-400">{t('dashboard.peakHoursDesc', 'Đỉnh doanh thu thường tập trung lúc 12:00 và 18:00 - 20:00')}</p>
             </div>
           </div>
           <RevenueTrendChart />
@@ -137,9 +139,9 @@ export default function AdminDashboardPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 sm:p-6 space-y-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-              <h3 className="font-extrabold text-sm text-zinc-100">Top Món Bán Chạy Hôm Nay</h3>
+              <h3 className="font-extrabold text-sm text-zinc-100">{t('dashboard.topSellingToday', 'Top Món Bán Chạy Hôm Nay')}</h3>
               <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
-                Theo số lượng
+                {t('dashboard.byQuantity', 'Theo số lượng')}
               </span>
             </div>
 
@@ -170,7 +172,7 @@ export default function AdminDashboardPage() {
             href="/admin/menu"
             className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-center font-bold text-xs text-zinc-200 rounded-xl transition"
           >
-            Quản Lý Toàn Bộ Thực Đơn
+            {t('dashboard.manageMenu', 'Quản Lý Toàn Bộ Thực Đơn')}
           </Link>
         </div>
       </div>
