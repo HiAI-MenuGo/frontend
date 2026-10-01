@@ -96,8 +96,10 @@ export function CartDrawer({
         body: JSON.stringify(payload),
       });
 
-      // Fallback: nếu team A chưa mount route /sessions/:tableId/order theo TECHS §9, fallback sang /orders
-      if (!res.success && (res.errorCode === 'NOT_FOUND' || !res.data)) {
+      // Fallback CHỈ khi route chưa tồn tại (404/NOT_FOUND): team A chưa mount
+      // POST /sessions/:tableId/order theo TECHS §9. Mọi lỗi khác (400 validate,
+      // 500, mất mạng) phải hiện lỗi thật, không bắn request thứ 2 che lỗi.
+      if (!res.success && (res.errorCode === 'NOT_FOUND' || res.errorCode === 'ENDPOINT_NOT_FOUND')) {
         res = await apiFetch('/orders', {
           method: 'POST',
           body: JSON.stringify({

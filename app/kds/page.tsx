@@ -6,6 +6,16 @@ import { getSocket } from '../../lib/socket';
 import { Volume2, VolumeX, RefreshCw, ChefHat, Bell, Clock, Ban } from 'lucide-react';
 import apiFetch from '../../lib/api';
 
+/**
+ * Chuẩn hóa status order từ server về kanban local: backend (team A) dùng
+ * CONFIRMED cho "đang nấu", frontend dùng PREPARING. Bỏ hàm này khi Team A
+ * thêm 'PREPARING' vào LiveOrderStatus (xem TODO ở handleUpdateOrderStatus).
+ */
+function normalizeOrderStatus<T extends { status?: string }>(order: T): T {
+  if (!order || (order as any).status !== 'CONFIRMED') return order;
+  return { ...(order as object), status: 'PREPARING' } as T;
+}
+
 export default function KdsPage() {
   const [orders, setOrders] = useState<KdsOrder[]>([
     {
@@ -143,19 +153,19 @@ export default function KdsPage() {
     socket.on('order:new', (newOrder: any) => {
       playAlertSound();
       notifyNewOrder(newOrder?.orderCode);
-      setOrders((prev) => [newOrder, ...prev]);
+      setOrders((prev) => [normalizeOrderStatus(newOrder), ...prev]);
     });
 
     socket.on('order:updated', (updated: any) => {
       setOrders((prev) =>
-        prev.map((o) => (o.id === updated.id ? { ...o, ...updated } : o))
+        prev.map((o) => (o.id === updated.id ? { ...o, ...normalizeOrderStatus(updated) } : o))
       );
     });
 
     // Initial fetch from backend if available
     apiFetch('/orders/active?branchId=default-branch&view=kanban').then((res) => {
       if (res.success && res.data && res.data.length > 0) {
-        setOrders(res.data);
+        setOrders(res.data.map(normalizeOrderStatus));
       }
     });
 
@@ -177,6 +187,10 @@ export default function KdsPage() {
       })
     );
 
+    // TODO(E2E-debt): shim tạm — backend (team A) chưa chấp nhận PREPARING ở
+    // order-level (400 INVALID_STATUS) nên map sang CONFIRMED khi gửi lên.
+    // Bỏ map này ngay khi Team A thêm 'PREPARING' vào LiveOrderStatus.
+    // Chuẩn hóa chiều về đã xử lý ở normalizeOrderStatus (CONFIRMED -> PREPARING).
     apiFetch(`/orders/${orderId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status: newStatus === 'PREPARING' ? 'CONFIRMED' : newStatus }),
