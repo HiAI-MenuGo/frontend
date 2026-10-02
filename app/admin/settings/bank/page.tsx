@@ -220,9 +220,10 @@ export default function AdminBankSettingsPage() {
                 <div className="relative w-48 h-48 bg-white p-2 rounded-2xl shadow-inner flex items-center justify-center overflow-hidden">
                   <Image
                     src={previewQrUrl}
-                    alt="VietQR Preview"
+                    alt={t('bank.previewTitle', 'Xem Trước VietQR Live')}
                     width={192}
                     height={192}
+                    loading="lazy"
                     unoptimized
                     className="w-full h-full object-contain"
                   />
