@@ -753,5 +753,11 @@ git push origin feat/be-admin-report-c
   - Team B: Kích hoạt trừ kho BOM tự động khi thanh toán.
   - Frontend: Nhúng ảnh logo branding thực tế vào header xuất PDF Z-Report.
 
+### 03/10/2026 — Review Vòng 2 (kết luận + nợ chuyển Vòng 3)
+- **Kết luận review**: Cả 3 commit frontend Vòng 2 (`0e5e7b7`, `ed93bc1`, `2eeb07b`) được duyệt, không cần sửa code. Shim chiều gửi đã gỡ đúng 1 hunk, `normalizeOrderStatus` chiều về còn nguyên, fallback `/orders` xóa sạch và UI giỏ hàng không bị đụng.
+- **Nợ chuyển sang Vòng 3**:
+  1. Sửa comment thừa ở `app/kds/page.tsx` vẫn ghi backend dùng `CONFIRMED` cho đang nấu, trong khi TODO tương ứng đã bị gỡ ở `0e5e7b7` và backend đã mở `PREPARING` từ Vòng 1 (`856536f`). Gom vào một việc khác của Vòng 3, không tách commit riêng.
+  2. Theo dõi 3 nợ backend ghi ở `backend/docs/C_Work_Flow.md` mục review Vòng 2: race sinh `orderCode`, double-count `discountAmount`, và `totalAmount` bị lặng lẽ bỏ qua trong API contract.
+
 
 
