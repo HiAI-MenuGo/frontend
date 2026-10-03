@@ -14,7 +14,6 @@ interface CartDrawerProps {
   tableId: string;
   tableName?: string;
   tenantId?: string;
-  branchId?: string;
   primaryColor?: string;
 }
 
@@ -24,7 +23,6 @@ export function CartDrawer({
   tableId,
   tableName = 'Bàn',
   tenantId = 'default-tenant',
-  branchId = 'default-branch',
   primaryColor = '#f59e0b',
 }: CartDrawerProps) {
   const router = useRouter();
