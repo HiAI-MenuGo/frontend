@@ -9,9 +9,8 @@ import { useI18n } from '../../context/i18nContext';
 import { LanguageSwitcher } from '../../components/common/LanguageSwitcher';
 
 /**
- * Chuẩn hóa status order từ server về kanban local: backend (team A) dùng
- * CONFIRMED cho "đang nấu", frontend dùng PREPARING. Bỏ hàm này khi Team A
- * thêm 'PREPARING' vào LiveOrderStatus (xem TODO ở handleUpdateOrderStatus).
+ * Chuẩn hóa status order từ server về kanban local: chuyển CONFIRMED sang
+ * PREPARING để đảm bảo tương thích ngược với các bản ghi đơn cũ trước Vòng 1.
  */
 function normalizeOrderStatus<T extends { status?: string }>(order: T): T {
   if (!order || (order as any).status !== 'CONFIRMED') return order;

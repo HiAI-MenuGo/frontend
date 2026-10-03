@@ -79,19 +79,14 @@ export function CartDrawer({
     try {
       const payload = {
         tableId,
-        branchId,
-        tenantId,
         items: items.map((i) => ({
           menuItemId: i.menuItemId,
-          name: i.name,
-          price: i.unitPrice,
           quantity: i.quantity,
           note: i.note,
           modifiers: i.selectedModifiers,
         })),
         voucherCode: discountAmount > 0 ? voucherCode : undefined,
         discountAmount,
-        totalAmount: totalDue,
       };
 
       const res = await apiFetch<any>(`/sessions/${tableId}/order`, {
