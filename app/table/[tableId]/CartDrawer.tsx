@@ -94,27 +94,10 @@ export function CartDrawer({
         totalAmount: totalDue,
       };
 
-      let res = await apiFetch<any>(`/sessions/${tableId}/order`, {
+      const res = await apiFetch<any>(`/sessions/${tableId}/order`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });
-
-      // Fallback CHỈ khi route chưa tồn tại (404/NOT_FOUND): team A chưa mount
-      // POST /sessions/:tableId/order theo TECHS §9. Mọi lỗi khác (400 validate,
-      // 500, mất mạng) phải hiện lỗi thật, không bắn request thứ 2 che lỗi.
-      if (!res?.success && (res?.errorCode === 'NOT_FOUND' || res?.errorCode === 'ENDPOINT_NOT_FOUND')) {
-        res = await apiFetch<any>('/orders', {
-          method: 'POST',
-          body: JSON.stringify({
-            ...payload,
-            total: totalDue,
-            tableName,
-            orderType: 'DINE_IN',
-            paymentStatus: 'UNPAID',
-            items: payload.items.map((i) => ({ ...i, id: i.menuItemId })),
-          }),
-        });
-      }
 
       if (res?.success || res?.data) {
         clearCart();
