@@ -881,7 +881,7 @@ git push origin feat/be-admin-report-c
     - Xây dựng Error State có nút "Thử lại" khi gặp sự cố mạng hoặc lỗi máy chủ.
     - **Quyết định Empty State hiện 0**: Khi quán chưa có giao dịch nào trong ngày (`isAllZero`), hiển thị đúng số thực tế (`0đ`, `0 đơn`, `0%`, `0 / N bàn`), hiển thị banner thông báo "Chưa có dữ liệu giao dịch cho ngày hôm nay" và empty state cho danh sách món. Tuyệt đối không bịa số giả thay thế.
   - `frontend/components/dashboard/RevenueTrendChart.tsx`:
-    - Chuyển sang nhận dữ liệu `data?: HourlyTrendPoint[]` qua props; xóa bỏ hoàn toàn mảng `const data` mock cứng bên trong file.
+    - Chuyển sang nhận dữ liệu `data?: HourlyTrendPoint[]` qua props; xóa mảng `const data` mock revenue cứng, giữ `DEFAULT_HOURLY_SLOTS` toàn 0 làm fallback cho empty-state.
   - **Xóa sạch mock (C2)**:
     - Quét grep `14.020.000`, `266 đơn`, `68.4%`, `topSellingItems` trong `app/admin/dashboard/` và `components/dashboard/` $\rightarrow$ kết quả về đúng 0.
   - **Hệ thống đa ngôn ngữ i18n**:
