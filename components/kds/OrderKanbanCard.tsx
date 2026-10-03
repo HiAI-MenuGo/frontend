@@ -140,8 +140,9 @@ export function OrderKanbanCard({
         ))}
 
         {order.note && (
-          <div className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 p-2 rounded-xl">
-            <strong>{t('cart.orderNote', 'Ghi chú đơn')}:</strong> {order.note}
+          <div className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 p-2 rounded-xl space-y-1">
+            <strong className="block">{t('cart.orderNote', 'Ghi chú đơn')}:</strong>
+            <NoteLinesDark note={order.note} />
           </div>
         )}
       </div>

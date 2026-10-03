@@ -6,6 +6,7 @@ import { X, Trash2, Plus, Minus, Tag, Send, AlertCircle } from 'lucide-react';
 import apiFetch from '../../../lib/api';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '../../../context/i18nContext';
+import { NoteLinesDark } from '../../../lib/format-note';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -192,9 +193,12 @@ export function CartDrawer({
 
                 {/* Note */}
                 {item.note && (
-                  <p className="text-[11px] text-zinc-500 italic bg-zinc-900/60 rounded px-2 py-1">
-                    {t('menu.note', 'Ghi chú')}: {item.note}
-                  </p>
+                  <div className="bg-zinc-900/60 rounded px-2 py-1 space-y-0.5">
+                    <span className="text-[11px] text-zinc-500 italic block">
+                      {t('menu.note', 'Ghi chú')}:
+                    </span>
+                    <NoteLinesDark note={item.note} />
+                  </div>
                 )}
 
                 {/* Quantity Controls */}
