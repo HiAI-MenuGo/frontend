@@ -210,9 +210,13 @@ export default function KdsPage() {
           const updatedItems = order.items.map((i) =>
             i.id === itemId ? { ...i, status: newStatus } : i
           );
-          const allDone = updatedItems.every((i) => i.status === 'DONE');
+          const allFinished =
+            updatedItems.length > 0 &&
+            updatedItems.every((i) => i.status === 'DONE' || (i.status as string) === 'CANCELLED');
+          const hasDone = updatedItems.some((i) => i.status === 'DONE');
+          const isDone = allFinished && hasDone && (order.status as string) !== 'CANCELLED';
           const anyPreparing = updatedItems.some((i) => i.status === 'PREPARING');
-          const orderStatus = allDone ? 'DONE' : anyPreparing ? 'PREPARING' : order.status;
+          const orderStatus = isDone ? 'DONE' : anyPreparing ? 'PREPARING' : order.status;
           return { ...order, status: orderStatus, items: updatedItems };
         }
         return order;

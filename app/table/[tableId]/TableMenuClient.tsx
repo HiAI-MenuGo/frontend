@@ -148,6 +148,7 @@ export default function TableMenuClient({ tableId }: TableMenuClientProps) {
   const [selectedItem, setSelectedItem] = useState<MenuItemView | null>(null);
   const [isOptionsModalOpen, setIsOptionsModalOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [tenantId, setTenantId] = useState<string | undefined>(undefined);
 
   const { addItem, getTotalCount, getTotalAmount } = useCartStore();
 
@@ -157,6 +158,9 @@ export default function TableMenuClient({ tableId }: TableMenuClientProps) {
       try {
         if (tableId.length > 20 || tableId.includes('.')) {
           const res = await apiFetch<any>(`/tables/resolve?token=${encodeURIComponent(tableId)}`);
+          if (res?.data?.tenantId) {
+            setTenantId(res.data.tenantId);
+          }
           if (res?.data?.tableId) {
             console.log('✅ Resolved table QR token to tableId:', res.data.tableId);
           }
@@ -309,6 +313,7 @@ export default function TableMenuClient({ tableId }: TableMenuClientProps) {
         onClose={() => setIsCartOpen(false)}
         tableId={tableId}
         tableName={`${t('table.table', 'Bàn')} ${tableId.toUpperCase()}`}
+        tenantId={tenantId}
         primaryColor={branding.primaryColor}
       />
 

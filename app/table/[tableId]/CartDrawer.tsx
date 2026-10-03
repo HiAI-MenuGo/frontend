@@ -49,7 +49,7 @@ export function CartDrawer({
       const res = await apiFetch<any>('/vouchers/apply', {
         method: 'POST',
         body: JSON.stringify({
-          tenantId,
+          tenantId: tenantId || 'default-tenant',
           code: voucherCode.trim(),
           subTotal,
         }),
