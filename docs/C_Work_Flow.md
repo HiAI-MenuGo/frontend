@@ -1065,6 +1065,8 @@ git push origin feat/be-admin-report-c
 | **CLS (Cumulative Layout Shift)** | **0** | **0.001** | Tuyệt đối ổn định, không giật layout |
 | **SI (Speed Index)** | **3.8 s** | **2.8 s - 3.2 s** | Tăng tốc hiển thị mắt thấy rõ rệt |
 
+  - **Kết luận target: CHƯA đạt** — Performance 85-86 chưa qua ngưỡng >90, LCP 3.0s chưa xuống dưới 2.5s. Phần còn lại nằm ở tải ảnh remote (mục 1 nợ kỹ thuật bên dưới), không còn nằm ở font/bundle/client-code.
+
   - **Phân tích nguyên nhân LCP & Điểm nghẽn kỹ thuật còn lại (Bottleneck Analysis)**:
     - Audit `lcp-breakdown-insight` chỉ ra nguyên nhân chi tiết của LCP 3.0s:
       + `Time to First Byte (TTFB)`: **150 ms** (Rất tốt)
