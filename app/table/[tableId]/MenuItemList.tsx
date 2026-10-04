@@ -85,7 +85,8 @@ export function MenuItemList({
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-          {filteredItems.map((item) => {
+          {filteredItems.map((item, index) => {
+            const isPriority = index < 4;
             return (
               <div
                 key={item.id}
@@ -98,7 +99,9 @@ export function MenuItemList({
                       src={item.imageUrl}
                       alt={item.name}
                       fill
-                      loading="lazy"
+                      priority={isPriority}
+                      fetchPriority={isPriority ? 'high' : undefined}
+                      loading={isPriority ? undefined : 'lazy'}
                       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                       className={`object-cover transition duration-300 group-hover:scale-105 ${
                         item.isSoldOut ? 'grayscale contrast-125 opacity-40' : ''

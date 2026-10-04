@@ -1,11 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import MenuItemList from './MenuItemList';
-import CustomerItemOptionsModal from './CustomerItemOptionsModal';
-import CartDrawer from './CartDrawer';
 import { MenuItemView, useMenuSoldOut } from '../hooks/useMenuSoldOut';
 import useCartStore, { SelectedModifier } from '../../../stores/cart.store';
+
+const CustomerItemOptionsModal = dynamic(() => import('./CustomerItemOptionsModal'), {
+  ssr: false,
+});
+const CartDrawer = dynamic(() => import('./CartDrawer'), {
+  ssr: false,
+});
 import { ShoppingBag, Wifi, MapPin } from 'lucide-react';
 import LanguageSwitcher from '../../../components/common/LanguageSwitcher';
 import { useI18n } from '../../../context/i18nContext';
@@ -245,7 +251,8 @@ export default function TableMenuClient({ tableId }: TableMenuClientProps) {
                   alt={branding.restaurantName || 'Logo'}
                   fill
                   sizes="32px"
-                  loading="lazy"
+                  priority
+                  fetchPriority="high"
                   className="object-cover"
                 />
               </div>
