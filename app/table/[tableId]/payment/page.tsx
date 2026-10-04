@@ -23,12 +23,13 @@ export default function TablePaymentPage({ params }: PageProps) {
   const [timeLeft, setTimeLeft] = useState(890); // ~15 minutes
   const [isPaid, setIsPaid] = useState(false);
 
-  // Bank Info & QR parameters từ TenantBranding (fallback mặc định an toàn)
+  // Bank Info & QR parameters từ TenantBranding (chỉ render QR khi branding thật về)
+  const [bankReady, setBankReady] = useState(false);
   const [bankInfo, setBankInfo] = useState({
-    bankName: 'Ngân hàng Quân Đội (MBBank)',
-    bankCode: 'MB',
-    accountNo: '0901234567',
-    accountName: 'CONG TY CO PHAN HIAI MENUGO',
+    bankName: '',
+    bankCode: '',
+    accountNo: '',
+    accountName: '',
     amount: 125000,
     memo: `MENUGO ${tableId.toUpperCase()} 101`,
   });
@@ -56,9 +57,11 @@ export default function TablePaymentPage({ params }: PageProps) {
             accountNo: data.bankAccountNo,
             accountName: data.bankAccountName || prev.accountName,
           }));
+          setBankReady(true);
         }
       } catch (err) {
         console.warn('Could not load branding for payment QR:', err);
+        setBankReady(false);
       }
     };
     loadBranding();
@@ -140,6 +143,12 @@ export default function TablePaymentPage({ params }: PageProps) {
           </span>
         </div>
 
+        {!bankReady ? (
+          <div className="w-full bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-xs text-amber-300 text-center">
+            {t('bank.notConfiguredNotice', 'Quán chưa cấu hình tài khoản ngân hàng. Vui lòng thanh toán tiền mặt tại quầy.')}
+          </div>
+        ) : (
+        <>
         {/* Dynamic VietQR Display Card */}
         <div className="bg-white p-5 rounded-3xl shadow-2xl flex flex-col items-center border-4 border-amber-500/40">
           <QRCodeSVG value={qrString} size={220} level="H" includeMargin />
@@ -152,8 +161,10 @@ export default function TablePaymentPage({ params }: PageProps) {
         <p className="text-xs text-zinc-400 text-center max-w-xs">
           {t('pos.scanToPay', 'Mở ứng dụng Ngân hàng bất kỳ hoặc Ví điện tử để quét mã thanh toán tự động')}
         </p>
+        </>
+        )}
 
-        {/* Bank Transfer Details Box */}
+        {bankReady && (
         <div className="w-full bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 space-y-2.5 text-xs">
           <div className="flex justify-between items-center py-1 border-b border-zinc-800/60">
             <span className="text-zinc-400">{t('bank.bankName', 'Ngân hàng')}</span>
@@ -196,6 +207,7 @@ export default function TablePaymentPage({ params }: PageProps) {
             </div>
           </div>
         </div>
+        )}
 
         {copied && (
           <div className="text-xs text-emerald-400 font-medium animate-in fade-in">
