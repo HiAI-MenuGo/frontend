@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MenuItemView } from '../table/hooks/useMenuSoldOut';
 import PosItemOptionsModal from './ItemOptionsModal';
 import { SelectedModifier } from '../../stores/cart.store';
@@ -128,6 +128,23 @@ export function CashierClient() {
   const [voucherMsg, setVoucherMsg] = useState('');
   const [memberPhone, setMemberPhone] = useState('');
   const [memberInfo, setMemberInfo] = useState<{ name?: string; tier?: string; points?: number } | null>(null);
+  const [bankConfig, setBankConfig] = useState<{
+    bankCode?: string;
+    bankAccountNo?: string;
+    bankAccountName?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    apiFetch<any>('/branding').then((res) => {
+      if (res?.success && res.data) {
+        setBankConfig({
+          bankCode: res.data.bankCode,
+          bankAccountNo: res.data.bankAccountNo,
+          bankAccountName: res.data.bankAccountName,
+        });
+      }
+    });
+  }, []);
 
   const discountAmount = voucherDiscount;
   const finalTotal = Math.max(0, subTotal - discountAmount);
@@ -591,14 +608,22 @@ export function CashierClient() {
             {/* VietQR display */}
             {payMethod === 'VIETQR' && (
               <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-inner">
-                <QRCodeSVG
-                  value={`https://img.vietqr.io/image/MB-0901234567-compact2.png?amount=${finalTotal}&addInfo=POS%20${selectedTable}`}
-                  size={160}
-                  level="H"
-                />
-                <span className="text-[10px] text-zinc-600 font-semibold mt-2">
-                  {t('pos.scanVietqrInstruction', 'Quét bằng ứng dụng Ngân hàng để thanh toán tự động')}
-                </span>
+                {bankConfig?.bankCode && bankConfig?.bankAccountNo ? (
+                  <>
+                    <QRCodeSVG
+                      value={`https://img.vietqr.io/image/${bankConfig.bankCode}-${bankConfig.bankAccountNo}-compact2.png?amount=${finalTotal}&addInfo=POS%20${encodeURIComponent(selectedTable)}${bankConfig.bankAccountName ? `&accountName=${encodeURIComponent(bankConfig.bankAccountName)}` : ''}`}
+                      size={160}
+                      level="H"
+                    />
+                    <span className="text-[10px] text-zinc-600 font-semibold mt-2">
+                      {t('pos.scanVietqrInstruction', 'Quét bằng ứng dụng Ngân hàng để thanh toán tự động')}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-xs text-rose-500 font-semibold py-4 text-center">
+                    {t('bank.notConfiguredNotice', 'Chưa cấu hình tài khoản ngân hàng trong Cài đặt')}
+                  </span>
+                )}
               </div>
             )}
 

@@ -7,6 +7,7 @@ import { ArrowLeft, CheckCircle2, Copy, ShieldCheck, Clock } from 'lucide-react'
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '../../../../context/i18nContext';
+import apiFetch from '../../../../lib/api';
 
 interface PageProps {
   params: Promise<{ tableId: string }>;
@@ -22,17 +23,49 @@ export default function TablePaymentPage({ params }: PageProps) {
   const [timeLeft, setTimeLeft] = useState(890); // ~15 minutes
   const [isPaid, setIsPaid] = useState(false);
 
-  // Bank Info & QR parameters
-  const bankInfo = {
+  // Bank Info & QR parameters từ TenantBranding (fallback mặc định an toàn)
+  const [bankInfo, setBankInfo] = useState({
     bankName: 'Ngân hàng Quân Đội (MBBank)',
+    bankCode: 'MB',
     accountNo: '0901234567',
     accountName: 'CONG TY CO PHAN HIAI MENUGO',
     amount: 125000,
     memo: `MENUGO ${tableId.toUpperCase()} 101`,
-  };
+  });
+
+  useEffect(() => {
+    const loadBranding = async () => {
+      try {
+        let branchId = 'default-branch';
+        let tenantId: string | undefined;
+
+        if (tableId.length > 20 || tableId.includes('.')) {
+          const res = await apiFetch<any>(`/tables/resolve?token=${encodeURIComponent(tableId)}`);
+          if (res?.data?.branchId) branchId = res.data.branchId;
+          if (res?.data?.tenantId) tenantId = res.data.tenantId;
+        }
+
+        const endpoint = tenantId ? `/branding/${tenantId}` : `/branding/public?branchId=${branchId}`;
+        const res = await apiFetch<any>(endpoint);
+        const data = res?.data;
+        if (data?.bankCode && data?.bankAccountNo) {
+          setBankInfo((prev) => ({
+            ...prev,
+            bankCode: data.bankCode,
+            bankName: data.bankCode === 'MB' ? 'Ngân hàng Quân Đội (MBBank)' : data.bankCode,
+            accountNo: data.bankAccountNo,
+            accountName: data.bankAccountName || prev.accountName,
+          }));
+        }
+      } catch (err) {
+        console.warn('Could not load branding for payment QR:', err);
+      }
+    };
+    loadBranding();
+  }, [tableId]);
 
   // VietQR Quicklink payload
-  const qrString = `https://img.vietqr.io/image/MB-0901234567-compact2.png?amount=${bankInfo.amount}&addInfo=${encodeURIComponent(
+  const qrString = `https://img.vietqr.io/image/${bankInfo.bankCode}-${bankInfo.accountNo}-compact2.png?amount=${bankInfo.amount}&addInfo=${encodeURIComponent(
     bankInfo.memo
   )}&accountName=${encodeURIComponent(bankInfo.accountName)}`;
 
