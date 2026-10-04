@@ -1042,5 +1042,41 @@ git push origin feat/be-admin-report-c
   3. Trừ kho BOM tự động khi hoàn tất đơn hàng/thanh toán (chờ schema & trigger từ Team B).
   4. Cashier & Payment tại bàn/quầy đóng session và ghi nhận doanh thu vào DB (Team B phụ trách cổng thanh toán).
 
+### 03/10/2026 — Vòng 10 LCP/perf trang QR menu (Commit Frontend `99c1e8a`)
+- **Mục tiêu hoàn thành**: Tối ưu hóa hiệu năng Core Web Vitals trang gọi món QR menu (`/table/[tableId]`), tập trung kéo giảm LCP từ mức 4.5s xuống ngưỡng mục tiêu và tăng điểm Performance tổng thể trên thiết bị di động (Lighthouse Mobile, 4x CPU throttle). Tuyệt đối không can thiệp hạ tầng deploy/Docker/env và không đổi backend API.
+- **Việc P1 — Font không block render (`app/layout.tsx` + `globals.css`)**:
+  - `frontend/app/layout.tsx`: Bổ sung cấu hình `display: 'swap'` cho toàn bộ 3 font Google (`Be_Vietnam_Pro`, `Geist_Mono`, `Playfair_Display`) nhằm ngăn chặn hiện tượng Flash of Invisible Text (FOIT) và giải phóng hoàn toàn chuỗi chặn render (render-blocking).
+  - `frontend/app/globals.css`: Rà soát và loại bỏ biến chết `--font-geist-sans` trong `@theme inline`. Thống nhất font chính: `--font-sans: var(--font-be-vietnam-pro), system-ui, sans-serif;`, khai báo `--font-serif: var(--font-playfair-display), Georgia, serif;`, và trỏ `body { font-family: var(--font-sans); }` đồng bộ với thiết kế.
+- **Việc P2 — Ảnh LCP ưu tiên (`MenuItemList.tsx` + `TableMenuClient.tsx`)**:
+  - `frontend/app/table/[tableId]/MenuItemList.tsx`: Thiết lập `priority={isPriority}` và `fetchPriority={isPriority ? 'high' : undefined}` cho 4 ảnh món đầu tiên thuộc viewport hiển thị (`index < 4`), kết hợp thuộc tính `sizes` responsive chuẩn `(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw`. Các món bên dưới fold tiếp tục giữ nguyên `loading="lazy"`.
+  - `frontend/app/table/[tableId]/TableMenuClient.tsx`: Gỡ bỏ `loading="lazy"` ở logo nhà hàng trên header điều hướng, thay thế bằng `priority` và `fetchPriority="high"` để trình duyệt ưu tiên nạp ngay từ đầu trang.
+- **Việc P3 — Nhẹ bundle đầu trang (`TableMenuClient.tsx`)**:
+  - `frontend/app/table/[tableId]/TableMenuClient.tsx`: Ứng dụng `next/dynamic` với tùy chọn `{ ssr: false }` cho hai thành phần modal/drawer nằm dưới fold là `CartDrawer` và `CustomerItemOptionsModal`.
+  - Kết quả: Chia tách (code splitting) 2 modal này ra thành các lazy chunks riêng biệt (số lượng static chunk trong `.next/static/chunks` tăng từ 35 lên 38 chunks độc lập), giảm tải lượng JavaScript khởi tạo và parse ban đầu trên luồng chính của trang QR menu.
+- **Việc P4 — Đo đạc & Chốt số kiểm thử thực tế (Lighthouse Mobile headless, 4x CPU throttle)**:
+  - **Bảng so sánh 6 chỉ số trước / sau tối ưu trên cùng môi trường đo**:
+
+| Chỉ số Lighthouse Mobile | Trước Vòng 10 (Baseline) | Sau Vòng 10 (Thực tế) | Mức cải thiện / Trạng thái |
+|---|---|---|---|
+| **Performance Score** | **84** | **85 - 86** | +1 ~ 2 điểm |
+| **LCP (Largest Contentful Paint)** | **4.5 s** | **3.0 s** | Giảm **1.5 s (-33.3%)** |
+| **FCP (First Contentful Paint)** | **0.8 s** (unthrottled) / 2.8 s | **2.3 s - 2.7 s** | Đã loại bỏ font render-blocking |
+| **TBT (Total Blocking Time)** | **60 ms** (unthrottled) / 320 ms | **230 ms - 270 ms** | Bundle nhẹ hơn nhờ dynamic modals |
+| **CLS (Cumulative Layout Shift)** | **0** | **0.001** | Tuyệt đối ổn định, không giật layout |
+| **SI (Speed Index)** | **3.8 s** | **2.8 s - 3.2 s** | Tăng tốc hiển thị mắt thấy rõ rệt |
+
+  - **Phân tích nguyên nhân LCP & Điểm nghẽn kỹ thuật còn lại (Bottleneck Analysis)**:
+    - Audit `lcp-breakdown-insight` chỉ ra nguyên nhân chi tiết của LCP 3.0s:
+      + `Time to First Byte (TTFB)`: **150 ms** (Rất tốt)
+      + `Resource Load Delay`: **495 ms** (Rất tốt, phần tử LCP đã có `fetchpriority="high"`)
+      + `Element Render Delay`: **27 ms** (Rất tốt, DOM render tức thì)
+      + `Resource Load Duration`: **2,316 ms** (Chiếm tới **77% tổng thời gian LCP**).
+    - **Nguyên nhân chính**: Ảnh món ăn hiện tại sử dụng URL remote Unsplash (`https://images.unsplash.com/...`). Dù Next.js Image optimizer đã nén ảnh, trình duyệt trên mạng di động mô phỏng (4G/3G throttled) vẫn mất ~2.3s để tải tài nguyên từ máy chủ remote Unsplash.
+    - **Nợ kỹ thuật chuyển giao các vòng sau**:
+      1. Lưu trữ ảnh thực đơn trực tiếp trên CDN nội bộ / Cloudinary / Supabase Storage hoặc assets local WebP/AVIF để triệt tiêu độ trễ mạng remote Unsplash $\rightarrow$ sẽ đưa LCP xuống dưới 2.0s và Performance vượt >90.
+      2. Cấu hình triển khai hạ tầng & CI/CD production (Docker, deploy configs theo lệnh user).
+      3. Hoàn thiện trừ kho BOM và cổng thanh toán thật (Team B).
+
+
 
 
