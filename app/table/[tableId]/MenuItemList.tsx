@@ -17,7 +17,7 @@ export function MenuItemList({
   items,
   categories,
   onSelectItem,
-  primaryColor = '#f59e0b',
+  primaryColor = '#00A389',
 }: MenuItemListProps) {
   const { t } = useI18n();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -35,28 +35,28 @@ export function MenuItemList({
   }, [items, selectedCategory, searchQuery]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {/* Search Bar */}
       <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={t('menu.searchPlaceholder', 'Tìm món ngon, đồ uống...')}
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl pl-10 pr-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500 transition"
+          className="w-full bg-white border border-[#E2E8F0] rounded-2xl pl-10 pr-4 py-2.5 text-[13px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-hidden focus:border-[#00A389] shadow-2xs transition"
         />
       </div>
 
       {/* Horizontal Category Pill Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         <button
           type="button"
           onClick={() => setSelectedCategory('all')}
-          className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+          className={`px-3.5 py-2 rounded-xl text-[12px] font-bold whitespace-nowrap transition-all ${
             selectedCategory === 'all'
-              ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20'
-              : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+              ? 'bg-[#00A389] text-white shadow-xs'
+              : 'bg-white text-[#64748B] hover:text-[#0F172A] border border-[#E2E8F0]'
           }`}
         >
           {t('common.all', 'Tất cả')}
@@ -66,10 +66,10 @@ export function MenuItemList({
             key={cat.id}
             type="button"
             onClick={() => setSelectedCategory(cat.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+            className={`px-3.5 py-2 rounded-xl text-[12px] font-bold whitespace-nowrap transition-all ${
               selectedCategory === cat.id
-                ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20'
-                : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+                ? 'bg-[#00A389] text-white shadow-xs'
+                : 'bg-white text-[#64748B] hover:text-[#0F172A] border border-[#E2E8F0]'
             }`}
           >
             {cat.name}
@@ -79,21 +79,21 @@ export function MenuItemList({
 
       {/* Items Grid: 2-col on mobile, 3-4 on tablet/desktop */}
       {filteredItems.length === 0 ? (
-        <div className="py-12 text-center text-zinc-500 flex flex-col items-center justify-center">
-          <AlertCircle className="w-8 h-8 mb-2 opacity-40" />
-          <p className="text-sm">{t('menu.noMatch', 'Không tìm thấy món phù hợp')}</p>
+        <div className="py-12 text-center text-[#94A3B8] flex flex-col items-center justify-center bg-white rounded-2xl border border-[#E2E8F0]">
+          <AlertCircle className="w-8 h-8 mb-2 opacity-50 text-[#94A3B8]" />
+          <p className="text-[13px] font-bold">{t('menu.noMatch', 'Không tìm thấy món phù hợp')}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-3.5">
           {filteredItems.map((item, index) => {
             const isPriority = index < 4;
             return (
               <div
                 key={item.id}
-                className="group relative bg-zinc-900/90 border border-zinc-800/80 rounded-2xl overflow-hidden flex flex-col transition hover:border-zinc-700 shadow-sm"
+                className="group relative bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden flex flex-col justify-between transition-all hover:border-[#00A389]/40 hover:shadow-xs shadow-2xs"
               >
                 {/* Image Container */}
-                <div className="relative aspect-square w-full bg-zinc-800 overflow-hidden">
+                <div className="relative aspect-square w-full bg-slate-100 overflow-hidden">
                   {item.imageUrl ? (
                     <Image
                       src={item.imageUrl}
@@ -102,21 +102,21 @@ export function MenuItemList({
                       priority={isPriority}
                       fetchPriority={isPriority ? 'high' : undefined}
                       loading={isPriority ? undefined : 'lazy'}
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      sizes="(max-width: 640px) 50vw, 25vw"
                       className={`object-cover transition duration-300 group-hover:scale-105 ${
                         item.isSoldOut ? 'grayscale contrast-125 opacity-40' : ''
                       }`}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-zinc-600 text-xs">
-                      No Image
+                    <div className="w-full h-full flex items-center justify-center text-[#94A3B8] text-xs font-bold">
+                      MenuGO
                     </div>
                   )}
 
                   {/* Sold Out Overlay Badge */}
                   {item.isSoldOut && (
-                    <div className="absolute inset-0 bg-zinc-950/70 backdrop-blur-[2px] flex items-center justify-center">
-                      <span className="px-2.5 py-1 bg-rose-500/90 text-white font-bold text-[11px] tracking-wider rounded-md uppercase shadow-lg shadow-rose-950/50">
+                    <div className="absolute inset-0 bg-[#0F172A]/70 backdrop-blur-2xs flex items-center justify-center">
+                      <span className="px-2.5 py-1 bg-rose-500 text-white font-extrabold text-[10.5px] tracking-wider rounded-md uppercase shadow-xs">
                         {t('menu.soldOutUpper', 'HẾT HÀNG')}
                       </span>
                     </div>
@@ -124,20 +124,20 @@ export function MenuItemList({
                 </div>
 
                 {/* Content Container */}
-                <div className="p-3 sm:p-3.5 flex-1 flex flex-col justify-between">
+                <div className="p-3 flex-1 flex flex-col justify-between">
                   <div>
-                    <h3 className="font-semibold text-sm text-zinc-100 line-clamp-1 group-hover:text-amber-400 transition">
+                    <h3 className="font-extrabold text-[13px] text-[#0F172A] line-clamp-1 group-hover:text-[#00A389] transition-colors">
                       {item.name}
                     </h3>
                     {item.description && (
-                      <p className="text-[11px] text-zinc-400 line-clamp-2 mt-1 leading-relaxed">
+                      <p className="text-[11px] text-[#64748B] line-clamp-2 mt-0.5 leading-snug">
                         {item.description}
                       </p>
                     )}
                   </div>
 
-                  <div className="mt-3 flex items-center justify-between pt-2 border-t border-zinc-800/60">
-                    <span className="font-bold text-sm text-amber-400">
+                  <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-[#F1F5F9]">
+                    <span className="font-black text-[13.5px] text-[#00A389] font-mono">
                       {item.basePrice.toLocaleString('vi-VN')}đ
                     </span>
 
@@ -146,12 +146,12 @@ export function MenuItemList({
                       disabled={item.isSoldOut}
                       onClick={() => onSelectItem(item)}
                       style={{
-                        backgroundColor: item.isSoldOut ? '#27272a' : primaryColor,
+                        backgroundColor: item.isSoldOut ? '#E2E8F0' : primaryColor,
                       }}
-                      className={`px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 shadow-md transition ${
+                      className={`px-2.5 py-1.5 rounded-xl font-bold text-[11px] flex items-center gap-1 shadow-2xs transition-all ${
                         item.isSoldOut
-                          ? 'text-zinc-500 cursor-not-allowed'
-                          : 'text-zinc-950 hover:brightness-110 active:scale-95'
+                          ? 'text-[#94A3B8] cursor-not-allowed'
+                          : 'text-white hover:brightness-105 active:scale-95'
                       }`}
                     >
                       <Plus className="w-3.5 h-3.5" />

@@ -3,6 +3,7 @@
 import React, { useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Printer, Download, Sparkles } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface TableQRCodeProps {
   tableCode: string;
@@ -10,6 +11,8 @@ interface TableQRCodeProps {
   tableId: string;
   restaurantName?: string;
   logoUrl?: string;
+  tenantId?: string;
+  branchId?: string;
   /** Token JWT mã hóa (C-023). Ưu tiên hơn tableId thô khi có. */
   qrToken?: string;
 }
@@ -20,13 +23,18 @@ export function TableQRCode({
   tableId,
   restaurantName = 'HiAI-MenuGo Restaurant',
   logoUrl,
+  tenantId,
+  branchId,
   qrToken,
 }: TableQRCodeProps) {
   const qrRef = useRef<HTMLDivElement>(null);
+  const user = useAuthStore((s) => s.user);
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+  const effectiveTenantId = tenantId || user?.tenantId || 'default-tenant';
+  const effectiveBranchId = branchId || user?.branchId || 'default-branch';
   // Standee dùng token JWT mã hóa khi có, fallback id thô cho môi trường dev.
   const qrPath = qrToken || tableId.toLowerCase().replace(/\s+/g, '-');
-  const qrUrl = `${origin}/table/${qrPath}`;
+  const qrUrl = `${origin}/${effectiveTenantId}/${effectiveBranchId}/table/${qrPath}`;
 
   const handlePrint = () => {
     window.print();

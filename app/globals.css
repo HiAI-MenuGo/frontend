@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F4F6F8;
+  --foreground: #0F172A;
+  --primary-teal: #00A389;
+  --primary-teal-light: #E6F7F4;
+  --coral-orange: #FF7A59;
+  --coral-orange-light: #FFEDD5;
+  --lavender-purple: #A855F7;
+  --lavender-purple-light: #F3E8FF;
 }
 
 @theme inline {
@@ -13,20 +19,41 @@
   --font-serif: var(--font-playfair-display), Georgia, serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  overflow-x: hidden;
 }
 
-/* Bản in nhiệt 80mm: chỉ in nội dung bill, ẩn UI thừa (C-013). */
+/* Custom Clean Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Hide scrollbar helper */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Print bill styling (80mm) */
 @media print {
   @page {
     size: 80mm auto;
@@ -36,7 +63,11 @@ body {
     background: #fff !important;
     color: #000 !important;
   }
+  .no-print {
+    display: none !important;
+  }
   .print-area {
+    display: block !important;
     width: 72mm;
     margin: 0 auto;
     color: #000 !important;

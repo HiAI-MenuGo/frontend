@@ -15,48 +15,60 @@ interface OrderItemLive {
 }
 
 interface PageProps {
-  params: Promise<{ tableId: string }>;
+  params: Promise<{ tableId: string; tenantId?: string; branchId?: string }>;
 }
 
 export default function OrderStatusPage({ params }: PageProps) {
   const resolvedParams = use(params);
-  const tableId = resolvedParams.tableId;
+  const { tableId, tenantId, branchId } = resolvedParams;
   const { t } = useI18n();
+  const basePath = tenantId && branchId ? `/${tenantId}/${branchId}/table/${tableId}` : `/table/${tableId}`;
 
   const [orderStatus, setOrderStatus] = useState<'PENDING' | 'PREPARING' | 'DONE'>('PREPARING');
-  const [estimatedMinutes, setEstimatedMinutes] = useState(12);
+  const [estimatedMinutes] = useState(12);
   const [orderCode] = useState('#101');
-  const [items] = useState<OrderItemLive[]>([
-    { id: '1', name: 'Trà Đào Cam Sả', quantity: 2, price: 45000, status: 'PREPARING' },
-    { id: '2', name: 'Cà Phê Muối', quantity: 1, price: 35000, status: 'DONE' },
-  ]);
-
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [items] = useState<OrderItemLive[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(`menugo_order_${tableId}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
+            return parsed.items.map(
+              (
+                it: { menuItemId?: string; name: string; quantity: number; basePrice?: number },
+                idx: number
+              ) => ({
+                id: it.menuItemId || String(idx),
+                name: it.name,
+                quantity: it.quantity,
+                price: it.basePrice ?? 0,
+                status: 'PREPARING' as const,
+              })
+            );
+          }
+        }
+      } catch {}
+    }
+    return [
+      { id: '1', name: 'Trà Đào Cam Sả', quantity: 2, price: 45000, status: 'PREPARING' },
+      { id: '2', name: 'Cà Phê Muối', quantity: 1, price: 35000, status: 'DONE' },
+    ];
+  });
 
   useEffect(() => {
     const socket = getSocket();
 
-    const markSynced = () => setIsInitializing(false);
-    const handleOrderUpdate = (payload: any) => {
+    const handleOrderUpdate = (payload: { status?: 'PENDING' | 'PREPARING' | 'DONE' }) => {
       if (payload.status) {
         setOrderStatus(payload.status);
       }
-      markSynced();
-    };
-    const handleItemUpdate = () => {
-      // Cập nhật trạng thái từng món realtime (C-007).
-      markSynced();
     };
 
     socket.on('order:updated', handleOrderUpdate);
-    socket.on('order:item:status', handleItemUpdate);
-    // Fallback: tránh kẹt skeleton khi socket không trả event.
-    const tTimer = setTimeout(markSynced, 3000);
 
     return () => {
-      clearTimeout(tTimer);
       socket.off('order:updated', handleOrderUpdate);
-      socket.off('order:item:status', handleItemUpdate);
     };
   }, []);
 
@@ -67,7 +79,7 @@ export default function OrderStatusPage({ params }: PageProps) {
       {/* Top Header */}
       <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
         <Link
-          href={`/table/${tableId}`}
+          href={`${basePath}/menu`}
           className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -198,17 +210,15 @@ export default function OrderStatusPage({ params }: PageProps) {
       </div>
 
       {/* Bottom Payment Button */}
-      {!isInitializing && (
-        <div className="mt-6">
-          <Link
-            href={`/table/${tableId}/payment`}
-            className="w-full py-3.5 px-4 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-amber-500/20 transition active:scale-[0.98]"
-          >
-            <QrCode className="w-5 h-5" />
-            <span>{t('payment.payNow', 'Yêu Cầu Thanh Toán VietQR')}</span>
-          </Link>
-        </div>
-      )}
+      <div className="mt-6">
+        <Link
+          href={`${basePath}/payment`}
+          className="w-full py-3.5 px-4 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-amber-500/20 transition active:scale-[0.98]"
+        >
+          <QrCode className="w-5 h-5" />
+          <span>{t('payment.payNow', 'Yêu Cầu Thanh Toán VietQR')}</span>
+        </Link>
+      </div>
     </div>
   );
 }

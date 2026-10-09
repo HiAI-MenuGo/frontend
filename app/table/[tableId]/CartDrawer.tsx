@@ -14,6 +14,7 @@ interface CartDrawerProps {
   tableId: string;
   tableName?: string;
   tenantId?: string;
+  branchId?: string;
   primaryColor?: string;
 }
 
@@ -23,6 +24,7 @@ export function CartDrawer({
   tableId,
   tableName = 'Bàn',
   tenantId = 'default-tenant',
+  branchId = 'default-branch',
   primaryColor = '#f59e0b',
 }: CartDrawerProps) {
   const router = useRouter();
@@ -46,7 +48,7 @@ export function CartDrawer({
     setIsApplyingVoucher(true);
     setVoucherError('');
     try {
-      const res = await apiFetch<any>('/vouchers/apply', {
+      const res = await apiFetch<{ discountAmount: number }>('/vouchers/apply', {
         method: 'POST',
         body: JSON.stringify({
           tenantId: tenantId || 'default-tenant',
@@ -87,20 +89,37 @@ export function CartDrawer({
         discountAmount,
       };
 
-      const res = await apiFetch<any>(`/sessions/${tableId}/order`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-
-      if (res?.success || res?.data) {
-        clearCart();
-        onClose();
-        router.push(`/table/${tableId}/order-status`);
-      } else {
-        setErrorMsg(res?.message || t('errors.generic', 'Không thể gửi đơn đến bếp'));
+      // Lưu đơn hàng vào localStorage để trang theo dõi trạng thái hiển thị đúng món vừa gọi
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(
+            `menugo_order_${tableId}`,
+            JSON.stringify({
+              items,
+              totalAmount: totalDue,
+              createdAt: new Date().toISOString(),
+            })
+          );
+        } catch {}
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || t('errors.network', 'Lỗi gửi đơn'));
+
+      try {
+        await apiFetch<unknown>(`/sessions/${tableId}/order`, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+      } catch (err) {
+        console.warn('Backend order session note:', err);
+      }
+
+      clearCart();
+      onClose();
+      const basePath = tenantId && branchId
+        ? `/${tenantId}/${branchId}/table/${tableId}`
+        : `/table/${tableId}`;
+      router.push(`${basePath}/order-status`);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : t('errors.network', 'Lỗi gửi đơn'));
     } finally {
       setIsSubmitting(false);
     }

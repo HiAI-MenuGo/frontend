@@ -23,8 +23,8 @@ const playfairDisplay = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "HiAI-MenuGo — Nền Tảng Quản Lý Nhà Hàng & F&B Thông Minh",
-  description: "Hệ thống POS, KDS, QR Menu và Quản trị SaaS F&B Đa Chi Nhánh",
+  title: "MenuGO by HiAI — Quản Lý Nhà Hàng & F&B Thông Minh",
+  description: "MenuGO by HiAI: đặt món, quản lý bàn, thực đơn, khách hàng và báo cáo cho nhà hàng",
 };
 
 import { I18nProvider } from "../context/i18nContext";
@@ -37,9 +37,9 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
-      className={`${beVietnamPro.variable} ${geistMono.variable} ${playfairDisplay.variable} h-full antialiased dark`}
+      className={`${beVietnamPro.variable} ${geistMono.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans bg-zinc-950 text-zinc-100 selection:bg-amber-500 selection:text-white">
+      <body className="min-h-full flex flex-col font-sans bg-[#F4F6F8] text-[#0F172A] selection:bg-[#00A389] selection:text-white">
         <I18nProvider>{children}</I18nProvider>
       </body>
     </html>
