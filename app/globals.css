@@ -42,6 +42,17 @@ body {
   background: #94A3B8;
 }
 
+/* Hide scrollbar helper */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Print bill styling (80mm) */
 @media print {
   @page {

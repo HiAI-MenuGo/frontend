@@ -7,6 +7,19 @@ export interface ApiResponse<T = any> {
   errorCode?: string;
 }
 
+function handleUnauthorized() {
+  if (typeof window === 'undefined') return;
+  // Trang đăng nhập tự xử lý lỗi 401 (sai mật khẩu) nên không chuyển hướng
+  if (window.location.pathname.startsWith('/login')) return;
+  try {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  } catch {
+    // bỏ qua
+  }
+  window.location.href = '/login';
+}
+
 export async function apiFetch<T = any>(
   endpoint: string,
   options: RequestInit = {}
@@ -26,6 +39,11 @@ export async function apiFetch<T = any>(
       ...options,
       headers,
     });
+
+    // Token hết hạn / không hợp lệ -> xóa phiên và văng về đăng nhập
+    if (res.status === 401) {
+      handleUnauthorized();
+    }
 
     const data = await res.json();
     return data;

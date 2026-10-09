@@ -23,8 +23,8 @@ const playfairDisplay = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "HiAI-MenuGo — Nền Tảng Quản Lý Nhà Hàng & F&B Thông Minh",
-  description: "Hệ thống POS, KDS, QR Menu và Quản trị SaaS F&B Đa Chi Nhánh",
+  title: "MenuGO by HiAI — Quản Lý Nhà Hàng & F&B Thông Minh",
+  description: "MenuGO by HiAI: đặt món, quản lý bàn, thực đơn, khách hàng và báo cáo cho nhà hàng",
 };
 
 import { I18nProvider } from "../context/i18nContext";

@@ -39,6 +39,7 @@ export function useMenuSoldOut(initialItems: MenuItemView[]) {
   const [items, setItems] = useState<MenuItemView[]>(initialItems);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems(initialItems);
   }, [initialItems]);
 

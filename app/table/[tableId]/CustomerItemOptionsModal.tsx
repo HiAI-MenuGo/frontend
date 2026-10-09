@@ -28,6 +28,7 @@ export function CustomerItemOptionsModal({
   const [note, setNote] = useState('');
 
   // Reset modal state when item opens
+  /* eslint-disable react-hooks/set-state-in-effect */
   React.useEffect(() => {
     if (item && isOpen) {
       setQuantity(1);
@@ -46,10 +47,19 @@ export function CustomerItemOptionsModal({
   }, [item, isOpen]);
 
   const catRaw = item?.category || '';
-  const catName = typeof catRaw === 'string' ? catRaw : (catRaw as any)?.name || '';
+  const catName =
+    typeof catRaw === 'string'
+      ? catRaw
+      : typeof catRaw === 'object' && catRaw !== null && 'name' in catRaw
+      ? String((catRaw as { name: string }).name)
+      : '';
   const isDrink = useMemo(() => {
     const kws = ['coffee', 'cà phê', 'tea', 'trà', 'drink', 'nước', 'juice', 'boba', 'smoothie'];
-    return kws.some((k) => catName.toLowerCase().includes(k)) || (item?.category as any)?.isDrink;
+    const hasProp =
+      typeof item?.category === 'object' && item?.category !== null && 'isDrink' in item.category
+        ? Boolean(item.category.isDrink)
+        : false;
+    return kws.some((k) => catName.toLowerCase().includes(k)) || hasProp;
   }, [catName, item]);
 
   // Calculate realtime total price

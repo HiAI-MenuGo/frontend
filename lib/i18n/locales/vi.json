@@ -5,7 +5,7 @@
     "dashboard": "Tổng Quan",
     "integrations": "API & Webhook",
     "inventory": "Kho & Định Lượng BOM",
-    "kdsShort": "Màn Hình Bếp",
+    "kdsShort": "Quản Lý Đơn Hàng",
     "menu": "Quản Lý Thực Đơn",
     "posShort": "POS Thu Ngân",
     "roles": "Nhân Sự & Phân Quyền",
@@ -55,7 +55,7 @@
     "discount": "Giảm giá",
     "empty": "Giỏ hàng của bạn đang trống",
     "orderNote": "Ghi chú chung cho đơn",
-    "sendOrder": "Gửi Đơn Đến Bếp",
+    "sendOrder": "Gửi Đơn Đến Quầy Chế Biến",
     "sending": "Đang gửi đơn...",
     "subTotal": "Tạm tính",
     "totalAmount": "Tổng thanh toán",
@@ -96,7 +96,7 @@
     "noTopItems": "Chưa có món bán chạy trong ngày",
     "openPos": "Mở POS Bán Hàng",
     "orderCount": "Số lượng hóa đơn",
-    "ordersPendingKitchen": "món đang chờ bếp nấu",
+    "ordersPendingKitchen": "món đang chờ chế biến",
     "peakHoursDesc": "Đỉnh doanh thu thường tập trung lúc 12:00 và 18:00 - 20:00",
     "qrTransfers": "qua Chuyển khoản QR",
     "revenueHourlyTrend": "Xu Hướng Doanh Thu Theo Giờ",
@@ -186,7 +186,7 @@
     "soundOn": "Bật chuông",
     "startCooking": "Bắt đầu nấu",
     "time": "Phút",
-    "title": "Màn Hình Bếp (KDS)"
+    "title": "Quản Lý Đơn Hàng"
   },
   "menu": {
     "add": "Thêm",
@@ -212,8 +212,8 @@
   },
   "payment": {
     "addMore": "Gọi thêm món",
-    "cooking": "Bếp đang chế biến món ngon",
-    "orderSent": "Đã gửi đơn — Chờ bếp nhận",
+    "cooking": "Đang chế biến món ngon",
+    "orderSent": "Đã gửi đơn — Chờ xác nhận",
     "payNow": "Thanh toán ngay bằng VietQR",
     "ready": "Món đã sẵn sàng phục vụ!",
     "success": "Thanh toán thành công!"
@@ -326,8 +326,8 @@
     "roleAdminTitle": "Chủ Quán (ADMIN)",
     "roleCashierDesc": "Bán hàng POS, tạo đơn tại quầy, áp dụng voucher, thu tiền mặt / VietQR, in hóa đơn.",
     "roleCashierTitle": "Thu Ngân (CASHIER)",
-    "roleKitchenDesc": "Màn hình KDS, nhận đơn chế biến, đổi trạng thái món, bật/tắt báo hết món (sold out).",
-    "roleKitchenTitle": "Bếp (KITCHEN)",
+    "roleKitchenDesc": "Màn hình quản lý đơn, nhận đơn chế biến, đổi trạng thái món, bật/tắt báo hết món (sold out).",
+    "roleKitchenTitle": "Chế Biến (KITCHEN)",
     "roleLabel": "Vai trò (Role)",
     "roleManagerDesc": "Kiểm kê kho, xuất báo cáo ca Z-Report, giám sát nhân sự tại chi nhánh được giao.",
     "roleManagerTitle": "Quản Lý (MANAGER)",
