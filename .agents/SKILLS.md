@@ -12,34 +12,23 @@
 Màu sắc trong F&B không chỉ để trang trí mà là công cụ trực tiếp kích thích cảm giác ngon miệng và điều hướng tâm lý khách hàng:
 
 ### A. Quy luật bề mặt nền (Background Surface Dynamics)
-- **Web Admin, POS, KDS (Dark Mode mặc định `bg-zinc-950`):**
-  - Giảm mỏi mắt tối đa cho nhân viên thu ngân và đầu bếp khi làm việc liên tục 8-12 tiếng.
-  - Tăng độ tương phản cho các nhãn trạng thái (Pending màu Vàng cam, Preparing màu Xanh dương, Ready màu Xanh lá).
-- **Mobile App & QR Menu Khách Hàng (Light & Elegant):**
-  - Nền bề mặt tiêu chuẩn: `#F8FAFC` (Slate subtle) hoặc `#FFFFFF`.
-  - Nền mộc cao cấp: Trắng kem `#F7F6F2` dành cho không gian cafe thư giãn.
-  - Tuyệt đối không dùng màu thô nguyên bản (Raw RGB/Pure Hex) gây chói mắt.
+- **Hệ thống Web POS & Restaurant Management (Tasty Station / HiAI-MenuGo Light Mode):**
+  - Nền Canvas tổng thể: `#F4F6F8` / `#F8FAFC` — tạo cảm giác sạch sẽ, thoáng đãng và đẳng cấp.
+  - Thẻ thông tin (Cards) & Bảng điều khiển: Nền trắng `#FFFFFF`, bo tròn lớn `rounded-[20px]` đến `rounded-[24px]`, viền nhẹ `#E2E8F0` / `#F1F5F9`, bóng đổ tinh tế `shadow-[0_2px_12px_rgba(15,23,42,0.04)]`.
+  - Tách biệt rõ ràng 3 phân vùng thao tác: Sidebar điều hướng (trái), Khu vực tác vụ / Lưới thực đơn (giữa), Bảng Order Ticket / Chi tiết bàn (phải).
 
-### B. Bản đồ sắc thái màu chủ đạo F&B
-| Sắc thái | Mã Hex chuẩn | Cảm xúc & Ngữ cảnh áp dụng |
+### B. Bảng màu chuẩn Tasty Station x HiAI-MenuGo
+| Sắc thái | Mã Hex chuẩn | Ứng dụng cụ thể trong hệ thống |
 |---|---|---|
-| **Xanh Tươi Rực** | `#22C55E` / `#10B981` | Kích thích vị giác, tươi mới, ngon miệng, biểu tượng món ăn phục vụ tốt |
-| **Xanh Lục Bảo Sâu** | `#059669` / `#047857` | Nút hành động chính (Primary CTA), đặt món, thanh toán thành công |
-| **Cam Hổ Phách** | `#F59E0B` / `#D97706` | Cảnh báo bàn chờ thanh toán, đơn bếp đang chờ (Pending), món tạm hết |
-| **Đỏ San Hô** | `#EF4444` / `#DC2626` | Nút hủy món, cảnh báo kho cạn kiệt, badge số lượng giỏ hàng |
-| **Tím Indigo** | `#6366F1` / `#7C3AED` | Điểm nhấn phân hệ quản trị Admin Dashboard, mã giảm giá Voucher |
-
-### C. Màu sắc nhận diện thương hiệu động (Dynamic Branding)
-- Hệ thống hỗ trợ nạp màu theo từng quán từ API `/api/branding`.
-- Không hardcode màu cố định trong QR Menu và Modal chọn món; luôn đọc từ `primaryColor` và `secondaryColor`:
-  ```tsx
-  // Dynamic inline styling
-  style={{
-    borderColor: primaryColor,
-    color: primaryColor,
-    backgroundColor: `color-mix(in srgb, ${primaryColor} 6%, #ffffff)`
-  }}
-  ```
+| **Mint / Teal Chủ Đạo** | `#00A389` / `#0D9488` | Logo, Nút CTA chính ("Place Order", "+ Add"), Tab đang chọn, Bàn Available |
+| **Mint Tint Nhạt** | `#E6F7F4` / `#ECFDF5` | Nền Badge "In Kitchen", Nền Tab active, Nền Bàn trống (Available) |
+| **Coral / Cam Đào** | `#FF7A59` / `#F97316` | Trạng thái "Wait List", Bàn đang ăn "On Dine", Ghế cam, Đơn hàng gấp |
+| **Coral Tint Nhạt** | `#FFEDD5` / `#FFF7ED` | Nền thẻ đơn "Wait List", Nền thẻ bàn "On Dine", Tag món đặc biệt |
+| **Lavender / Tím Nhạt** | `#A855F7` / `#9333EA` | Trạng thái đơn "Ready" (Đã xong), Badge món tráng miệng / Special |
+| **Lavender Tint** | `#F3E8FF` / `#FAF5FF` | Nền thẻ đơn "Ready", Thẻ danh mục món ngọt Desserts |
+| **Slate Tối (Chữ Chính)** | `#0F172A` / `#1E293B` | Tiêu đề, Tên món, Giá tiền, Mã đơn hàng, Tên bàn |
+| **Slate Trung Tính (Phụ)**| `#64748B` / `#94A3B8` | Danh mục phụ, Thời gian, Số ghế, Chú thích |
+| **Nền Canvas** | `#F4F6F8` / `#F8FAFC` | Nền toàn trang, Nền ô tìm kiếm, Nền nút phụ |
 
 ---
 
@@ -350,3 +339,46 @@ export const theme = {
 ```
 
 Quy ước: background mặc định `background` (`#F8FAFC`), card `surface` trắng, border `#E2E8F0`. Shadow luôn kèm cả iOS (`shadow*`) + Android (`elevation`). Card chuẩn: `backgroundColor:'#FFFFFF', borderRadius:18~20, borderWidth:1, borderColor:'#E2E8F0', ...theme.shadows.card`. Pill/CTA: `borderRadius:999`.
+
+---
+
+## 8. Tasty Station x HiAI-MenuGo Unified POS & Operating System Architecture
+
+Hệ thống giao diện Web thế hệ mới lấy cảm hứng từ Tasty Station, tập trung vào trải nghiệm mượt mà, sáng sủa, công thái học F&B đỉnh cao:
+
+### 1. Kiến Trúc 3 Màn Hình Cốt Lõi:
+1. **Order Line (POS & Quản Lý Đơn Trực Tiếp):**
+   - **Thanh lọc trạng thái đơn:** `All (78)`, `Dine in (04)`, `Wait List (03)`, `Take Away (12)`, `Served (59)` dạng pill bo tròn.
+   - **Băng chuyền thẻ đơn trực tiếp:** Thẻ vuông bo góc mềm với 3 màu phân biệt:
+     - Xanh Mint `#E6F7F4` cho đơn `In Kitchen` (Đang nấu)
+     - Cam Đào `#FFEDD5` cho đơn `Wait List` (Chờ duyệt)
+     - Tím Lavender `#F3E8FF` cho đơn `Ready` (Đã sẵn sàng phục vụ)
+   - **Lưới thực đơn (Foodies Menu):**
+     - Nút danh mục dạng card bo góc kèm icon món và số lượng món (`All Menu`, `Special`, `Soups`, `Desserts`, `Chickens`).
+     - Lưới món ăn gồm ảnh đĩa tròn chụp từ trên xuống (top-down), danh mục, tên món, giá tiền và bộ chọn số lượng `- 0 +` nổi bật màu mint khi có trong giỏ hàng.
+   - **Phiếu thanh toán trực tiếp (Order Ticket Sidebar):**
+     - Hiển thị Số bàn (`Table No #04`), Mã đơn (`Order #FO030`), Số lượng khách (`2 People`), nút sửa & xóa.
+     - Danh sách món đã gọi kèm số nhân và đơn giá.
+     - Bảng tổng kết: `Subtotal`, `Tax`, `Donation/Service`, `Total Payable`.
+     - 3 nút phương thức thanh toán nhanh: `Cash` (Tiền mặt), `Card` (Thẻ), `Scan` (VietQR động).
+     - Hành động cuối: Nút In bill và Nút `Place Order` màu Mint nổi bật.
+
+2. **Manage Tables (Sơ Đồ Bàn Trực Quan & Đặt Bàn):**
+   - **Cột trái — Danh sách đặt bàn (Reservation Queue):**
+     - Bộ lọc `All (12)`, `Reservation (07)`, `On Dine`.
+     - Bộ chuyển ngày `< Thu, 11 January 2024 >`, ô tìm kiếm khách và nút `+ Add New Reservation`.
+     - Thẻ đặt bàn: Khung giờ, Tên khách, Số bàn, Số khách, Số điện thoại và trạng thái thanh toán.
+   - **Canvas Sơ đồ bàn trung tâm (Visual Interactive Floor Plan):**
+     - Tab khu vực: `Main Dining`, `Terrace`, `Outdoor`.
+     - Chú thích trạng thái: `● Available` (Xanh Mint), `● Reserved` (Xanh Đậm), `● On Dine` (Cam Đào).
+     - Bàn trực quan với các icon ghế bao quanh (2 ghế, 4 ghế, 6 ghế, 8 ghế, 10 ghế).
+     - Nhấp vào bàn để mở đơn hàng, đổi trạng thái hoặc thanh toán.
+
+3. **Manage Dishes (Quản Lý Danh Mục & Thực Đơn):**
+   - **Cột trái — Dishes Category:** Danh sách danh mục cuộn dọc kèm icon và số lượng món, nút `+ Add New Category`.
+   - **Lưới quản lý món:**
+     - Thanh tìm kiếm món và nút `+ Add New Dishes`.
+     - Thẻ đầu tiên viền nét đứt: `+ Add New Dish to [Category]`.
+     - Thẻ món ăn: Checkbox chọn nhiều, menu 3 chấm, ảnh món tròn, tên danh mục, tên món và giá tiền.
+     - Hỗ trợ xem dạng Grid / List và bộ lọc.
+
