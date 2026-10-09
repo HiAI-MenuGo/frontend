@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import TableQRCode from '../../../components/floor/TableQRCode';
 import { QrCode, Users, Layers, X, Eye, RefreshCw, AlertCircle } from 'lucide-react';
 import apiFetch from '../../../lib/api';
+import { useI18n } from '../../../context/i18nContext';
 
 interface FloorTable {
   id: string;
@@ -17,12 +18,22 @@ interface FloorTable {
 }
 
 export default function AdminTablesPage() {
+  const { t } = useI18n();
   const [tables, setTables] = useState<FloorTable[]>([]);
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedTableForQr, setSelectedTableForQr] = useState<FloorTable | null>(null);
+  const [qrToken, setQrToken] = useState<string | null>(null);
+
+  const handleOpenQr = async (t: FloorTable) => {
+    setSelectedTableForQr(t);
+    setQrToken(null);
+    // Xin token JWT mã hóa cho standee (fallback id thô nếu API chưa sẵn sàng).
+    const res = await apiFetch<{ token: string }>(`/tables/${t.id}/qr-token`);
+    if (res.success && res.data?.token) setQrToken(res.data.token);
+  };
 
   const fetchTables = useCallback(async () => {
     setIsLoading(true);
@@ -60,7 +71,7 @@ export default function AdminTablesPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-zinc-100 tracking-tight">
-            SƠ ĐỒ BÀN ĂN & TẠO MÃ QR TẠI BÀN
+            {t('tables.title', 'SƠ ĐỒ BÀN ĂN & TẠO MÃ QR TẠI BÀN')}
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
             Quản lý vị trí bàn, trạng thái phục vụ và xuất file in standee mã QR Level H độ nét cao
@@ -81,10 +92,10 @@ export default function AdminTablesPage() {
       {/* Filter Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
         {[
-          { key: 'all', label: 'Tất Cả Bàn' },
-          { key: 'EMPTY', label: 'Bàn Trống' },
-          { key: 'OCCUPIED', label: 'Đang Có Khách' },
-          { key: 'RESERVED', label: 'Đã Đặt Trước' },
+          { key: 'all', label: t('tables.all', 'Tất Cả Bàn') },
+          { key: 'EMPTY', label: t('tables.empty', 'Bàn Trống') },
+          { key: 'OCCUPIED', label: t('tables.occupied', 'Đang Có Khách') },
+          { key: 'RESERVED', label: t('tables.reserved', 'Đã Đặt Trước') },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -124,19 +135,19 @@ export default function AdminTablesPage() {
       ) : filtered.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-12 text-center space-y-2">
           <Layers className="w-10 h-10 text-zinc-600 mx-auto" />
-          <p className="font-bold text-zinc-300 text-sm">Không tìm thấy bàn nào</p>
+          <p className="font-bold text-zinc-300 text-sm">{t('tables.noTables', 'Không tìm thấy bàn nào')}</p>
           <p className="text-xs text-zinc-500">Thử chọn bộ lọc trạng thái khác.</p>
         </div>
       ) : (
         /* Tables Grid */
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {filtered.map((t) => {
-            const isOccupied = t.status === 'OCCUPIED';
-            const isReserved = t.status === 'RESERVED';
+          {filtered.map((tbl) => {
+            const isOccupied = tbl.status === 'OCCUPIED';
+            const isReserved = tbl.status === 'RESERVED';
 
             return (
               <div
-                key={t.id}
+                key={tbl.id}
                 className={`bg-zinc-900 border rounded-2xl p-4 flex flex-col justify-between transition hover:border-amber-500/50 shadow-md ${
                   isOccupied
                     ? 'border-amber-500/40 bg-gradient-to-b from-amber-500/5 to-transparent'
@@ -147,7 +158,7 @@ export default function AdminTablesPage() {
               >
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="font-black text-sm text-zinc-100">{t.name}</span>
+                    <span className="font-black text-sm text-zinc-100">{tbl.name}</span>
                     <span
                       className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${
                         isOccupied
@@ -157,35 +168,35 @@ export default function AdminTablesPage() {
                           : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                       }`}
                     >
-                      {isOccupied ? 'CÓ KHÁCH' : isReserved ? 'ĐẶT TRƯỚC' : 'TRỐNG'}
+                      {isOccupied ? t('tables.occupied', 'CÓ KHÁCH') : isReserved ? t('tables.reserved', 'ĐẶT TRƯỚC') : t('tables.empty', 'TRỐNG')}
                     </span>
                   </div>
 
-                  {t.totalAmount ? (
+                  {tbl.totalAmount ? (
                     <p className="text-xs font-mono font-bold text-amber-400 pt-1">
-                      {t.totalAmount.toLocaleString('vi-VN')}đ
+                      {tbl.totalAmount.toLocaleString('vi-VN')}đ
                     </p>
                   ) : null}
                 </div>
 
                 <div className="pt-4 border-t border-zinc-800/80 flex items-center justify-between">
-                  {(t.capacity ?? t.customerCount) !== undefined ? (
+                  {(tbl.capacity ?? tbl.customerCount) !== undefined ? (
                     <div className="flex items-center gap-1 text-[11px] text-zinc-400">
                       <Users className="w-3 h-3 text-zinc-500" />
-                      <span>{t.capacity ?? t.customerCount} chỗ</span>
+                      <span>{tbl.capacity ?? tbl.customerCount} {t('tables.seats', 'chỗ')}</span>
                     </div>
                   ) : (
-                    <span className="text-[11px] text-zinc-600">Chưa rõ sức chứa</span>
+                    <span className="text-[11px] text-zinc-600">{t('tables.unknownCapacity', 'Chưa rõ sức chứa')}</span>
                   )}
 
                   <button
                     type="button"
-                    onClick={() => setSelectedTableForQr(t)}
+                    onClick={() => handleOpenQr(tbl)}
                     className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-amber-500 hover:text-zinc-950 font-semibold text-[11px] text-zinc-200 rounded-lg transition"
                     title="Tải Standee QR"
                   >
                     <QrCode className="w-3.5 h-3.5" />
-                    <span>QR Code</span>
+                    <span>{t('tables.qrCode', 'QR Code')}</span>
                   </button>
                 </div>
               </div>
@@ -217,6 +228,7 @@ export default function AdminTablesPage() {
               tableCode={selectedTableForQr.code || selectedTableForQr.name}
               tableName={selectedTableForQr.name}
               logoUrl={logoUrl}
+              qrToken={qrToken || undefined}
             />
           </div>
         </div>

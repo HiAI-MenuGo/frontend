@@ -23,6 +23,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem('menugo_locale') as Locale;
     if (saved && (saved === 'vi' || saved === 'en')) {
       setLocaleState(saved);
+    } else if (typeof navigator !== 'undefined' && navigator.language) {
+      const browserLang = navigator.language.toLowerCase();
+      setLocaleState(browserLang.startsWith('vi') ? 'vi' : 'en');
     }
   }, []);
 

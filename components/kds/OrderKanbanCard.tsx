@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import KdsItemActions from './KdsItemActions';
 import { NoteLinesDark } from '../../lib/format-note';
 import { Clock, CheckCircle, Flame, AlertTriangle } from 'lucide-react';
+import { useI18n } from '../../context/i18nContext';
 
 export interface KdsOrderItem {
   id: string;
@@ -36,6 +37,7 @@ export function OrderKanbanCard({
   onUpdateOrderStatus,
   onUpdateItemStatus,
 }: OrderKanbanCardProps) {
+  const { t } = useI18n();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
@@ -75,7 +77,7 @@ export function OrderKanbanCard({
             </span>
           </div>
           <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">
-            {order.orderType === 'DINE_IN' ? 'Tại bàn' : 'Mang về'}
+            {order.orderType === 'DINE_IN' ? t('pos.dineIn', 'Tại bàn') : t('pos.takeaway', 'Mang về')}
           </span>
         </div>
 
@@ -138,8 +140,9 @@ export function OrderKanbanCard({
         ))}
 
         {order.note && (
-          <div className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 p-2 rounded-xl">
-            <strong>Ghi chú đơn:</strong> {order.note}
+          <div className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 p-2 rounded-xl space-y-1">
+            <strong className="block">{t('cart.orderNote', 'Ghi chú đơn')}:</strong>
+            <NoteLinesDark note={order.note} />
           </div>
         )}
       </div>
@@ -153,7 +156,7 @@ export function OrderKanbanCard({
             className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-[0.98]"
           >
             <Flame className="w-4 h-4" />
-            <span>Nhận Nấu Toàn Bộ</span>
+            <span>{t('kds.startCooking', 'Nhận Nấu Toàn Bộ')}</span>
           </button>
         )}
 
@@ -164,14 +167,14 @@ export function OrderKanbanCard({
             className="w-full py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-[0.98]"
           >
             <CheckCircle className="w-4 h-4" />
-            <span>Hoàn Tất Ra Món</span>
+            <span>{t('kds.markDone', 'Hoàn Tất Ra Món')}</span>
           </button>
         )}
 
         {order.status === 'DONE' && (
           <div className="w-full py-2 text-center text-xs font-semibold text-emerald-400 flex items-center justify-center gap-1.5">
             <CheckCircle className="w-4 h-4" />
-            <span>Đã hoàn thành</span>
+            <span>{t('kds.ready', 'Đã hoàn thành')}</span>
           </div>
         )}
       </div>

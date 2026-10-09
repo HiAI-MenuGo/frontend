@@ -20,22 +20,24 @@ import {
   Sparkles,
 } from 'lucide-react';
 import useAuthStore from '../../stores/auth.store';
+import { useI18n } from '../../context/i18nContext';
 
 export function AdminSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
+  const { t } = useI18n();
 
   const navItems = [
-    { label: 'Tổng Quan', href: '/admin/dashboard', icon: LayoutDashboard },
-    { label: 'Thực Đơn & Món', href: '/admin/menu', icon: UtensilsCrossed },
-    { label: 'Kho & Định Lượng BOM', href: '/admin/inventory', icon: Package },
-    { label: 'Chốt Ca (Z-Report)', href: '/admin/z-report', icon: FileText },
-    { label: 'Khuyến Mãi & Voucher', href: '/admin/vouchers', icon: Ticket },
-    { label: 'Sơ Đồ Bàn & QR', href: '/admin/tables', icon: QrCode },
-    { label: 'Nhân Sự & Phân Quyền', href: '/admin/roles', icon: Users },
-    { label: 'Nhận Diện Thương Hiệu', href: '/admin/settings/branding', icon: Palette },
-    { label: 'Tài Khoản VietQR', href: '/admin/settings/bank', icon: CreditCard },
-    { label: 'API & Webhook', href: '/admin/integrations', icon: Webhook },
+    { label: t('admin.dashboard', 'Tổng Quan'), href: '/admin/dashboard', icon: LayoutDashboard },
+    { label: t('admin.menu', 'Thực Đơn & Món'), href: '/admin/menu', icon: UtensilsCrossed },
+    { label: t('admin.inventory', 'Kho & Định Lượng BOM'), href: '/admin/inventory', icon: Package },
+    { label: t('admin.zreport', 'Chốt Ca (Z-Report)'), href: '/admin/z-report', icon: FileText },
+    { label: t('admin.vouchers', 'Khuyến Mãi & Voucher'), href: '/admin/vouchers', icon: Ticket },
+    { label: t('admin.tables', 'Sơ Đồ Bàn & QR'), href: '/admin/tables', icon: QrCode },
+    { label: t('admin.roles', 'Nhân Sự & Phân Quyền'), href: '/admin/roles', icon: Users },
+    { label: t('admin.branding', 'Nhận Diện Thương Hiệu'), href: '/admin/settings/branding', icon: Palette },
+    { label: t('admin.bank', 'Tài Khoản VietQR'), href: '/admin/settings/bank', icon: CreditCard },
+    { label: t('admin.integrations', 'API & Webhook'), href: '/admin/integrations', icon: Webhook },
   ];
 
   return (
@@ -63,14 +65,14 @@ export function AdminSidebar() {
             className="flex items-center gap-1.5 p-2 bg-zinc-800/70 hover:bg-zinc-800 rounded-xl text-xs font-semibold text-amber-400 border border-zinc-700/60 transition"
           >
             <Store className="w-3.5 h-3.5" />
-            <span>POS Thu Ngân</span>
+            <span>{t('admin.posShort', 'POS Thu Ngân')}</span>
           </Link>
           <Link
             href="/kds"
             className="flex items-center gap-1.5 p-2 bg-zinc-800/70 hover:bg-zinc-800 rounded-xl text-xs font-semibold text-emerald-400 border border-zinc-700/60 transition"
           >
             <ChefHat className="w-3.5 h-3.5" />
-            <span>Màn Hình Bếp</span>
+            <span>{t('admin.kdsShort', 'Màn Hình Bếp')}</span>
           </Link>
         </div>
 

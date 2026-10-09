@@ -6,17 +6,20 @@ const beVietnamPro = Be_Vietnam_Pro({
   weight: ["300", "400", "500", "600", "700"],
   subsets: ["latin", "vietnamese"],
   variable: "--font-be-vietnam-pro",
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const playfairDisplay = Playfair_Display({
   weight: ["600", "700"],
   subsets: ["latin", "vietnamese"],
   variable: "--font-playfair-display",
+  display: "swap",
 });
 
 export const metadata: Metadata = {

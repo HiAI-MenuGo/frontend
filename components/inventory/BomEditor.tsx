@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Save, Sparkles, Lock } from 'lucide-react';
 import apiFetch from '../../lib/api';
+import { useI18n } from '../../context/i18nContext';
 
 interface RecipeItem {
   id: string;
@@ -18,6 +19,7 @@ interface BomEditorProps {
 }
 
 export function BomEditor({ menuItemId, itemName = 'Trà Đào Cam Sả' }: BomEditorProps) {
+  const { t } = useI18n();
   const [selectedItemName, setSelectedItemName] = useState(itemName);
   const [recipes, setRecipes] = useState<RecipeItem[]>([
     { id: '1', ingredientId: 'ing-1', ingredientName: 'Trà Đen Earl Grey', unit: 'g', quantity: 15 },
@@ -82,10 +84,10 @@ export function BomEditor({ menuItemId, itemName = 'Trà Đào Cam Sả' }: BomE
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-zinc-800 gap-3">
         <div>
           <h3 className="font-extrabold text-sm text-zinc-100 flex items-center gap-1.5">
-            Định Lượng Công Thức (BOM Editor) <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            {t('inventory.bomTitle', 'Định Lượng Công Thức (BOM Editor)')} <Sparkles className="w-3.5 h-3.5 text-amber-400" />
           </h3>
           <p className="text-xs text-zinc-400">
-            Hệ thống tự động trừ kho nguyên liệu theo tỷ lệ mỗi khi món được bán
+            {t('inventory.bomSubtitle', 'Hệ thống tự động trừ kho nguyên liệu theo tỷ lệ mỗi khi món được bán')}
           </p>
         </div>
 
@@ -105,7 +107,7 @@ export function BomEditor({ menuItemId, itemName = 'Trà Đào Cam Sả' }: BomE
       {/* Current Ingredients Table */}
       <div className="space-y-2">
         <span className="text-xs font-semibold text-zinc-400">
-          Công thức cho 1 ly {selectedItemName}:
+          {t('inventory.recipeForPortion', 'Công thức cho 1 ly')} {selectedItemName}:
         </span>
         <div className="divide-y divide-zinc-800 border border-zinc-800 rounded-2xl overflow-hidden bg-zinc-950/40">
           {recipes.map((item) => (
@@ -134,7 +136,7 @@ export function BomEditor({ menuItemId, itemName = 'Trà Đào Cam Sả' }: BomE
           type="text"
           value={newIngName}
           onChange={(e) => setNewIngName(e.target.value)}
-          placeholder="Tên nguyên liệu thêm..."
+          placeholder={t('inventory.addIngPlaceholder', 'Tên nguyên liệu thêm...')}
           className="flex-1 w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 placeholder:text-zinc-500 focus:outline-none"
         />
         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -142,7 +144,7 @@ export function BomEditor({ menuItemId, itemName = 'Trà Đào Cam Sả' }: BomE
             type="number"
             value={newQty}
             onChange={(e) => setNewQty(Number(e.target.value))}
-            placeholder="Định lượng"
+            placeholder={t('inventory.portionPlaceholder', 'Định lượng')}
             className="w-20 bg-zinc-900 border border-zinc-800 rounded-xl px-2 py-2 text-center text-zinc-100 focus:outline-none"
           />
           <select
@@ -161,7 +163,7 @@ export function BomEditor({ menuItemId, itemName = 'Trà Đào Cam Sả' }: BomE
             className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold rounded-xl flex items-center gap-1 transition shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Thêm</span>
+            <span>{t('common.add', 'Thêm')}</span>
           </button>
         </div>
       </div>
@@ -169,12 +171,12 @@ export function BomEditor({ menuItemId, itemName = 'Trà Đào Cam Sả' }: BomE
       {/* Save Button */}
       <div className="flex items-center justify-end gap-3 pt-2">
         {savedSuccess && (
-          <span className="text-xs text-emerald-400 font-medium">✓ Đã lưu công thức BOM!</span>
+          <span className="text-xs text-emerald-400 font-medium">✓ {t('inventory.bomSaved', 'Đã lưu công thức BOM!')}</span>
         )}
         {saveError && <span className="text-xs text-rose-400 font-medium">{saveError}</span>}
         {!bomApiReady && (
           <span className="text-[11px] text-zinc-500 flex items-center gap-1">
-            <Lock className="w-3 h-3" /> Chế độ xem trước — API BOM chưa sẵn sàng
+            <Lock className="w-3 h-3" /> {t('inventory.bomPreviewNotice', 'Chế độ xem trước — API BOM chưa sẵn sàng')}
           </span>
         )}
         <button
@@ -185,7 +187,7 @@ export function BomEditor({ menuItemId, itemName = 'Trà Đào Cam Sả' }: BomE
           className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-zinc-950 text-xs rounded-xl shadow-lg shadow-amber-500/20 transition active:scale-[0.98]"
         >
           <Save className="w-3.5 h-3.5" />
-          <span>{saving ? 'Đang lưu...' : 'Lưu Định Lượng'}</span>
+          <span>{saving ? t('common.saving', 'Đang lưu...') : t('inventory.saveBom', 'Lưu Định Lượng')}</span>
         </button>
       </div>
     </div>

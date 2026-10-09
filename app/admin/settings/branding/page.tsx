@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Palette, Save, Image as ImageIcon, Wifi, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
 import apiFetch from '../../../../lib/api';
+import { useI18n } from '../../../../context/i18nContext';
 
 interface BrandingData {
   logoUrl?: string;
@@ -16,6 +17,7 @@ interface BrandingData {
 }
 
 export default function AdminBrandingPage() {
+  const { t } = useI18n();
   const [logoUrl, setLogoUrl] = useState('');
   const [bannerUrl, setBannerUrl] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#f59e0b');
@@ -27,6 +29,7 @@ export default function AdminBrandingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const fetchBranding = useCallback(async () => {
@@ -45,11 +48,11 @@ export default function AdminBrandingPage() {
         if (d.footerText) setFooterText(d.footerText);
       }
     } catch {
-      setError('Lỗi kết nối khi tải nhận diện thương hiệu');
+      setError(t('errors.network', 'Lỗi kết nối khi tải nhận diện thương hiệu'));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchBranding();
@@ -57,6 +60,7 @@ export default function AdminBrandingPage() {
 
   const handleSave = async () => {
     setIsSaving(true);
+    setActionError(null);
     try {
       const res = await apiFetch('/branding', {
         method: 'PUT',
@@ -72,13 +76,13 @@ export default function AdminBrandingPage() {
       });
 
       if (res.success) {
-        setSuccessMessage('Đã lưu cấu hình nhận diện thương hiệu vào hệ thống!');
+        setSuccessMessage(t('branding.saveSuccess', 'Đã lưu cấu hình nhận diện thương hiệu vào hệ thống!'));
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
-        alert(res.message || 'Không thể lưu cấu hình branding');
+        setActionError(res.message || t('branding.saveFailed', 'Không thể lưu cấu hình branding'));
       }
     } catch {
-      alert('Lỗi kết nối khi lưu cấu hình');
+      setActionError(t('errors.network', 'Lỗi kết nối khi lưu cấu hình'));
     } finally {
       setIsSaving(false);
     }
@@ -89,10 +93,10 @@ export default function AdminBrandingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black text-zinc-100 tracking-tight">
-            NHẬN DIỆN THƯƠNG HIỆU & GIAO DIỆN QUÁN
+            {t('branding.title', 'NHẬN DIỆN THƯƠNG HIỆU & GIAO DIỆN QUÁN')}
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
-            Tùy biến logo, màu sắc chủ đạo, ảnh bìa và thông tin wifi hiển thị trên toàn bộ QR Menu & POS
+            {t('branding.subtitle', 'Tùy biến logo, màu sắc chủ đạo, ảnh bìa và thông tin wifi hiển thị trên toàn bộ QR Menu & POS')}
           </p>
         </div>
 
@@ -101,11 +105,18 @@ export default function AdminBrandingPage() {
           onClick={fetchBranding}
           disabled={isLoading}
           className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-white transition disabled:opacity-50"
-          title="Tải lại"
+          title={t('common.refresh', 'Làm mới')}
         >
           <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
         </button>
       </div>
+
+      {actionError && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-red-400 animate-in fade-in">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{actionError}</span>
+        </div>
+      )}
 
       {successMessage && (
         <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-400 animate-in fade-in">
@@ -120,7 +131,7 @@ export default function AdminBrandingPage() {
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
-          <button type="button" onClick={fetchBranding} className="underline font-bold">Thử lại</button>
+          <button type="button" onClick={fetchBranding} className="underline font-bold">{t('common.retry', 'Thử lại')}</button>
         </div>
       )}
 
@@ -139,13 +150,13 @@ export default function AdminBrandingPage() {
           <div className="space-y-4">
             <h3 className="font-extrabold text-sm text-zinc-200 flex items-center gap-2">
               <Palette className="w-4 h-4 text-amber-500" />
-              <span>Bảng Màu Thương Hiệu</span>
+              <span>{t('branding.colorPalette', 'Bảng Màu Thương Hiệu')}</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2">
                 <label className="text-xs font-semibold text-zinc-300">
-                  Màu Nhấn Chủ Đạo (Primary Color - CTA, Highlights)
+                  {t('branding.primaryColor', 'Màu Nhấn Chủ Đạo (Primary Color - CTA, Highlights)')}
                 </label>
                 <div className="flex items-center gap-3">
                   <input
@@ -165,7 +176,7 @@ export default function AdminBrandingPage() {
 
               <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2">
                 <label className="text-xs font-semibold text-zinc-300">
-                  Màu Phụ Trợ (Secondary Gradient)
+                  {t('branding.secondaryColor', 'Màu Phụ Trợ (Secondary Gradient)')}
                 </label>
                 <div className="flex items-center gap-3">
                   <input
@@ -189,12 +200,12 @@ export default function AdminBrandingPage() {
           <div className="space-y-4 pt-4 border-t border-zinc-800">
             <h3 className="font-extrabold text-sm text-zinc-200 flex items-center gap-2">
               <ImageIcon className="w-4 h-4 text-sky-400" />
-              <span>Hình Ảnh & Logo Thương Hiệu</span>
+              <span>{t('branding.mediaImages', 'Hình Ảnh & Logo Thương Hiệu')}</span>
             </h3>
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="font-semibold text-zinc-300">Đường dẫn Logo Nhà Hàng (URL)</label>
+                <label className="font-semibold text-zinc-300">{t('branding.logoUrl', 'Đường dẫn Logo Nhà Hàng (URL)')}</label>
                 <input
                   type="text"
                   value={logoUrl}
@@ -205,7 +216,7 @@ export default function AdminBrandingPage() {
               </div>
 
               <div>
-                <label className="font-semibold text-zinc-300">Đường dẫn Banner Ảnh Bìa (URL)</label>
+                <label className="font-semibold text-zinc-300">{t('branding.bannerUrl', 'Đường dẫn Banner Ảnh Bìa (URL)')}</label>
                 <input
                   type="text"
                   value={bannerUrl}
@@ -221,12 +232,12 @@ export default function AdminBrandingPage() {
           <div className="space-y-4 pt-4 border-t border-zinc-800">
             <h3 className="font-extrabold text-sm text-zinc-200 flex items-center gap-2">
               <Wifi className="w-4 h-4 text-emerald-400" />
-              <span>Thông Tin Wifi Cho Khách Hàng</span>
+              <span>{t('branding.wifiSection', 'Thông Tin Wifi Cho Khách Hàng')}</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
-                <label className="font-semibold text-zinc-300">Tên mạng Wifi (SSID)</label>
+                <label className="font-semibold text-zinc-300">{t('branding.wifiSsid', 'Tên mạng Wifi (SSID)')}</label>
                 <input
                   type="text"
                   value={wifiSsid}
@@ -236,12 +247,12 @@ export default function AdminBrandingPage() {
                 />
               </div>
               <div>
-                <label className="font-semibold text-zinc-300">Mật khẩu Wifi</label>
+                <label className="font-semibold text-zinc-300">{t('branding.wifiPass', 'Mật khẩu Wifi')}</label>
                 <input
                   type="text"
                   value={wifiPassword}
                   onChange={(e) => setWifiPassword(e.target.value)}
-                  placeholder="Mật khẩu truy cập"
+                  placeholder={t('branding.wifiPassPlaceholder', 'Mật khẩu truy cập')}
                   className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 focus:outline-none focus:border-amber-500"
                 />
               </div>
@@ -257,7 +268,7 @@ export default function AdminBrandingPage() {
               className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 font-bold text-zinc-950 text-xs rounded-xl shadow-lg shadow-amber-500/20 transition active:scale-[0.98] disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              <span>{isSaving ? 'Đang lưu...' : 'Lưu Thay Đổi'}</span>
+              <span>{isSaving ? t('common.saving', 'Đang lưu...') : t('branding.saveChanges', 'Lưu Thay Đổi')}</span>
             </button>
           </div>
         </div>

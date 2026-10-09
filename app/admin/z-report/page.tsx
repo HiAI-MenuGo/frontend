@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, Printer, CheckCircle, AlertCircle, DollarSign, QrCode, RefreshCw, Download } from 'lucide-react';
 import apiFetch from '../../../lib/api';
+import { useI18n } from '../../../context/i18nContext';
 
 interface ShiftPreview {
   cashRevenue: number;
@@ -31,6 +32,7 @@ interface ZReportHistoryItem {
 }
 
 export default function AdminZReportPage() {
+  const { t } = useI18n();
   const [shiftName, setShiftName] = useState('Ca Sáng (07:00 - 15:00)');
   const [openingCash, setOpeningCash] = useState<number>(2000000);
   const [actualCash, setActualCash] = useState<number>(2000000);
@@ -49,6 +51,7 @@ export default function AdminZReportPage() {
   const [history, setHistory] = useState<ZReportHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -71,11 +74,11 @@ export default function AdminZReportPage() {
         setHistory(histRes.data);
       }
     } catch {
-      setError('Lỗi kết nối khi tải số liệu ca làm việc');
+      setError(t('errors.network', 'Lỗi kết nối khi tải số liệu ca làm việc'));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchShiftData();
@@ -87,6 +90,7 @@ export default function AdminZReportPage() {
   const handleCloseShift = async () => {
     if (!shiftName.trim()) return;
     setIsClosing(true);
+    setActionError(null);
     try {
       const res = await apiFetch('/z-report/close-shift', {
         method: 'POST',
@@ -100,14 +104,14 @@ export default function AdminZReportPage() {
       });
 
       if (res.success) {
-        setSuccessMessage('Chốt ca làm việc và lưu Z-Report thành công!');
+        setSuccessMessage(t('zReport.closeSuccess', 'Chốt ca làm việc và lưu Z-Report thành công!'));
         fetchShiftData();
         setTimeout(() => setSuccessMessage(null), 4000);
       } else {
-        alert(res.message || 'Không thể chốt ca làm việc');
+        setActionError(res.message || t('zReport.closeFailed', 'Không thể chốt ca làm việc'));
       }
     } catch {
-      alert('Lỗi kết nối khi gửi yêu cầu chốt ca');
+      setActionError(t('errors.network', 'Lỗi kết nối khi gửi yêu cầu chốt ca'));
     } finally {
       setIsClosing(false);
     }
@@ -117,29 +121,30 @@ export default function AdminZReportPage() {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
     const exportUrl = `${apiUrl}/z-report/export?format=${format}`;
-    // Tải kèm Authorization (window.open không gắn được header → dùng fetch + blob).
+    setActionError(null);
     try {
       const res = await fetch(exportUrl, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
-        alert(`Xuất báo cáo thất bại (HTTP ${res.status}) — kiểm tra đăng nhập.`);
+        setActionError(`${t('zReport.exportFailed', 'Xuất báo cáo thất bại')} (HTTP ${res.status}) — ${t('zReport.checkLogin', 'kiểm tra đăng nhập.')}`);
         return;
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const serverName = disposition.match(/filename="([^"]+)"/)?.[1];
       if (format === 'pdf') {
-        // HTML in được khổ 80mm — mở tab mới để Ctrl+P.
         window.open(url, '_blank');
       } else {
         const a = document.createElement('a');
         a.href = url;
-        a.download = `z-report.${format === 'excel' ? 'csv' : format}`;
+        a.download = serverName || `z-report.${format === 'excel' ? 'xlsx' : format}`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
       }
     } catch {
-      alert('Lỗi kết nối khi xuất báo cáo');
+      setActionError(t('errors.network', 'Lỗi kết nối khi xuất báo cáo'));
     }
   };
 
@@ -149,10 +154,10 @@ export default function AdminZReportPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-zinc-100 tracking-tight">
-            BÁO CÁO KẾT CA & ĐỐI SOÁT (Z-REPORT)
+            {t('zReport.title', 'BÁO CÁO KẾT CA & ĐỐI SOÁT (Z-REPORT)')}
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
-            Tổng kết doanh thu ca, đối soát tiền mặt thực thu với số liệu hệ thống và chốt ca thu ngân
+            {t('zReport.subtitle', 'Tổng kết doanh thu ca, đối soát tiền mặt thực thu với số liệu hệ thống và chốt ca thu ngân')}
           </p>
         </div>
 
@@ -162,7 +167,7 @@ export default function AdminZReportPage() {
             onClick={fetchShiftData}
             disabled={isLoading}
             className="p-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl transition"
-            title="Làm mới số liệu"
+            title={t('zReport.refreshData', 'Làm mới số liệu')}
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
           </button>
@@ -172,7 +177,7 @@ export default function AdminZReportPage() {
             className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-xl transition"
           >
             <Download className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Xuất Excel</span>
+            <span>{t('zReport.exportExcel', 'Xuất Excel')}</span>
           </button>
           <button
             type="button"
@@ -180,10 +185,17 @@ export default function AdminZReportPage() {
             className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-xl transition"
           >
             <Printer className="w-3.5 h-3.5 text-sky-400" />
-            <span>In Khổ 80mm</span>
+            <span>{t('zReport.print80mm', 'In Khổ 80mm')}</span>
           </button>
         </div>
       </div>
+
+      {actionError && (
+        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-red-400 animate-in fade-in">
+          <AlertCircle className="w-5 h-5 shrink-0" />
+          <span className="font-semibold">{actionError}</span>
+        </div>
+      )}
 
       {successMessage && (
         <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-400 animate-in fade-in">
@@ -203,7 +215,7 @@ export default function AdminZReportPage() {
             onClick={fetchShiftData}
             className="underline font-bold text-red-300 hover:text-white"
           >
-            Thử lại
+            {t('common.retry', 'Thử lại')}
           </button>
         </div>
       )}
@@ -214,12 +226,12 @@ export default function AdminZReportPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 shadow-xl space-y-4">
           <h3 className="font-extrabold text-sm text-zinc-200 flex items-center gap-2 pb-3 border-b border-zinc-800">
             <FileText className="w-4 h-4 text-amber-500" />
-            <span>Chốt Sổ Ca Hiện Tại</span>
+            <span>{t('zReport.closeShiftTitle', 'Chốt Sổ Ca Hiện Tại')}</span>
           </h3>
 
           <div className="space-y-3 text-xs">
             <div>
-              <label className="font-semibold text-zinc-300">Tên ca làm việc</label>
+              <label className="font-semibold text-zinc-300">{t('zReport.shiftNameLabel', 'Tên ca làm việc')}</label>
               <input
                 type="text"
                 value={shiftName}
@@ -229,7 +241,7 @@ export default function AdminZReportPage() {
             </div>
 
             <div>
-              <label className="font-semibold text-zinc-300">Tiền quỹ đầu ca (VNĐ)</label>
+              <label className="font-semibold text-zinc-300">{t('zReport.openingCashLabel', 'Tiền quỹ đầu ca (VNĐ)')}</label>
               <input
                 type="number"
                 value={openingCash}
@@ -239,7 +251,7 @@ export default function AdminZReportPage() {
             </div>
 
             <div>
-              <label className="font-semibold text-zinc-300">Tiền mặt thực tế đếm được (VNĐ)</label>
+              <label className="font-semibold text-zinc-300">{t('zReport.actualCashLabel', 'Tiền mặt thực tế đếm được (VNĐ)')}</label>
               <input
                 type="number"
                 value={actualCash}
@@ -249,11 +261,11 @@ export default function AdminZReportPage() {
             </div>
 
             <div>
-              <label className="font-semibold text-zinc-300">Ghi chú bàn giao</label>
+              <label className="font-semibold text-zinc-300">{t('zReport.handoverNoteLabel', 'Ghi chú bàn giao')}</label>
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Ghi chú thêm về lý do chênh lệch hoặc tồn tiền lẻ..."
+                placeholder={t('zReport.handoverNotePlaceholder', 'Ghi chú thêm về lý do chênh lệch hoặc tồn tiền lẻ...')}
                 rows={2}
                 className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500 resize-none"
               />
@@ -266,7 +278,7 @@ export default function AdminZReportPage() {
             disabled={isClosing}
             className="w-full py-3 bg-amber-500 hover:bg-amber-400 font-bold text-zinc-950 text-xs rounded-xl shadow-lg shadow-amber-500/20 transition active:scale-[0.98] disabled:opacity-50"
           >
-            {isClosing ? 'Đang xử lý...' : 'Xác Nhận & Đóng Ca'}
+            {isClosing ? t('common.processing', 'Đang xử lý...') : t('zReport.confirmCloseShift', 'Xác Nhận & Đóng Ca')}
           </button>
         </div>
 
@@ -277,7 +289,7 @@ export default function AdminZReportPage() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
               <div className="flex items-center gap-2 text-zinc-400 text-xs mb-1">
                 <DollarSign className="w-4 h-4 text-emerald-400" />
-                <span>Tiền Mặt (Hệ Thống)</span>
+                <span>{t('zReport.cashSystem', 'Tiền Mặt (Hệ Thống)')}</span>
               </div>
               <p className="text-xl font-black text-emerald-400">
                 {preview.cashRevenue.toLocaleString('vi-VN')}đ
@@ -287,7 +299,7 @@ export default function AdminZReportPage() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
               <div className="flex items-center gap-2 text-zinc-400 text-xs mb-1">
                 <QrCode className="w-4 h-4 text-sky-400" />
-                <span>VietQR Chuyển Khoản</span>
+                <span>{t('zReport.vietqrTransfers', 'VietQR Chuyển Khoản')}</span>
               </div>
               <p className="text-xl font-black text-sky-400">
                 {preview.qrRevenue.toLocaleString('vi-VN')}đ
@@ -297,7 +309,7 @@ export default function AdminZReportPage() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
               <div className="flex items-center gap-2 text-zinc-400 text-xs mb-1">
                 <FileText className="w-4 h-4 text-amber-400" />
-                <span>Tổng Doanh Thu Ca</span>
+                <span>{t('zReport.totalShiftRevenue', 'Tổng Doanh Thu Ca')}</span>
               </div>
               <p className="text-xl font-black text-amber-400">
                 {preview.totalRevenue.toLocaleString('vi-VN')}đ
@@ -308,22 +320,22 @@ export default function AdminZReportPage() {
           {/* Cash Discrepancy Box */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-3">
             <h4 className="font-bold text-xs text-zinc-200 uppercase tracking-wider">
-              Đối Soát Tiền Mặt Thực Tế vs Hệ Thống
+              {t('zReport.reconciliationTitle', 'Đối Soát Tiền Mặt Thực Tế vs Hệ Thống')}
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-                <span className="text-zinc-500 block">Tiền két dự kiến:</span>
+                <span className="text-zinc-500 block">{t('zReport.expectedCash', 'Tiền két dự kiến:')}</span>
                 <span className="font-bold text-zinc-200 font-mono">
                   {expectedCash.toLocaleString('vi-VN')}đ
                 </span>
                 <span className="text-[10px] text-zinc-500 block mt-0.5">
-                  (Quỹ đầu ca + Tiền mặt thu)
+                  {t('zReport.expectedCashFormula', '(Quỹ đầu ca + Tiền mặt thu)')}
                 </span>
               </div>
 
               <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-                <span className="text-zinc-500 block">Tiền mặt thực đếm:</span>
+                <span className="text-zinc-500 block">{t('zReport.actualCounted', 'Tiền mặt thực đếm:')}</span>
                 <span className="font-bold text-amber-400 font-mono">
                   {actualCash.toLocaleString('vi-VN')}đ
                 </span>
@@ -339,7 +351,7 @@ export default function AdminZReportPage() {
                 }`}
               >
                 <span className="block font-semibold">
-                  {discrepancy === 0 ? '✓ Khớp 100%' : discrepancy > 0 ? 'Dư két' : 'Thiếu hụt'}
+                  {discrepancy === 0 ? t('zReport.balanced100', '✓ Khớp 100%') : discrepancy > 0 ? t('zReport.surplus', 'Dư két') : t('zReport.shortage', 'Thiếu hụt')}
                 </span>
                 <span className="font-black text-sm font-mono">
                   {discrepancy > 0 ? '+' : ''}
@@ -349,9 +361,9 @@ export default function AdminZReportPage() {
             </div>
 
             <div className="flex items-center justify-between text-xs text-zinc-400 pt-2 border-t border-zinc-800/80">
-              <span>Đơn hoàn tất: <strong className="text-zinc-200">{preview.orderCount}</strong></span>
-              <span>Đơn hủy: <strong className="text-zinc-200">{preview.voidedCount}</strong></span>
-              <span>Giảm giá khuyến mãi: <strong className="text-zinc-200">{preview.totalDiscount.toLocaleString('vi-VN')}đ</strong></span>
+              <span>{t('zReport.completedOrders', 'Đơn hoàn tất:')} <strong className="text-zinc-200">{preview.orderCount}</strong></span>
+              <span>{t('zReport.voidedOrders', 'Đơn hủy:')} <strong className="text-zinc-200">{preview.voidedCount}</strong></span>
+              <span>{t('zReport.discountTotal', 'Giảm giá khuyến mãi:')} <strong className="text-zinc-200">{preview.totalDiscount.toLocaleString('vi-VN')}đ</strong></span>
             </div>
           </div>
         </div>
@@ -359,24 +371,24 @@ export default function AdminZReportPage() {
 
       {/* History Table */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 shadow-lg space-y-4">
-        <h3 className="font-extrabold text-sm text-zinc-100">Lịch Sử Các Ca Đã Chốt Sổ</h3>
+        <h3 className="font-extrabold text-sm text-zinc-100">{t('zReport.historyTitle', 'Lịch Sử Các Ca Đã Chốt Sổ')}</h3>
 
         {history.length === 0 ? (
           <div className="p-8 text-center text-xs text-zinc-500">
-            Chưa có lịch sử chốt ca nào được ghi nhận trên hệ thống.
+            {t('zReport.historyEmpty', 'Chưa có lịch sử chốt ca nào được ghi nhận trên hệ thống.')}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-950/60 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                 <tr>
-                  <th className="py-3 px-3">Tên Ca / Thời Gian</th>
-                  <th className="py-3 px-3">Người Chốt</th>
-                  <th className="py-3 px-3 text-right">Tiền Mặt</th>
-                  <th className="py-3 px-3 text-right">VietQR</th>
-                  <th className="py-3 px-3 text-right">Tổng Doanh Thu</th>
-                  <th className="py-3 px-3 text-right">Thực Thu</th>
-                  <th className="py-3 px-3 text-center">Chênh Lệch</th>
+                  <th className="py-3 px-3">{t('zReport.colShiftTime', 'Tên Ca / Thời Gian')}</th>
+                  <th className="py-3 px-3">{t('zReport.colClosedBy', 'Người Chốt')}</th>
+                  <th className="py-3 px-3 text-right">{t('zReport.colCash', 'Tiền Mặt')}</th>
+                  <th className="py-3 px-3 text-right">{t('zReport.colQr', 'VietQR')}</th>
+                  <th className="py-3 px-3 text-right">{t('zReport.colTotalRevenue', 'Tổng Doanh Thu')}</th>
+                  <th className="py-3 px-3 text-right">{t('zReport.colActualCash', 'Thực Thu')}</th>
+                  <th className="py-3 px-3 text-center">{t('zReport.colDiscrepancy', 'Chênh Lệch')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
@@ -389,7 +401,7 @@ export default function AdminZReportPage() {
                       </span>
                     </td>
                     <td className="py-3 px-3 text-zinc-300">
-                      {item.user?.name || 'Thu ngân'}
+                      {item.user?.name || t('receipt.cashier', 'Thu ngân')}
                     </td>
                     <td className="py-3 px-3 text-right font-mono text-zinc-300">
                       {item.cashRevenue.toLocaleString('vi-VN')}đ
@@ -411,7 +423,7 @@ export default function AdminZReportPage() {
                             : 'bg-red-500/10 text-red-400'
                         }`}
                       >
-                        {item.discrepancy === 0 ? 'Khớp' : `${item.discrepancy.toLocaleString('vi-VN')}đ`}
+                        {item.discrepancy === 0 ? t('zReport.balanced', 'Khớp') : `${item.discrepancy.toLocaleString('vi-VN')}đ`}
                       </span>
                     </td>
                   </tr>
