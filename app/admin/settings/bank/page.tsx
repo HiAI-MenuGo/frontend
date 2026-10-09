@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { CreditCard, Save, ShieldCheck, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import apiFetch from '../../../../lib/api';
+import { useI18n } from '../../../../context/i18nContext';
 
 interface BrandingBankData {
   bankCode?: string;
@@ -12,6 +13,7 @@ interface BrandingBankData {
 }
 
 export default function AdminBankSettingsPage() {
+  const { t } = useI18n();
   const [bankCode, setBankCode] = useState('MB');
   const [accountNo, setAccountNo] = useState('');
   const [accountName, setAccountName] = useState('');
@@ -20,6 +22,7 @@ export default function AdminBankSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const fetchBankInfo = useCallback(async () => {
@@ -35,14 +38,14 @@ export default function AdminBankSettingsPage() {
         }
         if (res.data.bankAccountName) setAccountName(res.data.bankAccountName);
       } else if (res.errorCode !== 'NETWORK_ERROR') {
-        setError(res.message || 'Không thể tải cấu hình ngân hàng');
+        setError(res.message || t('bank.errorLoading', 'Không thể tải cấu hình ngân hàng'));
       }
     } catch {
-      setError('Lỗi kết nối khi tải cấu hình ngân hàng');
+      setError(t('errors.network', 'Lỗi kết nối khi tải cấu hình ngân hàng'));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchBankInfo();
@@ -50,6 +53,7 @@ export default function AdminBankSettingsPage() {
 
   const handleSave = async () => {
     setIsSaving(true);
+    setActionError(null);
     try {
       const res = await apiFetch('/branding', {
         method: 'PUT',
@@ -61,14 +65,14 @@ export default function AdminBankSettingsPage() {
       });
 
       if (res.success) {
-        setMessage('Đã lưu cấu hình tài khoản VietQR thành công!');
+        setMessage(t('bank.saveSuccess', 'Đã lưu cấu hình tài khoản VietQR thành công!'));
         setIsConfigured(true);
         setTimeout(() => setMessage(null), 3000);
       } else {
-        alert(res.message || 'Không thể lưu thông tin ngân hàng');
+        setActionError(res.message || t('bank.saveFailed', 'Không thể lưu thông tin ngân hàng'));
       }
     } catch {
-      alert('Lỗi kết nối khi lưu cấu hình');
+      setActionError(t('errors.network', 'Lỗi kết nối khi lưu cấu hình'));
     } finally {
       setIsSaving(false);
     }
@@ -83,10 +87,10 @@ export default function AdminBankSettingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black text-zinc-100 tracking-tight">
-            CẤU HÌNH TÀI KHOẢN NGÂN HÀNG THỤ HƯỞNG (VIETQR)
+            {t('bank.title', 'CẤU HÌNH TÀI KHOẢN NGÂN HÀNG THỤ HƯỞNG (VIETQR)')}
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
-            Thiết lập tài khoản nhận tiền chuyển khoản tự động qua mã VietQR chuẩn Napas 247
+            {t('bank.subtitle', 'Thiết lập tài khoản nhận tiền chuyển khoản tự động qua mã VietQR chuẩn Napas 247')}
           </p>
         </div>
 
@@ -95,11 +99,18 @@ export default function AdminBankSettingsPage() {
           onClick={fetchBankInfo}
           disabled={isLoading}
           className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-white transition disabled:opacity-50"
-          title="Tải lại"
+          title={t('common.refresh', 'Làm mới')}
         >
           <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
         </button>
       </div>
+
+      {actionError && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-red-400 animate-in fade-in">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{actionError}</span>
+        </div>
+      )}
 
       {message && (
         <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-400 animate-in fade-in">
@@ -114,7 +125,7 @@ export default function AdminBankSettingsPage() {
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
-          <button type="button" onClick={fetchBankInfo} className="underline font-bold">Thử lại</button>
+          <button type="button" onClick={fetchBankInfo} className="underline font-bold">{t('common.retry', 'Thử lại')}</button>
         </div>
       )}
 
@@ -129,12 +140,12 @@ export default function AdminBankSettingsPage() {
           <div className="md:col-span-2 bg-zinc-900 border border-zinc-800 rounded-3xl p-6 shadow-xl space-y-4">
             <h3 className="font-extrabold text-sm text-zinc-200 flex items-center gap-2 pb-3 border-b border-zinc-800">
               <CreditCard className="w-4 h-4 text-amber-500" />
-              <span>Thông Tin Tài Khoản Doanh Nghiệp</span>
+              <span>{t('bank.accountInfoTitle', 'Thông Tin Tài Khoản Doanh Nghiệp')}</span>
             </h3>
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="font-semibold text-zinc-300">Ngân hàng thụ hưởng</label>
+                <label className="font-semibold text-zinc-300">{t('bank.beneficiaryBank', 'Ngân hàng thụ hưởng')}</label>
                 <select
                   value={bankCode}
                   onChange={(e) => setBankCode(e.target.value)}
@@ -151,7 +162,7 @@ export default function AdminBankSettingsPage() {
               </div>
 
               <div>
-                <label className="font-semibold text-zinc-300">Số tài khoản</label>
+                <label className="font-semibold text-zinc-300">{t('bank.accountNumber', 'Số tài khoản')}</label>
                 <input
                   type="text"
                   value={accountNo}
@@ -161,7 +172,7 @@ export default function AdminBankSettingsPage() {
               </div>
 
               <div>
-                <label className="font-semibold text-zinc-300">Tên chủ tài khoản (Viết hoa không dấu)</label>
+                <label className="font-semibold text-zinc-300">{t('bank.accountHolder', 'Tên chủ tài khoản (Viết hoa không dấu)')}</label>
                 <input
                   type="text"
                   value={accountName}
@@ -174,7 +185,7 @@ export default function AdminBankSettingsPage() {
             <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-2.5 text-xs text-amber-300">
               <ShieldCheck className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <p>
-                Tài khoản này sẽ được dùng để tạo mã VietQR động chứa số tiền chính xác trên màn hình gọi món tại bàn và POS thu ngân.
+                {t('bank.qrNotice', 'Tài khoản này sẽ được dùng để tạo mã VietQR động chứa số tiền chính xác trên màn hình gọi món tại bàn và POS thu ngân.')}
               </p>
             </div>
 
@@ -186,7 +197,7 @@ export default function AdminBankSettingsPage() {
                 className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 font-bold text-zinc-950 text-xs rounded-xl shadow-lg shadow-amber-500/20 transition active:scale-[0.98] disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />
-                <span>{isSaving ? 'Đang lưu...' : 'Lưu Cấu Hình Ngân Hàng'}</span>
+                <span>{isSaving ? t('common.saving', 'Đang lưu...') : t('bank.saveConfig', 'Lưu Cấu Hình Ngân Hàng')}</span>
               </button>
             </div>
           </div>
@@ -195,23 +206,24 @@ export default function AdminBankSettingsPage() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 shadow-xl flex flex-col items-center justify-between text-center space-y-3">
             <div>
               <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">
-                Xem Trước VietQR Live
+                {t('bank.previewTitle', 'Xem Trước VietQR Live')}
               </span>
-              <span className="text-xs text-zinc-500">Mẫu QR hiển thị cho khách</span>
+              <span className="text-xs text-zinc-500">{t('bank.previewSubtitle', 'Mẫu QR hiển thị cho khách')}</span>
             </div>
 
             {!isConfigured || !accountNo ? (
               <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-xs text-amber-300">
-                Chưa cấu hình tài khoản ngân hàng — VietQR sẽ không hoạt động cho đến khi bạn lưu thông tin bên trái.
+                {t('bank.notConfiguredNotice', 'Chưa cấu hình tài khoản ngân hàng — VietQR sẽ không hoạt động cho đến khi bạn lưu thông tin bên trái.')}
               </div>
             ) : (
               <>
                 <div className="relative w-48 h-48 bg-white p-2 rounded-2xl shadow-inner flex items-center justify-center overflow-hidden">
                   <Image
                     src={previewQrUrl}
-                    alt="VietQR Preview"
+                    alt={t('bank.previewTitle', 'Xem Trước VietQR Live')}
                     width={192}
                     height={192}
+                    loading="lazy"
                     unoptimized
                     className="w-full h-full object-contain"
                   />

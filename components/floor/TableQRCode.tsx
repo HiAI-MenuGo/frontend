@@ -10,6 +10,8 @@ interface TableQRCodeProps {
   tableId: string;
   restaurantName?: string;
   logoUrl?: string;
+  /** Token JWT mã hóa (C-023). Ưu tiên hơn tableId thô khi có. */
+  qrToken?: string;
 }
 
 export function TableQRCode({
@@ -18,10 +20,13 @@ export function TableQRCode({
   tableId,
   restaurantName = 'HiAI-MenuGo Restaurant',
   logoUrl,
+  qrToken,
 }: TableQRCodeProps) {
   const qrRef = useRef<HTMLDivElement>(null);
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-  const qrUrl = `${origin}/table/${tableId.toLowerCase().replace(/\s+/g, '-')}`;
+  // Standee dùng token JWT mã hóa khi có, fallback id thô cho môi trường dev.
+  const qrPath = qrToken || tableId.toLowerCase().replace(/\s+/g, '-');
+  const qrUrl = `${origin}/table/${qrPath}`;
 
   const handlePrint = () => {
     window.print();

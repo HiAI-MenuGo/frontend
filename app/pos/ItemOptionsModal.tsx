@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { MenuItemView } from '../table/hooks/useMenuSoldOut';
 import { SelectedModifier } from '../../stores/cart.store';
 import { X, Check } from 'lucide-react';
+import { useI18n } from '../../context/i18nContext';
 
 interface PosItemOptionsModalProps {
   item: MenuItemView | null;
@@ -18,6 +19,7 @@ export function PosItemOptionsModal({
   onClose,
   onConfirm,
 }: PosItemOptionsModalProps) {
+  const { t } = useI18n();
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string[]>>({});
   const [note, setNote] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -120,12 +122,12 @@ export function PosItemOptionsModal({
           ))}
 
           <div className="space-y-1">
-            <span className="text-xs font-semibold text-zinc-300">Ghi chú cho bếp</span>
+            <span className="text-xs font-semibold text-zinc-300">{t('menu.note', 'Ghi chú cho bếp')}</span>
             <input
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Ghi chú nhanh..."
+              placeholder={t('menu.notePlaceholder', 'Ghi chú nhanh...')}
               className="w-full bg-zinc-800/80 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
             />
           </div>
@@ -137,7 +139,7 @@ export function PosItemOptionsModal({
             onClick={handleAdd}
             className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 font-bold text-zinc-950 text-xs rounded-xl shadow-lg shadow-amber-500/20 transition active:scale-[0.98]"
           >
-            Thêm vào đơn hàng
+            {t('menu.addToCart', 'Thêm vào đơn hàng')}
           </button>
         </div>
       </div>

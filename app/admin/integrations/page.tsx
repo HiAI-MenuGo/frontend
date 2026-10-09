@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { KeyRound, Webhook, Copy, Check, Trash2, Send, RotateCcw } from 'lucide-react';
+import { useI18n } from '../../../context/i18nContext';
 
 interface ApiKeyRow {
   id: string;
@@ -19,6 +20,7 @@ interface WebhookRow {
 }
 
 export default function AdminIntegrationsPage() {
+  const { t } = useI18n();
   const [keys, setKeys] = useState<ApiKeyRow[]>([]);
   const [webhooks, setWebhooks] = useState<WebhookRow[]>([]);
   const [newKeyName, setNewKeyName] = useState('');
@@ -69,8 +71,8 @@ export default function AdminIntegrationsPage() {
   return (
     <div className="p-6 space-y-8 max-w-4xl">
       <div>
-        <h1 className="text-xl font-extrabold text-zinc-100">API Keys & Webhook</h1>
-        <p className="text-xs text-zinc-400 mt-1">Tích hợp hệ thống bên ngoài (POS phụ, kế toán, SePay).</p>
+        <h1 className="text-xl font-extrabold text-zinc-100">{t('integrations.title', 'API Keys & Webhook')}</h1>
+        <p className="text-xs text-zinc-400 mt-1">{t('integrations.subtitle', 'Tích hợp hệ thống bên ngoài (POS phụ, kế toán, SePay).')}</p>
       </div>
 
       {/* API Keys */}
@@ -82,7 +84,7 @@ export default function AdminIntegrationsPage() {
           <input
             value={newKeyName}
             onChange={(e) => setNewKeyName(e.target.value)}
-            placeholder="Tên gợi nhớ (VD: ke-toan-misa)"
+            placeholder={t('integrations.keyNamePlaceholder', 'Tên gợi nhớ (VD: ke-toan-misa)')}
             className="flex-1 bg-zinc-800/60 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
           />
           <button
@@ -90,7 +92,7 @@ export default function AdminIntegrationsPage() {
             onClick={handleCreateKey}
             className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold rounded-xl"
           >
-            Tạo key
+            {t('integrations.createKey', 'Tạo key')}
           </button>
         </div>
         {freshKey && (
@@ -106,7 +108,7 @@ export default function AdminIntegrationsPage() {
             </button>
           </div>
         )}
-        <p className="text-[11px] text-zinc-500">Key chỉ hiển thị 1 lần duy nhất sau khi tạo. Thu hồi key cũ khi rò rỉ.</p>
+        <p className="text-[11px] text-zinc-500">{t('integrations.keyOnce', 'Key chỉ hiển thị 1 lần duy nhất sau khi tạo. Thu hồi key cũ khi rò rỉ.')}</p>
         <div className="space-y-2">
           {keys.map((k) => (
             <div key={k.id} className="flex items-center justify-between bg-zinc-800/40 border border-zinc-800 rounded-xl px-3 py-2">
@@ -124,7 +126,7 @@ export default function AdminIntegrationsPage() {
               </button>
             </div>
           ))}
-          {keys.length === 0 && <p className="text-xs text-zinc-500">Chưa có API key nào.</p>}
+          {keys.length === 0 && <p className="text-xs text-zinc-500">{t('integrations.noKeys', 'Chưa có API key nào.')}</p>}
         </div>
       </section>
 
@@ -137,7 +139,7 @@ export default function AdminIntegrationsPage() {
           <input
             value={hookUrl}
             onChange={(e) => setHookUrl(e.target.value)}
-            placeholder="https://doi-tac.vn/webhook/menugo"
+            placeholder={t('integrations.endpointPlaceholder', 'https://doi-tac.vn/webhook/menugo')}
             inputMode="url"
             className="flex-1 bg-zinc-800/60 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
           />
@@ -146,7 +148,7 @@ export default function AdminIntegrationsPage() {
             onClick={handleAddWebhook}
             className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-xs font-bold rounded-xl flex items-center gap-1.5"
           >
-            <Send className="w-3.5 h-3.5" /> Thêm
+            <Send className="w-3.5 h-3.5" /> {t('integrations.addEndpoint', 'Thêm')}
           </button>
         </div>
         <div className="space-y-2">
@@ -185,7 +187,7 @@ export default function AdminIntegrationsPage() {
               {w.lastDelivery && <p className="text-[11px] text-emerald-400">{w.lastDelivery}</p>}
             </div>
           ))}
-          {webhooks.length === 0 && <p className="text-xs text-zinc-500">Chưa đăng ký endpoint nào. Events hỗ trợ: order:new, payment:completed, inventory:updated.</p>}
+          {webhooks.length === 0 && <p className="text-xs text-zinc-500">{t('integrations.noEndpoints', 'Chưa đăng ký endpoint nào.')}</p>}
         </div>
       </section>
     </div>
