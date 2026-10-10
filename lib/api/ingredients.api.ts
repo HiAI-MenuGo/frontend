@@ -1,5 +1,5 @@
 import { apiFetch } from '../api';
-import { DEFAULT_BRANCH_ID } from './types';
+import { ALL_BRANCHES_ID, DEFAULT_BRANCH_ID } from './types';
 
 export interface IngredientDTO {
   id: string;
@@ -9,10 +9,12 @@ export interface IngredientDTO {
   lowStockThreshold: number;
   category: string;
   branchId: string;
+  branchName?: string;
+  branchCode?: string;
   updatedAt: string;
 }
 
-export async function fetchIngredients(branchId = DEFAULT_BRANCH_ID): Promise<IngredientDTO[]> {
+export async function fetchIngredients(branchId = ALL_BRANCHES_ID): Promise<IngredientDTO[]> {
   const res = await apiFetch<IngredientDTO[]>(`/ingredients?branchId=${encodeURIComponent(branchId)}`);
   if (!res.success) throw new Error(res.message || 'Không tải được danh sách nguyên liệu');
   return res.data ?? [];

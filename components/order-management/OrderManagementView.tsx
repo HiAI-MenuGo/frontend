@@ -3,12 +3,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ArrowLeft, Search, Clock, Timer, AlertTriangle,
-  Check, CheckCircle2, ShoppingBag, Volume2, VolumeX, X, ChevronRight,
+  Check, CheckCircle2, ShoppingBag, Volume2, VolumeX, X, ChevronRight, Building2,
 } from 'lucide-react';
 import { fetchActiveOrders, updateOrderStatus, voidOrder } from '@/lib/api/orders.api';
 import type { LiveOrderDTO } from '@/lib/api/types';
 import { useSearchStore } from '@/stores/search.store';
 import { useHeaderStore } from '@/stores/header.store';
+import { useBranchStore } from '@/stores/branch.store';
 import { formatVND } from '@/lib/format';
 import { getSocket } from '@/lib/socket';
 
@@ -29,6 +30,7 @@ function formatCountdown(seconds?: number): string {
 
 export default function OrderManagementView() {
   const globalSearch = useSearchStore((s) => s.query);
+  const selectedBranchId = useBranchStore((s) => s.selectedBranchId);
   const [orders, setOrders] = useState<ManagedOrder[]>([]);
   const [activeTab, setActiveTab] = useState<OrderTab>('PENDING');
   const [selected, setSelected] = useState<ManagedOrder | null>(null);
@@ -43,7 +45,7 @@ export default function OrderManagementView() {
       setError(null);
     }
     try {
-      const data = await fetchActiveOrders();
+      const data = await fetchActiveOrders(selectedBranchId === 'ALL' ? 'ALL' : selectedBranchId);
       setOrders((prev) => {
         // Giữ lại đơn DONE đã thao tác local (giống mobile), còn lại thay bằng dữ liệu mới
         const doneLocal = prev.filter((o) => o.status === 'DONE');
@@ -61,7 +63,7 @@ export default function OrderManagementView() {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, []);
+  }, [selectedBranchId]);
 
   const setCustomAction = useHeaderStore((s) => s.setCustomAction);
 
@@ -259,6 +261,15 @@ export default function OrderManagementView() {
         <div className="flex-1 overflow-y-auto space-y-3.5 pb-4 pr-1">
           <div className="bg-white rounded-[20px] p-4 border border-[#E2E8F0]">
             <p className="text-[11px] font-extrabold text-[#94A3B8] tracking-wider mb-3">THÔNG TIN PHỤC VỤ</p>
+            {active.branchName && (
+              <div className="flex justify-between items-center py-1.5 border-b border-[#F8FAFC]">
+                <span className="text-[13px] text-[#64748B]">Chi nhánh:</span>
+                <span className="text-[13px] font-bold text-[#00A389] flex items-center gap-1">
+                  <Building2 size={13} />
+                  <span>{active.branchName}</span>
+                </span>
+              </div>
+            )}
             <div className="flex justify-between items-center py-1.5">
               <span className="text-[13px] text-[#64748B]">Bàn / Khách:</span>
               <span className="text-[13.5px] font-bold text-[#0F172A]">{active.tableName ?? active.customerName ?? 'Mang về'}</span>
@@ -405,10 +416,18 @@ export default function OrderManagementView() {
                       </span>
                     )}
                   </div>
-                  <span className="flex items-center gap-1 bg-[#F1F5F9] px-2 py-0.5 rounded-full text-[11px] text-[#64748B]">
-                    <Clock size={11} />
-                    {order.time}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {order.branchName && (
+                      <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-extrabold text-[10.5px] flex items-center gap-1">
+                        <Building2 size={11} />
+                        <span>{order.branchName}</span>
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1 bg-[#F1F5F9] px-2 py-0.5 rounded-full text-[11px] text-[#64748B]">
+                      <Clock size={11} />
+                      {order.time}
+                    </span>
+                  </div>
                 </div>
 
                 {(order.tableName || order.customerName) && (

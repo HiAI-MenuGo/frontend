@@ -11,6 +11,7 @@ export interface MenuItemView {
   basePrice: number;
   imageUrl?: string | null;
   isSoldOut: boolean;
+  isPopular?: boolean;
   categoryId: string;
   category?: {
     id: string;

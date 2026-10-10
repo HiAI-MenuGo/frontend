@@ -17,10 +17,36 @@ export async function createSessionOrder(tableId: string, items: CreateSessionOr
   return res.data;
 }
 
-export async function fetchPendingPayments(): Promise<PendingSessionDTO[]> {
-  const res = await apiFetch<PendingSessionDTO[]>('/sessions/pending-payment');
+export async function fetchPendingPayments(branchId?: string): Promise<PendingSessionDTO[]> {
+  const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
+  const res = await apiFetch<PendingSessionDTO[]>(`/sessions/pending-payment${query}`);
   if (!res.success) throw new Error(res.message || 'Không tải được bàn chờ thanh toán');
   return res.data ?? [];
+}
+
+export interface ActiveSessionDTO {
+  sessionId: string;
+  sessionCode: string;
+  tableId: string;
+  tableName: string;
+  status: string;
+  subTotal: number;
+  discountAmount: number;
+  total: number;
+  items: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    price: number;
+    note?: string;
+  }>;
+  openedAt: string;
+}
+
+export async function fetchActiveTableSession(tableId: string): Promise<ActiveSessionDTO | null> {
+  const res = await apiFetch<ActiveSessionDTO>(`/sessions/${encodeURIComponent(tableId)}/active`);
+  if (!res.success || !res.data) return null;
+  return res.data;
 }
 
 export async function payCash(

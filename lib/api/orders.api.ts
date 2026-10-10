@@ -63,3 +63,46 @@ export async function fetchOrderHistory(
   if (!res.success) throw new Error(res.message || 'Không tải được lịch sử đơn');
   return res.data ?? { orders: [], total: 0, page: 1, totalPages: 1 };
 }
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+export async function downloadOrderHistoryExcel(params: {
+  branchId?: string;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+  status?: string;
+}): Promise<void> {
+  const query = new URLSearchParams({ branchId: params.branchId || DEFAULT_BRANCH_ID });
+  if (params.startDate) query.set('startDate', params.startDate);
+  if (params.endDate) query.set('endDate', params.endDate);
+  if (params.search && params.search.trim()) query.set('search', params.search.trim());
+  if (params.status && params.status !== 'ALL') query.set('status', params.status);
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const url = `${API_URL}/orders/history/export?${query.toString()}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => '');
+    throw new Error(`Xuất danh sách đơn thất bại (${res.status}): ${errorText || 'Lỗi kết nối máy chủ'}`);
+  }
+
+  const blob = await res.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  const startPart = params.startDate || 'all';
+  const endPart = params.endDate || 'now';
+  link.download = `Lich-su-don-hang-${startPart}_den_${endPart}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(downloadUrl);
+}

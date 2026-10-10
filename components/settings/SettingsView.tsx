@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
   Store,
   QrCode,
@@ -24,31 +24,35 @@ import {
   AlertTriangle,
   MapPin,
   Phone,
+  UploadCloud,
+  Loader2,
+  Cloud,
+  ImageIcon,
+  Pencil,
 } from 'lucide-react';
 import { fetchPublicBranding, updateBranding } from '@/lib/api/branding.api';
-import { fetchBranches, createBranch, exportBranchData, deleteBranch } from '@/lib/api/branches.api';
+import { fetchBranches, createBranch, updateBranch, exportBranchData, deleteBranch } from '@/lib/api/branches.api';
+import { uploadImageFile } from '@/lib/api/upload.api';
 import type { BrandingDTO } from '@/lib/api/types';
 import type { Branch } from '@/lib/api/branches.api';
 import { useAuthStore } from '@/stores/auth.store';
 import { useHeaderStore } from '@/stores/header.store';
+import { useBranchStore } from '@/stores/branch.store';
 
 export default function SettingsView() {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'PLATFORM_ADMIN';
   const [data, setData] = useState<BrandingDTO | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [selectedBranchId, setSelectedBranchId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('selected-branch-id') || '';
-    }
-    return '';
-  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [restaurantName, setRestaurantName] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [bankCode, setBankCode] = useState('');
   const [bankAccountNo, setBankAccountNo] = useState('');
   const [bankAccountName, setBankAccountName] = useState('');
@@ -67,6 +71,7 @@ export default function SettingsView() {
   });
   const [showBranchPicker, setShowBranchPicker] = useState(false);
   const [isAddingBranch, setIsAddingBranch] = useState(false);
+  const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [newBranchName, setNewBranchName] = useState('');
   const [newBranchCode, setNewBranchCode] = useState('');
   const [newBranchAddress, setNewBranchAddress] = useState('');
@@ -86,12 +91,12 @@ export default function SettingsView() {
 
 
   useEffect(() => {
-    const savedBranch = typeof window !== 'undefined' ? localStorage.getItem('selected-branch-id') || '' : '';
-    fetchPublicBranding(savedBranch || undefined)
+    fetchPublicBranding()
       .then((b) => {
         setData(b);
         if (b) {
           setRestaurantName(b.tenant?.name ?? '');
+          setLogoUrl(b.logoUrl ?? '');
           setBankCode(b.bankCode ?? '');
           setBankAccountNo(b.bankAccountNo ?? '');
           setBankAccountName(b.bankAccountName ?? '');
@@ -109,27 +114,28 @@ export default function SettingsView() {
       .catch(() => {});
   }, [isAdmin]);
 
-  const handleBranchChange = (branchId: string) => {
-    setSelectedBranchId(branchId);
-    localStorage.setItem('selected-branch-id', branchId);
-    setLoading(true);
-    fetchPublicBranding(branchId || undefined)
-      .then((b) => {
-        setData(b);
-        if (b) {
-          setRestaurantName(b.tenant?.name ?? '');
-          setBankCode(b.bankCode ?? '');
-          setBankAccountNo(b.bankAccountNo ?? '');
-          setBankAccountName(b.bankAccountName ?? '');
-          setFooterText(b.footerText ?? '');
-        }
-        setError(null);
-      })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Không tải branding'))
-      .finally(() => setLoading(false));
+  const startAddBranch = () => {
+    setEditingBranch(null);
+    setNewBranchName('');
+    setNewBranchCode('');
+    setNewBranchAddress('');
+    setNewBranchPhone('');
+    setCreateBranchError(null);
+    setIsAddingBranch(true);
   };
 
-  const handleCreateBranch = async (e: React.FormEvent) => {
+  const startEditBranch = (b: Branch, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingBranch(b);
+    setNewBranchName(b.name || '');
+    setNewBranchCode(b.code || '');
+    setNewBranchAddress(b.address || '');
+    setNewBranchPhone(b.phone || '');
+    setCreateBranchError(null);
+    setIsAddingBranch(true);
+  };
+
+  const handleSaveBranch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBranchName.trim()) {
       setCreateBranchError('Vui lòng nhập tên chi nhánh');
@@ -138,24 +144,40 @@ export default function SettingsView() {
     setCreatingBranch(true);
     setCreateBranchError(null);
     try {
-      const created = await createBranch({
-        name: newBranchName.trim(),
-        code: newBranchCode.trim() || undefined,
-        address: newBranchAddress.trim() || undefined,
-        phone: newBranchPhone.trim() || undefined,
-      });
-      const updatedList = await fetchBranches();
-      setBranches(updatedList);
-      handleBranchChange(created.id);
-      setIsAddingBranch(false);
+      if (editingBranch) {
+        const updated = await updateBranch(editingBranch.id, {
+          name: newBranchName.trim(),
+          code: newBranchCode.trim() || undefined,
+          address: newBranchAddress.trim() || undefined,
+          phone: newBranchPhone.trim() || undefined,
+        });
+        const updatedList = await fetchBranches();
+        setBranches(updatedList);
+        useBranchStore.getState().fetchBranches();
+        setIsAddingBranch(false);
+        setEditingBranch(null);
+        setBranchSuccessMessage(`Đã cập nhật chi nhánh "${updated.name}" thành công!`);
+        setTimeout(() => setBranchSuccessMessage(null), 3500);
+      } else {
+        const created = await createBranch({
+          name: newBranchName.trim(),
+          code: newBranchCode.trim() || undefined,
+          address: newBranchAddress.trim() || undefined,
+          phone: newBranchPhone.trim() || undefined,
+        });
+        const updatedList = await fetchBranches();
+        setBranches(updatedList);
+        useBranchStore.getState().fetchBranches();
+        setIsAddingBranch(false);
+        setBranchSuccessMessage(`Đã thêm chi nhánh "${created.name}" thành công!`);
+        setTimeout(() => setBranchSuccessMessage(null), 3500);
+      }
       setNewBranchName('');
       setNewBranchCode('');
       setNewBranchAddress('');
       setNewBranchPhone('');
-      setBranchSuccessMessage(`Đã thêm chi nhánh "${created.name}" thành công!`);
-      setTimeout(() => setBranchSuccessMessage(null), 3500);
     } catch (err: unknown) {
-      setCreateBranchError(err instanceof Error ? err.message : 'Không thể tạo chi nhánh mới');
+      setCreateBranchError(err instanceof Error ? err.message : 'Không thể lưu thông tin chi nhánh');
     } finally {
       setCreatingBranch(false);
     }
@@ -200,11 +222,12 @@ export default function SettingsView() {
     setDeleteBranchError(null);
     try {
       await deleteBranch(branchToDelete.id, confirmDeleteName.trim());
-      if (selectedBranchId === branchToDelete.id) {
-        handleBranchChange('');
+      if (useBranchStore.getState().selectedBranchId === branchToDelete.id) {
+        useBranchStore.getState().setBranchId('ALL');
       }
       const updatedList = await fetchBranches();
       setBranches(updatedList);
+      useBranchStore.getState().fetchBranches();
       setBranchSuccessMessage(`Đã xoá chi nhánh "${branchToDelete.name}" thành công!`);
       setTimeout(() => setBranchSuccessMessage(null), 3500);
       setBranchToDelete(null);
@@ -232,12 +255,32 @@ export default function SettingsView() {
   };
 
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Vui lòng chọn tệp hình ảnh (JPG, PNG, WEBP, SVG)');
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      const res = await uploadImageFile(file, 'hiai-menugo/branding');
+      setLogoUrl(res.url);
+    } catch (err: any) {
+      alert('Tải logo lên thất bại: ' + (err.message || ''));
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  };
+
   const handleSave = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setSaving(true);
     try {
       const updated = await updateBranding({
         restaurantName: restaurantName.trim() || undefined,
+        logoUrl: logoUrl.trim() || undefined,
         bankCode,
         bankAccountNo,
         bankAccountName,
@@ -260,7 +303,7 @@ export default function SettingsView() {
     } finally {
       setSaving(false);
     }
-  }, [restaurantName, bankCode, bankAccountNo, bankAccountName, footerText, taxRate, billPrintMode]);
+  }, [restaurantName, logoUrl, bankCode, bankAccountNo, bankAccountName, footerText, taxRate, billPrintMode]);
 
   const setCustomAction = useHeaderStore((s) => s.setCustomAction);
 
@@ -295,8 +338,6 @@ export default function SettingsView() {
       </div>
     );
   }
-
-  const selectedBranch = branches.find((b) => b.id === selectedBranchId);
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 space-y-6 max-w-6xl mx-auto w-full">
@@ -345,6 +386,70 @@ export default function SettingsView() {
                 </div>
                 <p className="text-[11.5px] text-[#94A3B8] mt-1">
                   Tên quán hiển thị ở tiêu đề hoá đơn in, thực đơn online và toàn hệ thống.
+                </p>
+              </div>
+
+              {/* Logo quán */}
+              <div>
+                <label className="text-[12.5px] font-bold text-[#475569] block mb-1.5">
+                  Logo Quán / Thương Hiệu
+                </label>
+                <input
+                  type="file"
+                  ref={logoInputRef}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleLogoUpload}
+                />
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] flex items-center justify-center overflow-hidden shrink-0">
+                    {logoUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={logoUrl} alt="Logo quán" className="w-full h-full object-contain p-1" />
+                    ) : (
+                      <ImageIcon className="w-6 h-6 text-[#94A3B8]" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={uploadingLogo}
+                        className="h-9 px-3.5 rounded-xl bg-[#E6F7F4] hover:bg-[#cbf0ea] text-[#00A389] text-[12px] font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                      >
+                        {uploadingLogo ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin" />
+                            <span>Đang tải lên...</span>
+                          </>
+                        ) : (
+                          <>
+                            <UploadCloud size={14} />
+                            <span>Tải logo lên (Cloudinary)</span>
+                          </>
+                        )}
+                      </button>
+                      {logoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setLogoUrl('')}
+                          className="h-9 px-3 text-[12px] font-bold text-rose-500 hover:text-rose-600 transition-colors"
+                        >
+                          Xoá
+                        </button>
+                      )}
+                    </div>
+                    {logoUrl && logoUrl.includes('cloudinary') && (
+                      <div className="flex items-center gap-1 text-[11px] font-semibold text-[#00A389]">
+                        <Cloud size={12} />
+                        <span>Đã lưu trữ trên Cloudinary</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[11.5px] text-[#94A3B8] mt-1.5">
+                  Logo hiển thị trên Web QR Menu của khách, trung tâm mã QR bàn và đầu phiếu in nhiệt.
                 </p>
               </div>
 
@@ -535,15 +640,15 @@ export default function SettingsView() {
                     <Building2 className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-[15px] font-black text-[#0F172A]">Chi nhánh làm việc</h2>
-                    <p className="text-[12px] text-[#64748B]">Chuyển đổi, thêm mới hoặc xoá chi nhánh</p>
+                    <h2 className="text-[15px] font-black text-[#0F172A]">Quản lý chi nhánh</h2>
+                    <p className="text-[12px] text-[#64748B]">Thêm mới, sửa địa chỉ hoặc xoá chi nhánh</p>
                   </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => {
-                    setIsAddingBranch(true);
+                    startAddBranch();
                     setShowBranchPicker(true);
                   }}
                   className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 font-extrabold text-[12px] flex items-center gap-1.5 transition-all cursor-pointer"
@@ -557,6 +662,7 @@ export default function SettingsView() {
                 type="button"
                 onClick={() => {
                   setIsAddingBranch(false);
+                  setEditingBranch(null);
                   setShowBranchPicker(true);
                 }}
                 className="w-full flex items-center justify-between p-4 rounded-2xl bg-[#F8FAFC] hover:bg-[#F1F5F9] border border-[#E2E8F0] transition-all text-left group cursor-pointer"
@@ -567,16 +673,16 @@ export default function SettingsView() {
                   </div>
                   <div className="min-w-0">
                     <div className="text-[13.5px] font-black text-[#0F172A] truncate">
-                      {selectedBranch?.name ?? 'Chi nhánh mặc định'}
+                      Danh sách {branches.length} chi nhánh trong hệ thống
                     </div>
                     <div className="text-[11.5px] text-[#64748B] truncate mt-0.5">
-                      Mã: {selectedBranch?.code ?? 'DEFAULT'} • Đang kích hoạt
+                      Bấm để mở danh sách thêm, sửa hoặc xoá chi nhánh
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#00A389] group-hover:translate-x-0.5 transition-transform shrink-0">
-                  <span>Quản lý / Đổi</span>
+                  <span>Mở danh sách</span>
                   <ChevronRight size={16} />
                 </div>
               </button>
@@ -676,44 +782,59 @@ export default function SettingsView() {
         </div>
       </form>
 
-      {/* Modal Quản Lý Chi Nhánh (Thêm, Chọn, Xoá) */}
+      {/* Modal Quản Lý Chi Nhánh (Thêm, Sửa, Chọn, Xoá) */}
       {showBranchPicker && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl w-full sm:max-w-xl p-6 relative shadow-2xl border border-[#E2E8F0] max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl w-full sm:max-w-3xl lg:max-w-4xl p-6 sm:p-7 relative shadow-2xl border border-[#E2E8F0] max-h-[92vh] flex flex-col">
             <button
               onClick={() => {
                 setShowBranchPicker(false);
                 setIsAddingBranch(false);
+                setEditingBranch(null);
               }}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-all cursor-pointer"
+              className="absolute top-5 right-5 w-9 h-9 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-all cursor-pointer"
               aria-label="Đóng"
             >
-              <X size={18} />
+              <X size={19} />
             </button>
 
-            <div className="pr-8 mb-4">
-              <h3 className="font-black text-[18px] text-[#0F172A] tracking-tight">Quản lý chi nhánh</h3>
-              <p className="text-[12px] text-[#64748B]">
-                Chuyển đổi chi nhánh làm việc, thêm mới hoặc xoá chi nhánh trong hệ thống.
-              </p>
+            <div className="pr-10 mb-4">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                  <Building2 size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-[19px] text-[#0F172A] tracking-tight">Quản lý chi nhánh</h3>
+                  <p className="text-[12.5px] text-[#64748B]">
+                    Cập nhật địa chỉ, số điện thoại hoặc thêm/sửa/xoá chi nhánh trong hệ thống.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {branchSuccessMessage && (
-              <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[12.5px] font-bold rounded-2xl flex items-center gap-2 animate-in fade-in">
-                <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+              <div className="mb-4 p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[13px] font-bold rounded-2xl flex items-center gap-2.5 animate-in fade-in">
+                <CheckCircle2 size={17} className="text-emerald-600 shrink-0" />
                 <span>{branchSuccessMessage}</span>
               </div>
             )}
 
             {/* Top Toolbar: Nút Thêm chi nhánh */}
-            <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
-              <span className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wider">
-                Danh sách ({branches.length + 1} chi nhánh)
+            <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-slate-100">
+              <span className="text-[12px] font-black text-slate-500 uppercase tracking-wider">
+                Danh sách ({branches.length} chi nhánh)
               </span>
               <button
                 type="button"
-                onClick={() => setIsAddingBranch((v) => !v)}
-                className={`px-3 py-1.5 rounded-xl font-bold text-[12px] flex items-center gap-1.5 transition-all cursor-pointer ${
+                onClick={() => {
+                  if (isAddingBranch) {
+                    setIsAddingBranch(false);
+                    setEditingBranch(null);
+                  } else {
+                    startAddBranch();
+                  }
+                }}
+                className={`px-3.5 py-2 rounded-xl font-bold text-[12.5px] flex items-center gap-1.5 transition-all cursor-pointer ${
                   isAddingBranch
                     ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     : 'bg-[#E6F7F4] text-[#00A389] hover:bg-[#d0f2ec]'
@@ -721,113 +842,155 @@ export default function SettingsView() {
               >
                 {isAddingBranch ? (
                   <>
-                    <X size={14} />
+                    <X size={15} />
                     <span>Đóng biểu mẫu</span>
                   </>
                 ) : (
                   <>
-                    <Plus size={14} />
-                    <span>+ Thêm chi nhánh mới</span>
+                    <Plus size={15} />
+                    <span>Thêm chi nhánh mới</span>
                   </>
                 )}
               </button>
             </div>
 
-            {/* Form Thêm Chi Nhánh Mới */}
+            {/* Form Thêm / Chỉnh Sửa Chi Nhánh (Form to, rộng rãi, chuẩn Enterprise) */}
             {isAddingBranch && (
-              <form onSubmit={handleCreateBranch} className="mb-4 p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 animate-in fade-in duration-200">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-black text-[#0F172A] flex items-center gap-1.5">
-                    <Building2 size={15} className="text-[#00A389]" />
-                    <span>Tạo chi nhánh mới</span>
+              <form onSubmit={handleSaveBranch} className="mb-4 p-5 sm:p-6 bg-[#F8FAFC] rounded-2xl border border-slate-200 space-y-4 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200/70">
+                  <span className="text-[14px] font-black text-[#0F172A] flex items-center gap-2">
+                    {editingBranch ? (
+                      <>
+                        <Pencil size={16} className="text-[#00A389]" />
+                        <span>Chỉnh sửa thông tin chi nhánh: <span className="text-[#00A389]">{editingBranch.name}</span></span>
+                      </>
+                    ) : (
+                      <>
+                        <Building2 size={16} className="text-[#00A389]" />
+                        <span>Tạo chi nhánh mới vào hệ thống</span>
+                      </>
+                    )}
+                  </span>
+                  <span className="text-[11.5px] text-slate-500 font-medium hidden sm:inline">
+                    * Địa chỉ chi nhánh sẽ tự động đồng bộ sang Menu QR của khách hàng
                   </span>
                 </div>
 
                 {createBranchError && (
-                  <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 text-[12px] font-bold rounded-xl flex items-center gap-2">
-                    <AlertCircle size={14} className="shrink-0" />
+                  <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-[12.5px] font-bold rounded-xl flex items-center gap-2">
+                    <AlertCircle size={15} className="shrink-0" />
                     <span>{createBranchError}</span>
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Nhóm 1: Tên & Mã */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[11.5px] font-bold text-slate-600 block mb-1">
+                    <label className="text-[12px] font-bold text-slate-700 block mb-1.5">
                       Tên chi nhánh <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={newBranchName}
                       onChange={(e) => setNewBranchName(e.target.value)}
-                      placeholder="VD: Chi nhánh Quận 1"
+                      placeholder="VD: Chi nhánh Quận 1, Chi nhánh Thủ Đức..."
                       required
-                      className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-[12.5px] font-bold text-slate-900 focus:border-[#00A389] focus:outline-hidden"
+                      className="w-full h-10 px-3.5 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:border-[#00A389] focus:outline-hidden transition"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[11.5px] font-bold text-slate-600 block mb-1">
-                      Mã chi nhánh (Tùy chọn)
+                    <label className="text-[12px] font-bold text-slate-700 block mb-1.5">
+                      Mã chi nhánh (Viết hoa, viết liền)
                     </label>
                     <input
                       type="text"
                       value={newBranchCode}
                       onChange={(e) => setNewBranchCode(e.target.value.toUpperCase())}
-                      placeholder="VD: CN-Q1"
-                      className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-[12.5px] font-bold text-slate-900 uppercase focus:border-[#00A389] focus:outline-hidden"
+                      placeholder="VD: CN-Q1, TS-01..."
+                      className="w-full h-10 px-3.5 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 uppercase font-mono focus:border-[#00A389] focus:outline-hidden transition"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11.5px] font-bold text-slate-600 block mb-1">
-                      Địa chỉ
+                {/* Nhóm 2: Địa chỉ chi nhánh (Trọng tâm đồng bộ Menu QR) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[12px] font-bold text-slate-700 flex items-center gap-1.5">
+                      <MapPin size={14} className="text-[#00A389]" />
+                      <span>Địa chỉ chi nhánh (Hiển thị trực tiếp trên Menu QR khách & Bill in)</span>
                     </label>
-                    <input
-                      type="text"
-                      value={newBranchAddress}
-                      onChange={(e) => setNewBranchAddress(e.target.value)}
-                      placeholder="VD: 123 Hai Bà Trưng, Quận 1"
-                      className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-[12.5px] text-slate-900 focus:border-[#00A389] focus:outline-hidden"
-                    />
+                    <span className="text-[11px] text-[#00A389] font-bold">Đồng bộ tự động</span>
                   </div>
+                  <input
+                    type="text"
+                    value={newBranchAddress}
+                    onChange={(e) => setNewBranchAddress(e.target.value)}
+                    placeholder="VD: 123 Võ Văn Ngân, Phường Linh Chiểu, TP. Thủ Đức, TP. HCM"
+                    className="w-full h-10 px-3.5 bg-white border border-slate-200 rounded-xl text-[13px] text-slate-900 focus:border-[#00A389] focus:outline-hidden transition"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Khách hàng khi quét mã QR tại bàn của chi nhánh này sẽ nhìn thấy địa chỉ trên ở đầu thực đơn và biên lai thanh toán.
+                  </p>
+                </div>
 
+                {/* Nhóm 3: Số điện thoại hotline & Giờ phục vụ */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[11.5px] font-bold text-slate-600 block mb-1">
-                      Số điện thoại
+                    <label className="text-[12px] font-bold text-slate-700 block mb-1.5 flex items-center gap-1.5">
+                      <Phone size={13} className="text-slate-500" />
+                      <span>Số điện thoại hotline chi nhánh</span>
                     </label>
                     <input
                       type="text"
                       value={newBranchPhone}
                       onChange={(e) => setNewBranchPhone(e.target.value)}
-                      placeholder="VD: 0909 123 456"
-                      className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-[12.5px] text-slate-900 focus:border-[#00A389] focus:outline-hidden"
+                      placeholder="VD: 028 3896 7890 hoặc 0909 123 456"
+                      className="w-full h-10 px-3.5 bg-white border border-slate-200 rounded-xl text-[13px] text-slate-900 focus:border-[#00A389] focus:outline-hidden transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[12px] font-bold text-slate-700 block mb-1.5">
+                      Ghi chú hoạt động / Giờ mở cửa
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="VD: 07:00 - 22:30 hàng ngày"
+                      className="w-full h-10 px-3.5 bg-white border border-slate-200 rounded-xl text-[13px] text-slate-900 focus:border-[#00A389] focus:outline-hidden transition"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2">
+                <div className="flex items-center justify-end gap-2.5 pt-2">
                   <button
                     type="button"
-                    onClick={() => setIsAddingBranch(false)}
-                    className="h-8 px-3 rounded-xl text-[12px] font-bold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setIsAddingBranch(false);
+                      setEditingBranch(null);
+                    }}
+                    className="h-9 px-4 rounded-xl text-[12.5px] font-bold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
                   >
-                    Huỷ
+                    Huỷ bỏ
                   </button>
                   <button
                     type="submit"
                     disabled={creatingBranch || !newBranchName.trim()}
-                    className="h-8 px-4 rounded-xl bg-[#00A389] hover:bg-[#008f77] text-white font-extrabold text-[12px] flex items-center gap-1.5 shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                    className="h-9 px-5 rounded-xl bg-[#00A389] hover:bg-[#008f77] text-white font-extrabold text-[12.5px] flex items-center gap-1.5 shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                   >
                     {creatingBranch ? (
                       <>
-                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Đang tạo...</span>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Đang lưu...</span>
+                      </>
+                    ) : editingBranch ? (
+                      <>
+                        <Save size={15} />
+                        <span>Lưu thay đổi chi nhánh</span>
                       </>
                     ) : (
                       <>
-                        <Plus size={14} />
+                        <Plus size={15} />
                         <span>Xác nhận tạo chi nhánh</span>
                       </>
                     )}
@@ -836,95 +999,78 @@ export default function SettingsView() {
               </form>
             )}
 
-            {/* Danh sách Chi Nhánh */}
-            <div className="space-y-2.5 overflow-y-auto flex-1 pr-1">
-              {/* Chi nhánh mặc định (Root) */}
-              <div
-                onClick={() => {
-                  handleBranchChange('');
-                  setShowBranchPicker(false);
-                }}
-                className={`w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                  !selectedBranchId
-                    ? 'border-[#00A389] bg-[#E6F7F4] shadow-xs'
-                    : 'border-[#E2E8F0] hover:bg-[#F8FAFC]'
-                }`}
-              >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
-                    <Building2 size={18} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[13.5px] font-bold text-[#0F172A]">Chi nhánh mặc định</span>
-                      <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-slate-200 text-slate-700">
-                        Gốc hệ thống
-                      </span>
-                    </div>
-                    <div className="text-[11.5px] text-[#64748B]">Áp dụng cấu hình mặc định toàn quán</div>
-                  </div>
+            {/* Danh sách Chi Nhánh thuần quản lý (Thêm, Sửa, Xoá) */}
+            <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+              {branches.length === 0 ? (
+                <div className="p-8 text-center bg-[#F8FAFC] rounded-2xl border border-dashed border-slate-300 space-y-2">
+                  <Building2 size={32} className="mx-auto text-slate-400" />
+                  <p className="text-[13.5px] font-bold text-[#0F172A]">Chưa có chi nhánh nào trong hệ thống</p>
+                  <p className="text-[12px] text-slate-500">Bấm &quot;Thêm chi nhánh mới&quot; phía trên để tạo chi nhánh đầu tiên.</p>
                 </div>
-
-                {!selectedBranchId && <CheckCircle2 size={18} className="text-[#00A389] shrink-0" />}
-              </div>
-
-              {/* Các chi nhánh khác */}
-              {branches.map((b) => (
-                <div
-                  key={b.id}
-                  onClick={() => {
-                    handleBranchChange(b.id);
-                    setShowBranchPicker(false);
-                  }}
-                  className={`w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer group ${
-                    selectedBranchId === b.id
-                      ? 'border-[#00A389] bg-[#E6F7F4] shadow-xs'
-                      : 'border-[#E2E8F0] hover:bg-[#F8FAFC]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                    <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                      <Building2 size={18} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13.5px] font-bold text-[#0F172A] truncate">{b.name}</span>
-                        <span className="text-[10.5px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
-                          {b.code}
-                        </span>
+              ) : (
+                branches.map((b) => (
+                  <div
+                    key={b.id}
+                    className="w-full flex items-center justify-between p-4 rounded-2xl border border-[#E2E8F0] bg-white hover:border-slate-300 transition-all text-left"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                        <Building2 size={19} />
                       </div>
-                      <div className="text-[11.5px] text-[#64748B] truncate mt-0.5 flex items-center gap-3">
-                        {b.address && (
-                          <span className="flex items-center gap-1">
-                            <MapPin size={11} className="text-slate-400" />
-                            {b.address}
-                          </span>
-                        )}
-                        {b.phone && (
-                          <span className="flex items-center gap-1">
-                            <Phone size={11} className="text-slate-400" />
-                            {b.phone}
-                          </span>
-                        )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[14px] font-black text-[#0F172A] truncate">{b.name}</span>
+                          {b.code && (
+                            <span className="text-[10.5px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                              {b.code}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[12px] text-[#64748B] truncate mt-1 flex items-center gap-3.5">
+                          {b.address ? (
+                            <span className="flex items-center gap-1.5 truncate">
+                              <MapPin size={12} className="text-slate-400 shrink-0" />
+                              <span className="truncate">{b.address}</span>
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">Chưa cập nhật địa chỉ</span>
+                          )}
+                          {b.phone && (
+                            <span className="flex items-center gap-1.5 shrink-0">
+                              <Phone size={12} className="text-slate-400 shrink-0" />
+                              <span>{b.phone}</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-2 shrink-0 ml-2">
-                    {selectedBranchId === b.id && <CheckCircle2 size={18} className="text-[#00A389] shrink-0" />}
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      {/* Nút Sửa chi nhánh */}
+                      <button
+                        type="button"
+                        onClick={(e) => startEditBranch(b, e)}
+                        title="Chỉnh sửa thông tin chi nhánh này"
+                        className="h-9 px-3 rounded-xl text-slate-700 hover:text-[#00A389] hover:bg-[#E6F7F4] border border-slate-200 hover:border-[#00A389] flex items-center gap-1.5 font-bold text-[12px] transition-all cursor-pointer"
+                      >
+                        <Pencil size={14} />
+                        <span>Sửa</span>
+                      </button>
 
-                    {/* Nút Xoá chi nhánh */}
-                    <button
-                      type="button"
-                      onClick={(e) => openDeleteModal(b, e)}
-                      title="Xoá chi nhánh này"
-                      className="w-8 h-8 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-all cursor-pointer opacity-70 group-hover:opacity-100"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                      {/* Nút Xoá chi nhánh */}
+                      <button
+                        type="button"
+                        onClick={(e) => openDeleteModal(b, e)}
+                        title="Xoá chi nhánh này"
+                        className="h-9 px-3 rounded-xl text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 flex items-center gap-1.5 font-bold text-[12px] transition-all cursor-pointer"
+                      >
+                        <Trash2 size={14} />
+                        <span>Xoá</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

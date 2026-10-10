@@ -16,6 +16,7 @@ import {
   Printer,
   AlertCircle,
   TrendingUp,
+  Building2,
 } from 'lucide-react';
 import { formatVND } from '@/lib/format';
 import { fetchPendingPayments, payCash, createVietQR, type VietQRResult } from '@/lib/api/sessions.api';
@@ -23,6 +24,7 @@ import type { PendingSessionDTO } from '@/lib/api/types';
 import { getSocket } from '@/lib/socket';
 import { BillPrintModal } from '@/components/payment/BillPrintModal';
 import { useHeaderStore } from '@/stores/header.store';
+import { useBranchStore } from '@/stores/branch.store';
 
 export interface PendingBill {
   sessionId: string;
@@ -33,6 +35,9 @@ export interface PendingBill {
   time: string;
   staff: string;
   createdAt: string;
+  branchId?: string;
+  branchName?: string;
+  branchCode?: string;
   items: Array<{
     id: string;
     name: string;
@@ -217,12 +222,14 @@ export default function CashierView() {
     }, 4500);
   }, []);
 
+  const selectedBranchId = useBranchStore((s) => s.selectedBranchId);
+
   // Tải danh sách đơn chờ thanh toán
   const loadBills = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const data: PendingSessionDTO[] = await fetchPendingPayments();
+      const data: PendingSessionDTO[] = await fetchPendingPayments(selectedBranchId === 'ALL' ? 'ALL' : selectedBranchId);
       const formatted: PendingBill[] = data.map((d) => ({
         sessionId: d.sessionId,
         tableId: d.tableId,
@@ -232,6 +239,9 @@ export default function CashierView() {
         time: new Date(d.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
         staff: d.customerName || 'Nhân viên',
         createdAt: d.createdAt,
+        branchId: d.branchId,
+        branchName: d.branchName,
+        branchCode: d.branchCode,
         items: d.items || [],
       }));
 
@@ -247,7 +257,7 @@ export default function CashierView() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedBranchId]);
 
   // Lắng nghe sự kiện Socket.IO Realtime
   useEffect(() => {
@@ -614,6 +624,12 @@ export default function CashierView() {
                       <h4 className="text-[18px] font-black text-[#0F172A] tracking-tight truncate group-hover:text-purple-700 transition-colors">
                         {bill.tableName}
                       </h4>
+                      {bill.branchName && (
+                        <span className="px-2 py-0.5 rounded-md text-[10.5px] font-extrabold bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1 shrink-0">
+                          <Building2 size={11} />
+                          <span>{bill.branchName}</span>
+                        </span>
+                      )}
                       <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider border bg-purple-50 text-purple-700 border-purple-200 shrink-0">
                         Chờ tính tiền
                       </span>

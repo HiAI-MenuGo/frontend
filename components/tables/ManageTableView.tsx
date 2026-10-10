@@ -1,16 +1,21 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Plus, Users, X, Armchair, Clock, CheckCircle, QrCode } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Plus, Users, X, Armchair, Clock, CheckCircle, QrCode, Building2, Layers } from 'lucide-react';
 import { fetchTables, updateTableStatus, toBackendStatus, createTable } from '@/lib/api/tables.api';
 import type { UiTable } from '@/lib/api/types';
 import { useHeaderStore } from '@/stores/header.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { useBranchStore } from '@/stores/branch.store';
 import { formatVND } from '@/lib/format';
 import TableQRModal from './TableQRModal';
 
 export default function ManageTableView() {
   const user = useAuthStore((s) => s.user);
+  const selectedBranchId = useBranchStore((s) => s.selectedBranchId);
+  const branches = useBranchStore((s) => s.branches);
+  const fetchBranches = useBranchStore((s) => s.fetchBranches);
+
   const [tables, setTables] = useState<UiTable[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +28,7 @@ export default function ManageTableView() {
     name: '',
     capacity: 4,
     area: 'MAIN_DINING' as 'MAIN_DINING' | 'TERRACE' | 'OUTDOOR',
+    branchId: '',
   });
   const [savingTable, setSavingTable] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -31,7 +37,8 @@ export default function ManageTableView() {
     setLoading(true);
     setError(null);
     try {
-      setTables(await fetchTables());
+      const data = await fetchTables(selectedBranchId === 'ALL' ? 'ALL' : selectedBranchId);
+      setTables(data);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Không tải được bàn');
     } finally {
@@ -40,9 +47,12 @@ export default function ManageTableView() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchBranches();
+  }, [fetchBranches]);
+
+  useEffect(() => {
     void load();
-  }, []);
+  }, [selectedBranchId]);
 
   const setCustomAction = useHeaderStore((s) => s.setCustomAction);
   const availableCount = tables.filter((t) => t.status === 'AVAILABLE').length;
@@ -121,11 +131,13 @@ export default function ManageTableView() {
 
     setSavingTable(true);
     try {
+      const targetBranch = tableForm.branchId || (selectedBranchId !== 'ALL' ? selectedBranchId : branches[0]?.id || undefined);
       let createdTable: UiTable | null = null;
       try {
         createdTable = await createTable({
           name: tableForm.name.trim(),
           capacity: tableForm.capacity,
+          branchId: targetBranch,
         });
       } catch {
         // Fallback local memory table
@@ -143,16 +155,83 @@ export default function ManageTableView() {
         capacity: tableForm.capacity,
         chairs: tableForm.capacity,
         area: tableForm.area,
+        branchId: targetBranch,
       };
 
       setTables((prev) => [...prev, newTableEntry]);
       setShowAddTable(false);
-      setTableForm({ name: '', capacity: 4, area: 'MAIN_DINING' });
+      setTableForm({ name: '', capacity: 4, area: 'MAIN_DINING', branchId: '' });
     } catch {
       alert('Không thể tạo bàn mới');
     } finally {
       setSavingTable(false);
     }
+  };
+
+  const isAllBranches = selectedBranchId === 'ALL' || !selectedBranchId;
+
+  // Gom nhóm bàn theo từng chi nhánh khi ở chế độ "Tổng chi nhánh"
+  const branchGroups = useMemo(() => {
+    if (!isAllBranches) {
+      // Khi chọn 1 chi nhánh con cụ thể
+      const cur = branches.find((b) => b.id === selectedBranchId);
+      return [
+        {
+          id: selectedBranchId,
+          name: cur?.name || 'Chi nhánh hiện tại',
+          code: cur?.code || '',
+          address: cur?.address || '',
+          tables: tables.filter((t) => t.branchId === selectedBranchId || !t.branchId),
+        },
+      ];
+    }
+
+    // Khi ở "Tổng chi nhánh": hiển thị từng div cho từng chi nhánh
+    if (branches.length === 0) {
+      return [
+        {
+          id: 'all',
+          name: 'Tổng chi nhánh (Toàn công ty)',
+          code: 'ALL',
+          address: '',
+          tables,
+        },
+      ];
+    }
+
+    const groups = branches.map((b) => ({
+      id: b.id,
+      name: b.name,
+      code: b.code,
+      address: b.address || '',
+      tables: tables.filter((t) => t.branchId === b.id),
+    }));
+
+    // Các bàn chưa phân chi nhánh hoặc id không khớp
+    const unassigned = tables.filter((t) => !t.branchId || !branches.some((b) => b.id === t.branchId));
+    if (unassigned.length > 0) {
+      groups.push({
+        id: 'unassigned',
+        name: 'Khu vực bàn khác / Chưa phân chi nhánh',
+        code: 'OTHER',
+        address: '',
+        tables: unassigned,
+      });
+    }
+
+    return groups;
+  }, [isAllBranches, selectedBranchId, branches, tables]);
+
+  const statusLabels: Record<UiTable['status'], string> = {
+    AVAILABLE: 'Trống',
+    ON_DINE: 'Đang dùng',
+    RESERVED: 'Đã đặt',
+  };
+
+  const statusColors: Record<UiTable['status'], string> = {
+    AVAILABLE: 'bg-[#E6F7F4] text-[#00A389]',
+    ON_DINE: 'bg-[#FFEDD5] text-[#EA580C]',
+    RESERVED: 'bg-[#E2F0EC] text-[#064E3B]',
   };
 
   if (loading) {
@@ -177,20 +256,8 @@ export default function ManageTableView() {
     );
   }
 
-  const statusLabels: Record<UiTable['status'], string> = {
-    AVAILABLE: 'Trống',
-    ON_DINE: 'Đang dùng',
-    RESERVED: 'Đã đặt',
-  };
-
-  const statusColors: Record<UiTable['status'], string> = {
-    AVAILABLE: 'bg-[#E6F7F4] text-[#00A389]',
-    ON_DINE: 'bg-[#FFEDD5] text-[#EA580C]',
-    RESERVED: 'bg-[#E2F0EC] text-[#064E3B]',
-  };
-
   return (
-    <div className="flex-1 overflow-y-auto px-4 sm:px-7 py-5 space-y-4 max-w-7xl mx-auto w-full">
+    <div className="flex-1 overflow-y-auto px-4 sm:px-7 py-5 space-y-5 max-w-7xl mx-auto w-full">
       {tables.length === 0 ? (
         <div className="bg-white rounded-3xl border border-[#E2E8F0] p-12 text-center space-y-3">
           <p className="text-sm font-bold text-slate-400">Chưa có bàn nào trong sơ đồ phục vụ.</p>
@@ -203,62 +270,101 @@ export default function ManageTableView() {
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-3xl pt-6 pb-8 px-5 sm:px-8 border border-[#E2E8F0] shadow-2xs">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-y-7 gap-x-6 justify-items-center">
-            {tables.map((table) => {
-              const bg =
-                table.status === 'AVAILABLE'
-                  ? 'bg-[#E6F7F4] border-[#B6EADF]'
-                  : table.status === 'ON_DINE'
-                  ? 'bg-[#FFEDD5] border-[#FED7AA]'
-                  : 'bg-[#E2F0EC] border-[#A7D8CC]';
-              const tc =
-                table.status === 'AVAILABLE'
-                  ? 'text-[#00A389]'
-                  : table.status === 'ON_DINE'
-                  ? 'text-[#EA580C]'
-                  : 'text-[#064E3B]';
-
-              return (
-                <div
-                  key={table.id}
-                  onClick={() => setSelected(table)}
-                  className="flex flex-col items-center cursor-pointer hover:scale-[1.03] transition-all w-[185px] sm:w-[205px]"
-                >
-                  {/* Hàng ghế có chiều cao cố định để tất cả các bàn thẳng hàng */}
-                  <div className="h-4.5 flex items-center justify-center gap-1.5 mb-1.5">
-                    {Array.from({ length: Math.min(table.chairs || 2, 4) }).map((_, i) => (
-                      <Armchair key={i} size={14} className={tc} />
-                    ))}
+        <div className="space-y-6">
+          {branchGroups.map((group) => {
+            return (
+              <div
+                key={group.id}
+                className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xs overflow-hidden pt-6 pb-8 px-5 sm:px-8"
+              >
+                {isAllBranches && branchGroups.length > 1 && (
+                  <div className="flex items-center gap-2 pb-4 mb-5 border-b border-slate-100">
+                    <Building2 size={16} className="text-[#00A389]" />
+                    <span className="font-black text-[14px] text-[#0F172A]">{group.name}</span>
+                    <span className="text-[12px] font-bold text-slate-400">({group.tables.length} bàn)</span>
                   </div>
+                )}
 
-                  {/* Thẻ bàn có kích thước đồng nhất */}
-                  <div
-                    className={`w-full h-[86px] rounded-3xl border-2 ${bg} flex flex-col items-center justify-center px-4 py-2 text-center transition-all shadow-2xs`}
-                  >
-                    <h4
-                      className={`font-black text-[13.5px] ${tc} truncate w-full px-1`}
-                      title={table.tableName}
-                    >
-                      {table.tableName}
-                    </h4>
-                    <div className="flex items-center justify-center gap-1.5 text-[11px] font-extrabold text-[#64748B] mt-1">
-                      <Users size={12} />
-                      <span>{table.capacity}</span>
-                      {table.totalAmount ? (
-                        <>
-                          <span className="text-[#CBD5E1]">•</span>
-                          <span className={`text-[10.5px] font-bold ${tc}`}>
-                            {table.totalAmount.toLocaleString('vi-VN')}đ
-                          </span>
-                        </>
-                      ) : null}
+                {/* Grid danh sách bàn thuộc chi nhánh này */}
+                <div>
+                  {group.tables.length === 0 ? (
+                    <div className="py-8 text-center space-y-2">
+                      <p className="text-[13px] text-slate-400 font-medium">Chi nhánh này hiện chưa có bàn nào trong sơ đồ.</p>
+                      <button
+                        onClick={() => {
+                          setTableForm((prev) => ({
+                            ...prev,
+                            branchId: group.id !== 'all' && group.id !== 'unassigned' ? group.id : '',
+                          }));
+                          setShowAddTable(true);
+                        }}
+                        className="px-3.5 py-1.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#0F172A] rounded-xl text-[12px] font-bold inline-flex items-center gap-1.5 transition-colors"
+                      >
+                        <Plus size={14} />
+                        <span>Thêm bàn cho chi nhánh này</span>
+                      </button>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-y-7 gap-x-6 justify-items-center">
+                      {group.tables.map((table) => {
+                        const bg =
+                          table.status === 'AVAILABLE'
+                            ? 'bg-[#E6F7F4] border-[#B6EADF]'
+                            : table.status === 'ON_DINE'
+                            ? 'bg-[#FFEDD5] border-[#FED7AA]'
+                            : 'bg-[#E2F0EC] border-[#A7D8CC]';
+                        const tc =
+                          table.status === 'AVAILABLE'
+                            ? 'text-[#00A389]'
+                            : table.status === 'ON_DINE'
+                            ? 'text-[#EA580C]'
+                            : 'text-[#064E3B]';
+
+                        return (
+                          <div
+                            key={table.id}
+                            onClick={() => setSelected(table)}
+                            className="flex flex-col items-center cursor-pointer hover:scale-[1.03] transition-all w-[185px] sm:w-[205px]"
+                          >
+                            {/* Hàng ghế có chiều cao cố định để tất cả các bàn thẳng hàng */}
+                            <div className="h-4.5 flex items-center justify-center gap-1.5 mb-1.5">
+                              {Array.from({ length: Math.min(table.chairs || 2, 4) }).map((_, i) => (
+                                <Armchair key={i} size={14} className={tc} />
+                              ))}
+                            </div>
+
+                            {/* Thẻ bàn có kích thước đồng nhất */}
+                            <div
+                              className={`w-full h-[86px] rounded-3xl border-2 ${bg} flex flex-col items-center justify-center px-4 py-2 text-center transition-all shadow-2xs`}
+                            >
+                              <h4
+                                className={`font-black text-[13.5px] ${tc} truncate w-full px-1`}
+                                title={table.tableName}
+                              >
+                                {table.tableName}
+                              </h4>
+                              <div className="flex items-center justify-center gap-1.5 text-[11px] font-extrabold text-[#64748B] mt-1">
+                                <Users size={12} />
+                                <span>{table.capacity}</span>
+                                {table.totalAmount ? (
+                                  <>
+                                    <span className="text-[#CBD5E1]">•</span>
+                                    <span className={`text-[10.5px] font-bold ${tc}`}>
+                                      {table.totalAmount.toLocaleString('vi-VN')}đ
+                                    </span>
+                                  </>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -462,6 +568,23 @@ export default function ManageTableView() {
                   placeholder="Ví dụ: Bàn 09, VIP-01, Ngoài trời 02..."
                 />
               </div>
+
+              {branches.length > 0 && (
+                <div>
+                  <label className="block font-bold text-[#0F172A] mb-1">Thuộc chi nhánh</label>
+                  <select
+                    value={tableForm.branchId || (selectedBranchId !== 'ALL' ? selectedBranchId : branches[0]?.id || '')}
+                    onChange={(e) => setTableForm({ ...tableForm, branchId: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl font-bold text-[#0F172A] focus:bg-white focus:border-[#00A389] focus:outline-hidden"
+                  >
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} ({b.code || 'CN'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>

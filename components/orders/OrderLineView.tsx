@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, Plus, Minus, Trash2, Banknote, QrCode, Sparkles, Check, X, ChevronDown } from 'lucide-react';
 import { fetchMenuItems } from '@/lib/api/menu.api';
@@ -8,10 +8,12 @@ import { fetchTables } from '@/lib/api/tables.api';
 import { createSessionOrder, payCash } from '@/lib/api/sessions.api';
 import type { MenuItemDTO, UiTable } from '@/lib/api/types';
 import { useSearchStore } from '@/stores/search.store';
+import { useBranchStore } from '@/stores/branch.store';
 import { formatVND } from '@/lib/format';
 import { BillPrintModal } from '@/components/payment/BillPrintModal';
 import { VietQRModal } from '@/components/payment/VietQRModal';
 import { ItemOptionsModal } from '@/components/orders/ItemOptionsModal';
+import { PaymentDetailModal } from './PaymentDetailModal';
 
 interface CartItem {
   dishId: string;
@@ -32,7 +34,8 @@ export default function OrderLineView() {
   const [activeCategory, setActiveCategory] = useState('Tất cả món');
   const [selectedTableId, setSelectedTableId] = useState<string>('');
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'scan'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'scan'>('cash');
+  const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [isQRopen, setIsQRopen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,28 +43,32 @@ export default function OrderLineView() {
 
   const [customizingDish, setCustomizingDish] = useState<MenuItemDTO | null>(null);
 
-  const load = async () => {
+  const selectedBranchId = useBranchStore((s) => s.selectedBranchId);
+
+  const load = useCallback(async () => {
     setError(null);
     try {
-      const [m, t] = await Promise.all([fetchMenuItems(), fetchTables()]);
+      const branchId = selectedBranchId === 'ALL' ? 'ALL' : selectedBranchId;
+      const [m, t] = await Promise.all([fetchMenuItems(branchId), fetchTables(branchId)]);
       setDishes(m);
       setTables(t);
-      if (!selectedTableId && t.length > 0) {
-        const empty = t.find((x) => x.status === 'AVAILABLE') ?? t[0];
-        setSelectedTableId(empty.id);
+      if (t.length > 0) {
+        setSelectedTableId((prev) => {
+          if (prev && t.some((x) => x.id === prev)) return prev;
+          const empty = t.find((x) => x.status === 'AVAILABLE') ?? t[0];
+          return empty.id;
+        });
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Không tải được dữ liệu');
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedBranchId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load]);
 
   const categories = useMemo(() => {
     const map = new Map<string, number>();
@@ -135,42 +142,55 @@ export default function OrderLineView() {
     setCart((prev) => prev.filter((_, idx) => idx !== index));
   };
 
-  const handlePlaceOrder = async () => {
+  const handleOpenPaymentModal = () => {
     if (cart.length === 0) {
-      alert('Vui lòng chọn ít nhất 1 món!');
+      alert('Vui lòng chọn ít nhất 1 món vào giỏ hàng trước khi xác nhận!');
       return;
     }
     if (!selectedTableId) {
-      alert('Vui lòng chọn bàn!');
+      alert('Vui lòng chọn bàn phục vụ!');
       return;
     }
-    if (paymentMethod === 'scan') {
-      setIsQRopen(true);
-      return;
-    }
+    setIsPaymentDetailOpen(true);
+  };
+
+  const handleConfirmFromPaymentModal = async (method: 'cash' | 'scan', cashReceived: number) => {
+    if (cart.length === 0 || !selectedTableId) return;
     setIsSubmitting(true);
+    setPaymentMethod(method);
     try {
-      const result = await createSessionOrder(
+      const result = (await createSessionOrder(
         selectedTableId,
         cart.map((c) => ({ menuItemId: c.dishId, quantity: c.quantity, note: c.note })),
         `Đặt món - ${selectedTable?.tableName ?? ''}`
-      ) as { sessionId?: string; session?: { id?: string } } & Record<string, unknown>;
+      )) as { sessionId?: string; session?: { id?: string } } & Record<string, unknown>;
       const sessionId = result?.sessionId ?? result?.session?.id ?? selectedTable?.currentSessionId;
 
-      // Nếu có session bàn cũ đang chờ thanh toán và trả tiền mặt -> thanh toán luôn
-      if (paymentMethod === 'cash' && sessionId) {
-        try {
-          await payCash(sessionId, total);
-        } catch {
-          // bỏ qua lỗi pay để vẫn báo đặt món thành công
+      if (method === 'cash') {
+        if (sessionId) {
+          try {
+            await payCash(
+              sessionId,
+              cashReceived > 0 ? cashReceived : total,
+              selectedBranchId === 'ALL' ? undefined : selectedBranchId,
+              'CASH'
+            );
+          } catch {
+            // bỏ qua lỗi pay để vẫn tiếp tục hoàn tất đơn
+          }
         }
+        setIsPaymentDetailOpen(false);
+        setCart([]);
+        setLastSessionId(sessionId);
+        router.push('/order-management');
+      } else {
+        // Phương thức Quét VietQR
+        setIsPaymentDetailOpen(false);
+        setLastSessionId(sessionId);
+        setIsQRopen(true);
       }
-      setLastSessionId(sessionId);
-      setCart([]);
-      setPaymentMethod('cash');
-      router.push('/order-management');
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Lỗi đặt đơn');
+      alert(e instanceof Error ? e.message : 'Lỗi đặt đơn món');
     } finally {
       setIsSubmitting(false);
     }
@@ -392,7 +412,7 @@ export default function OrderLineView() {
           </div>
         </div>
 
-        {/* Phần dưới: Cố định đứng cứng ở dưới (Tạm tính, Phương thức tiền mặt & Quét QR, Nút Xác nhận) */}
+        {/* Phần dưới: Cố định đứng cứng ở dưới (Tạm tính, Nút Xác nhận) */}
         <div className="shrink-0 p-4 sm:p-5 pt-3 border-t border-[#F1F5F9] bg-white space-y-3">
           {/* Khối Tạm tính */}
           <div className="bg-[#F8FAFC] p-3.5 rounded-2xl border border-[#E2E8F0] space-y-2 text-[12.5px]">
@@ -410,36 +430,10 @@ export default function OrderLineView() {
             </div>
           </div>
 
-          {/* Phương thức thanh toán: Đã xoá Thẻ, chỉ còn Tiền mặt & Quét QR */}
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { id: 'cash', label: 'Tiền mặt', icon: Banknote },
-              { id: 'scan', label: 'Quét QR', icon: QrCode },
-            ].map((m) => {
-              const Icon = m.icon;
-              const isSelected = paymentMethod === m.id;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setPaymentMethod(m.id as typeof paymentMethod)}
-                  className={`h-11 rounded-2xl flex items-center justify-center gap-1.5 text-[12.5px] font-extrabold transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-[#E6F7F4] border-2 border-[#00A389] text-[#00A389] shadow-xs'
-                      : 'bg-white border border-[#E2E8F0] text-[#64748B] hover:border-slate-300'
-                  }`}
-                >
-                  <Icon size={15} />
-                  <span>{m.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Nút Xác nhận: Đã xoá nút In bill, đã xoá icon, đổi tên thành Xác nhận */}
+          {/* Nút Xác nhận: Bấm mở popup Form Chi tiết thanh toán */}
           <button
             type="button"
-            onClick={handlePlaceOrder}
+            onClick={handleOpenPaymentModal}
             disabled={isSubmitting || cart.length === 0}
             className="w-full h-12 rounded-2xl bg-[#00A389] hover:bg-[#008f77] text-white font-black text-[14px] flex items-center justify-center shadow-md shadow-[#00A389]/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:shadow-none cursor-pointer"
           >
@@ -448,6 +442,17 @@ export default function OrderLineView() {
         </div>
       </div>
 
+      <PaymentDetailModal
+        isOpen={isPaymentDetailOpen}
+        onClose={() => setIsPaymentDetailOpen(false)}
+        tableName={selectedTable?.tableName ?? ''}
+        items={cart}
+        subtotal={subtotal}
+        tax={tax}
+        total={total}
+        onConfirm={handleConfirmFromPaymentModal}
+        isSubmitting={isSubmitting}
+      />
       <BillPrintModal isOpen={isPrintOpen} onClose={() => setIsPrintOpen(false)} tableNumber={selectedTable?.tableName ?? ''} orderNumber="Mới" items={cart} subtotal={subtotal} tax={tax} total={total} paymentMethod={paymentMethod} />
       <VietQRModal
         isOpen={isQRopen}
