@@ -13,6 +13,7 @@ import {
   SlidersHorizontal,
   Eye,
   ChevronDown,
+  Building2,
 } from 'lucide-react';
 import {
   fetchIngredients,
@@ -23,6 +24,7 @@ import {
 } from '@/lib/api/ingredients.api';
 import { getSocket } from '@/lib/socket';
 import { useHeaderStore } from '@/stores/header.store';
+import { useBranchStore } from '@/stores/branch.store';
 
 export default function InventoryView() {
   const [ingredients, setIngredients] = useState<IngredientDTO[]>([]);
@@ -74,12 +76,14 @@ export default function InventoryView() {
     }, 4000);
   }, []);
 
+  const selectedBranchId = useBranchStore((s) => s.selectedBranchId);
+
   // Tải danh sách nguyên liệu
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const data = await fetchIngredients();
+      const data = await fetchIngredients(selectedBranchId === 'ALL' ? 'ALL' : selectedBranchId);
       setIngredients(data);
     } catch (err: unknown) {
       if (!silent) {
@@ -88,7 +92,7 @@ export default function InventoryView() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedBranchId]);
 
   const setCustomAction = useHeaderStore((s) => s.setCustomAction);
 
@@ -477,7 +481,15 @@ export default function InventoryView() {
                             </div>
                             <div>
                               <p className="font-extrabold text-[#0F172A]">{item.name}</p>
-                              <p className="text-[11.5px] text-[#94A3B8]">Mã: {item.id}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[11.5px] text-[#94A3B8]">Mã: {item.id}</span>
+                                {item.branchName && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-md border border-teal-200">
+                                    <Building2 size={10} className="shrink-0" />
+                                    <span>{item.branchName}</span>
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>

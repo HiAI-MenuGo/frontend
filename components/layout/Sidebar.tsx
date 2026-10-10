@@ -19,11 +19,12 @@ import {
   Banknote,
   Package,
   History,
+  CircleDollarSign,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 
 const NAV = [
-  { href: '/dashboard', label: 'Tổng quan', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Doanh thu', icon: CircleDollarSign },
   { href: '/orders', label: 'Đặt món', icon: ClipboardList },
   { href: '/order-management', label: 'Quản lý đơn', icon: ClipboardCheck },
   { href: '/cashier', label: 'Thanh toán', icon: Banknote },

@@ -1,8 +1,8 @@
 import { apiFetch } from '../api';
 import type { MenuItemDTO } from './types';
-import { DEFAULT_BRANCH_ID } from './types';
+import { ALL_BRANCHES_ID, DEFAULT_BRANCH_ID } from './types';
 
-export async function fetchMenuItems(branchId = DEFAULT_BRANCH_ID): Promise<MenuItemDTO[]> {
+export async function fetchMenuItems(branchId = ALL_BRANCHES_ID): Promise<MenuItemDTO[]> {
   const res = await apiFetch<MenuItemDTO[]>(`/menu/items?branchId=${encodeURIComponent(branchId)}`);
   if (!res.success) throw new Error(res.message || 'Không tải được thực đơn');
   return res.data ?? [];

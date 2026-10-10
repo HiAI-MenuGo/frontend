@@ -31,7 +31,7 @@ export function BillPrintModal({
 }: BillPrintModalProps) {
   if (!isOpen) return null;
   const currentDate = new Date().toLocaleString('vi-VN');
-  const paymentLabel = paymentMethod === 'cash' ? 'Tiền mặt' : paymentMethod === 'card' ? 'Thẻ' : paymentMethod === 'scan' ? 'Quét QR' : paymentMethod;
+  const paymentLabel = paymentMethod === 'cash' ? 'Tiền mặt' : paymentMethod === 'scan' || paymentMethod === 'VIETQR' ? 'VietQR' : 'Tiền mặt';
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">

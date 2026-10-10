@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   Plus,
@@ -10,8 +10,12 @@ import {
   Link as LinkIcon,
   Pencil,
   Check,
+  UploadCloud,
+  Loader2,
+  Cloud,
 } from 'lucide-react';
 import { formatVND } from '@/lib/format';
+import { uploadImageFile } from '@/lib/api/upload.api';
 
 interface AddDishModalProps {
   isOpen: boolean;
@@ -59,6 +63,32 @@ export function AddDishModal({ isOpen, onClose, categories, onSave, onRenameCate
   const [newModifier, setNewModifier] = useState('');
   const [showAddModifier, setShowAddModifier] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Vui lòng chọn tệp định dạng hình ảnh (JPG, PNG, WEBP, GIF, SVG)');
+      return;
+    }
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const res = await uploadImageFile(file, 'hiai-menugo/menu');
+      setImageUrl(res.url);
+      setShowImagePicker(false);
+      setShowCustomUrl(false);
+    } catch (err: any) {
+      setUploadError(err.message || 'Tải ảnh lên thất bại');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   useEffect(() => {
     setLocalCategories((prev) => Array.from(new Set([...categories, ...prev])));
@@ -523,24 +553,55 @@ export function AddDishModal({ isOpen, onClose, categories, onSave, onRenameCate
           <div className="space-y-1.5">
             <label className="text-[13px] font-bold text-slate-700">Ảnh minh hoạ</label>
 
-            <div className="grid grid-cols-2 gap-2">
+            {/* Input file ẩn */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-[#00A389] text-[12px] font-bold hover:bg-emerald-100 transition-colors disabled:opacity-50"
+              >
+                <UploadCloud size={15} />
+                <span>Tải ảnh lên</span>
+              </button>
               <button
                 type="button"
                 onClick={() => { setShowImagePicker(!showImagePicker); setShowCustomUrl(false); }}
-                className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-[#00A389] text-[12.5px] font-bold hover:bg-emerald-100 transition-colors"
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-[#00A389] text-[12px] font-bold hover:bg-emerald-100 transition-colors"
               >
                 <ImageIcon size={15} />
-                <span>Thư viện ảnh mẫu</span>
+                <span>Ảnh mẫu</span>
               </button>
               <button
                 type="button"
                 onClick={() => { setShowCustomUrl(!showCustomUrl); setShowImagePicker(false); }}
-                className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-[#00A389] text-[12.5px] font-bold hover:bg-emerald-100 transition-colors"
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-[#00A389] text-[12px] font-bold hover:bg-emerald-100 transition-colors"
               >
                 <LinkIcon size={15} />
-                <span>Nhập URL ảnh</span>
+                <span>Nhập URL</span>
               </button>
             </div>
+
+            {isUploading && (
+              <div className="flex items-center justify-center gap-2 py-3 px-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-[#00A389] text-xs font-bold animate-pulse">
+                <Loader2 size={16} className="animate-spin text-[#00A389]" />
+                <span>Đang tải ảnh lên Cloudinary...</span>
+              </div>
+            )}
+
+            {uploadError && (
+              <div className="text-xs text-rose-500 bg-rose-50 p-2.5 rounded-xl border border-rose-200">
+                {uploadError}
+              </div>
+            )}
 
             {showImagePicker && (
               <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 grid grid-cols-4 gap-2">
@@ -593,11 +654,23 @@ export function AddDishModal({ isOpen, onClose, categories, onSave, onRenameCate
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={imageUrl} alt="Preview" className="w-14 h-14 rounded-xl object-cover border border-slate-200 bg-slate-100" />
                 <div className="flex-1">
-                  <span className="block text-[13px] font-bold text-slate-900">Ảnh đã chọn</span>
+                  <div className="flex items-center gap-2">
+                    <span className="block text-[13px] font-bold text-slate-900">Ảnh món ăn</span>
+                    {imageUrl.includes('cloudinary') ? (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                        <Cloud size={10} />
+                        Cloudinary
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-semibold">
+                        Online
+                      </span>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => setImageUrl('')}
-                    className="text-[12px] font-bold text-[#00A389] hover:underline"
+                    className="text-[12px] font-bold text-rose-500 hover:underline mt-0.5"
                   >
                     Xoá ảnh
                   </button>
@@ -605,7 +678,7 @@ export function AddDishModal({ isOpen, onClose, categories, onSave, onRenameCate
               </div>
             ) : (
               <div className="py-4 text-center border border-dashed border-slate-300 rounded-2xl text-slate-400 text-xs">
-                Chưa có ảnh — bấm Thư viện hoặc Nhập URL
+                Chưa có ảnh — bấm Tải ảnh lên, Thư viện hoặc Nhập URL
               </div>
             )}
           </div>

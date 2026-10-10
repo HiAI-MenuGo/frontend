@@ -25,10 +25,12 @@ export async function apiFetch<T = any>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const branchId = typeof window !== 'undefined' ? (localStorage.getItem('selected-branch-id') || 'ALL') : 'ALL';
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(branchId ? { 'x-branch-id': branchId } : {}),
     ...(options.headers || {}),
   };
 

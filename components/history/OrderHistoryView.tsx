@@ -15,12 +15,16 @@ import {
   QrCode,
   Receipt,
   TrendingUp,
+  FileSpreadsheet,
+  Calendar,
+  Building2,
 } from 'lucide-react';
 import { formatVND } from '@/lib/format';
-import { fetchOrderHistory, voidOrder } from '@/lib/api/orders.api';
+import { fetchOrderHistory, voidOrder, downloadOrderHistoryExcel } from '@/lib/api/orders.api';
 import type { LiveOrderDTO } from '@/lib/api/types';
 import { getSocket } from '@/lib/socket';
 import { BillPrintModal } from '@/components/payment/BillPrintModal';
+import { useBranchStore } from '@/stores/branch.store';
 
 export interface HistoryOrderItem {
   id: string;
@@ -32,6 +36,8 @@ export interface HistoryOrderItem {
   method: 'CASH' | 'VIETQR' | string;
   staff: string;
   createdAt: string;
+  branchName?: string;
+  branchCode?: string;
   items: Array<{
     name: string;
     quantity: number;
@@ -39,79 +45,6 @@ export interface HistoryOrderItem {
     note?: string;
   }>;
 }
-
-const FALLBACK_HISTORY_ORDERS: HistoryOrderItem[] = [
-  {
-    id: 'ord-hist-1',
-    code: 'HD-8921',
-    table: 'Bàn 02',
-    time: '11:45',
-    total: 125000,
-    status: 'COMPLETED',
-    method: 'CASH',
-    staff: 'Nguyễn Văn A',
-    createdAt: new Date(Date.now() - 45 * 60000).toISOString(),
-    items: [
-      { name: 'Trà Đào Cam Sả', quantity: 2, price: 45000, note: '50% đường | 50% đá' },
-      { name: 'Cà Phê Muối', quantity: 1, price: 35000, note: 'Ít đá' },
-    ],
-  },
-  {
-    id: 'ord-hist-2',
-    code: 'HD-8920',
-    table: 'Bàn 05',
-    time: '11:15',
-    total: 90000,
-    status: 'COMPLETED',
-    method: 'VIETQR',
-    staff: 'Trần Thị B',
-    createdAt: new Date(Date.now() - 75 * 60000).toISOString(),
-    items: [{ name: 'Matcha Latte Đá', quantity: 2, price: 45000, note: '70% đường' }],
-  },
-  {
-    id: 'ord-hist-3',
-    code: 'HD-8919',
-    table: 'Bàn 01',
-    time: '10:30',
-    total: 165000,
-    status: 'COMPLETED',
-    method: 'CASH',
-    staff: 'Phan Văn D',
-    createdAt: new Date(Date.now() - 120 * 60000).toISOString(),
-    items: [
-      { name: 'Cà Phê Đen Đá', quantity: 2, price: 30000 },
-      { name: 'Bạc Xỉu Sài Gòn', quantity: 1, price: 35000 },
-      { name: 'Croissant Bơ Tỏi', quantity: 2, price: 35000 },
-    ],
-  },
-  {
-    id: 'ord-hist-4',
-    code: 'HD-8918',
-    table: 'Mang về',
-    time: '09:40',
-    total: 55000,
-    status: 'VOIDED',
-    method: 'Huỷ đơn',
-    staff: 'Nguyễn Văn A',
-    createdAt: new Date(Date.now() - 170 * 60000).toISOString(),
-    items: [{ name: 'Trà Sữa Oolong Nướng', quantity: 1, price: 55000, note: 'Khách đổi ý' }],
-  },
-  {
-    id: 'ord-hist-5',
-    code: 'HD-8917',
-    table: 'Bàn 08',
-    time: '08:50',
-    total: 210000,
-    status: 'COMPLETED',
-    method: 'VIETQR',
-    staff: 'Trần Thị B',
-    createdAt: new Date(Date.now() - 220 * 60000).toISOString(),
-    items: [
-      { name: 'Nước Ép Dưa Hấu', quantity: 2, price: 40000 },
-      { name: 'Bánh Mì Chảo Đặc Biệt', quantity: 2, price: 65000 },
-    ],
-  },
-];
 
 export default function OrderHistoryView() {
   const [orders, setOrders] = useState<HistoryOrderItem[]>([]);
@@ -121,8 +54,12 @@ export default function OrderHistoryView() {
   // Bộ lọc
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'COMPLETED' | 'VOIDED'>('ALL');
-  const [timeFilter, setTimeFilter] = useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
   const [methodFilter, setMethodFilter] = useState<'ALL' | 'CASH' | 'VIETQR'>('ALL');
+
+  // Khoảng ngày lọc & xuất Excel
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   // Modal Chi Tiết Hoá Đơn
   const [detailOrder, setDetailOrder] = useState<HistoryOrderItem | null>(null);
@@ -145,16 +82,26 @@ export default function OrderHistoryView() {
     }, 4000);
   }, []);
 
-  // Tải dữ liệu lịch sử đơn
+  const selectedBranchId = useBranchStore((s) => s.selectedBranchId);
+
+  // Tải dữ liệu lịch sử đơn từ API CSDL thật
   const loadHistory = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const res = await fetchOrderHistory('default-branch', 1, 50);
-      if (res && res.orders && res.orders.length > 0) {
+      const branchId = selectedBranchId === 'ALL' ? 'ALL' : selectedBranchId;
+      const res = await fetchOrderHistory(
+        branchId,
+        1,
+        100,
+        searchQuery || undefined,
+        startDate || undefined,
+        endDate || undefined
+      );
+      if (res && res.orders) {
         const formatted: HistoryOrderItem[] = res.orders.map((o: LiveOrderDTO) => ({
           id: o.id,
-          code: o.code || `HD-${o.id.slice(-4).toUpperCase()}`,
+          code: o.code || `H-${o.id.slice(-3).toUpperCase()}`,
           table: o.tableName || (o.tableId ? `Bàn ${o.tableId}` : o.customerName || 'Mang về'),
           time: o.time || new Date(o.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
           total: o.total,
@@ -162,7 +109,9 @@ export default function OrderHistoryView() {
           method: o.paymentMethod || 'CASH',
           staff: o.customerName || 'Nhân viên quầy',
           createdAt: o.createdAt,
-          items: o.items.map((it) => ({
+          branchName: o.branchName,
+          branchCode: o.branchCode,
+          items: (o.items || []).map((it) => ({
             name: it.name,
             quantity: it.quantity,
             price: it.price,
@@ -171,16 +120,35 @@ export default function OrderHistoryView() {
         }));
         setOrders(formatted);
       } else {
-        // Fallback sample mock data
-        setOrders(FALLBACK_HISTORY_ORDERS);
+        setOrders([]);
       }
-    } catch {
-      // Fallback local data
-      setOrders(FALLBACK_HISTORY_ORDERS);
+    } catch (e: unknown) {
+      if (!silent) setError(e instanceof Error ? e.message : 'Không tải được lịch sử đơn hàng');
+      setOrders([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }, []);
+  }, [searchQuery, startDate, endDate, selectedBranchId]);
+
+  const handleExportExcel = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const branchId = selectedBranchId === 'ALL' ? 'ALL' : selectedBranchId;
+      await downloadOrderHistoryExcel({
+        branchId,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        search: searchQuery || undefined,
+        status: statusFilter,
+      });
+      showToast('success', 'Đã tải thành công file Excel danh sách lịch sử đơn hàng!');
+    } catch (err: unknown) {
+      showToast('error', err instanceof Error ? err.message : 'Lỗi khi xuất file Excel');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -236,28 +204,9 @@ export default function OrderHistoryView() {
         if (!matchCode && !matchTable && !matchStaff && !matchItem) return false;
       }
 
-      if (timeFilter !== 'ALL') {
-        const orderDate = new Date(order.createdAt);
-        const today = new Date();
-        if (timeFilter === 'TODAY') {
-          const isSameDay =
-            orderDate.getDate() === today.getDate() &&
-            orderDate.getMonth() === today.getMonth() &&
-            orderDate.getFullYear() === today.getFullYear();
-          if (!isSameDay) return false;
-        } else if (timeFilter === 'WEEK') {
-          const diffDays = (today.getTime() - orderDate.getTime()) / (1000 * 3600 * 24);
-          if (diffDays > 7) return false;
-        } else if (timeFilter === 'MONTH') {
-          const isSameMonth =
-            orderDate.getMonth() === today.getMonth() && orderDate.getFullYear() === today.getFullYear();
-          if (!isSameMonth) return false;
-        }
-      }
-
       return true;
     });
-  }, [orders, statusFilter, methodFilter, searchQuery, timeFilter]);
+  }, [orders, statusFilter, methodFilter, searchQuery]);
 
   // Huỷ đơn hàng
   const handleConfirmVoid = async () => {
@@ -406,18 +355,6 @@ export default function OrderHistoryView() {
               Đã huỷ ({voidedCount})
             </button>
 
-            {/* Lọc thời gian */}
-            <select
-              value={timeFilter}
-              onChange={(e) => setTimeFilter(e.target.value as 'ALL' | 'TODAY' | 'WEEK' | 'MONTH')}
-              className="h-9 px-3 rounded-xl bg-white border border-[#E2E8F0] text-[12px] font-bold text-[#334155] focus:outline-hidden focus:border-[#00A389]"
-            >
-              <option value="ALL">Toàn thời gian</option>
-              <option value="TODAY">Hôm nay</option>
-              <option value="WEEK">7 ngày gần nhất</option>
-              <option value="MONTH">Tháng này</option>
-            </select>
-
             {/* Lọc phương thức thanh toán */}
             <select
               value={methodFilter}
@@ -428,9 +365,62 @@ export default function OrderHistoryView() {
               <option value="CASH">Tiền mặt</option>
               <option value="VIETQR">VietQR</option>
             </select>
+
+            {/* Lọc khoảng ngày trực tiếp */}
+            <div className="flex items-center gap-1.5 bg-white px-2.5 h-9 rounded-xl border border-[#E2E8F0] text-[12px] font-medium text-[#0F172A]">
+              <Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
+                title="Từ ngày"
+              />
+              <span className="text-[#94A3B8]">➔</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
+                title="Đến ngày"
+              />
+              {(startDate || endDate) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStartDate('');
+                    setEndDate('');
+                  }}
+                  className="p-0.5 ml-0.5 text-[#94A3B8] hover:text-[#EF4444] rounded transition-colors"
+                  title="Đặt lại khoảng ngày"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* NÚT TẢI BÁO CÁO EXCEL DANH SÁCH ĐƠN HÀNG */}
+            <button
+              onClick={handleExportExcel}
+              disabled={exporting || loading}
+              className={`h-9 px-3.5 rounded-xl text-[12px] font-bold flex items-center gap-1.5 transition-all shadow-2xs ${
+                exporting || loading
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-[#00A389] hover:bg-[#008f77] text-white hover:shadow-xs active:scale-98'
+              }`}
+              title="Tải báo cáo danh sách đơn hàng file Excel (.xlsx) theo khoảng ngày"
+            >
+              {exporting ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-100" />
+              )}
+              <span>{exporting ? 'Đang xuất...' : 'Tải Báo Cáo Excel'}</span>
+            </button>
+
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Danh sách Lịch Sử Đơn Hàng (Table) */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
@@ -495,6 +485,12 @@ export default function OrderHistoryView() {
                           <span className="font-black text-[#0F172A] tracking-tight block truncate">
                             {order.code}
                           </span>
+                          {order.branchName && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-md border border-teal-200 mt-1 max-w-full">
+                              <Building2 size={10} className="shrink-0" />
+                              <span className="truncate">{order.branchName}</span>
+                            </span>
+                          )}
                         </td>
 
                         {/* Bàn / Khách */}
@@ -629,9 +625,17 @@ export default function OrderHistoryView() {
               </div>
               <div>
                 <h3 className="text-[18px] font-black text-[#0F172A]">Chi Tiết Đơn {detailOrder.code}</h3>
-                <p className="text-[12px] text-[#64748B]">
-                  {detailOrder.table} • Lúc {detailOrder.time} • Thu ngân: {detailOrder.staff}
-                </p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <p className="text-[12px] text-[#64748B]">
+                    {detailOrder.table} • Lúc {detailOrder.time} • Thu ngân: {detailOrder.staff}
+                  </p>
+                  {detailOrder.branchName && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                      <Building2 size={11} className="shrink-0" />
+                      <span>{detailOrder.branchName}</span>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

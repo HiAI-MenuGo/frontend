@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react';
 import useCartStore from '../../../stores/cart.store';
-import { X, Trash2, Plus, Minus, Tag, Send, AlertCircle } from 'lucide-react';
+import { X, Trash2, Plus, Minus, Tag, Send, ShoppingBag } from 'lucide-react';
 import apiFetch from '../../../lib/api';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '../../../context/i18nContext';
-import { NoteLinesDark } from '../../../lib/format-note';
+import Image from 'next/image';
+import { addOrderToCookie } from '@/lib/orderHistoryCookie';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -25,12 +26,13 @@ export function CartDrawer({
   tableName = 'Bàn',
   tenantId = 'default-tenant',
   branchId = 'default-branch',
-  primaryColor = '#f59e0b',
+  primaryColor = '#00A389',
 }: CartDrawerProps) {
   const router = useRouter();
   const { t } = useI18n();
   const { items, updateQuantity, removeItem, clearCart, getTotalAmount, getTotalCount } = useCartStore();
 
+  const [orderNote, setOrderNote] = useState('');
   const [voucherCode, setVoucherCode] = useState('');
   const [discountAmount, setDiscountAmount] = useState(0);
   const [voucherError, setVoucherError] = useState('');
@@ -51,6 +53,7 @@ export function CartDrawer({
       const res = await apiFetch<{ discountAmount: number }>('/vouchers/apply', {
         method: 'POST',
         body: JSON.stringify({
+          tableId,
           tenantId: tenantId || 'default-tenant',
           code: voucherCode.trim(),
           subTotal,
@@ -87,7 +90,45 @@ export function CartDrawer({
         })),
         voucherCode: discountAmount > 0 ? voucherCode : undefined,
         discountAmount,
+        note: orderNote.trim() || undefined,
       };
+
+      // Gọi API tạo đơn — THẤT BẠI thì báo lỗi rõ ràng, GIỮ NGUYÊN giỏ hàng,
+      // không điều hướng sang trang trạng thái (tránh "đặt món ảo").
+      const res = await apiFetch<{ order?: { orderCode: string } }>(
+        `/sessions/${encodeURIComponent(tableId)}/order`,
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }
+      );
+      if (!res.success || !res.data?.order?.orderCode) {
+        throw new Error(res.message || 'Không gửi được đơn tới bếp, vui lòng thử lại');
+      }
+      const createdOrderCode = res.data.order.orderCode;
+
+      // Lưu đơn hàng vào cookie của trình duyệt để theo dõi lịch sử món đã gọi
+      try {
+        addOrderToCookie({
+          orderCode: createdOrderCode,
+          tableId,
+          tableName,
+          totalAmount: totalDue,
+          note: orderNote.trim() || undefined,
+          createdAt: new Date().toISOString(),
+          status: 'PREPARING',
+          items: items.map((i) => ({
+            name: i.name,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            selectedModifiers: i.selectedModifiers,
+            note: i.note,
+            imageUrl: i.imageUrl,
+          })),
+        });
+      } catch (err) {
+        console.warn('Lỗi lưu đơn vào cookie:', err);
+      }
 
       // Lưu đơn hàng vào localStorage để trang theo dõi trạng thái hiển thị đúng món vừa gọi
       if (typeof window !== 'undefined') {
@@ -97,19 +138,12 @@ export function CartDrawer({
             JSON.stringify({
               items,
               totalAmount: totalDue,
+              orderCode: createdOrderCode,
+              note: orderNote.trim() || undefined,
               createdAt: new Date().toISOString(),
             })
           );
         } catch {}
-      }
-
-      try {
-        await apiFetch<unknown>(`/sessions/${tableId}/order`, {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
-      } catch (err) {
-        console.warn('Backend order session note:', err);
       }
 
       clearCart();
@@ -126,96 +160,123 @@ export function CartDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-zinc-900 border-l border-zinc-800 flex flex-col h-full shadow-2xl">
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-zinc-800 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[rgba(15,23,42,0.5)] backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="w-full sm:max-w-md bg-white border border-[#E2E8F0] rounded-t-[28px] sm:rounded-3xl flex flex-col max-h-[88vh] shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-250">
+        {/* Header Bar chuẩn Mobile */}
+        <div className="p-4 border-b border-[#F1F5F9] flex items-center justify-between bg-white shrink-0">
           <div>
-            <h3 className="text-lg font-bold text-zinc-100">{tableName}</h3>
-            <p className="text-xs text-zinc-400">
-              {getTotalCount()} {t('kds.items', 'món')}
+            <h3 className="text-[18px] font-extrabold text-[#0F172A]">Xác Nhận Đơn Món</h3>
+            <p className="text-[12px] text-[#64748B] mt-0.5 font-medium">
+              {tableName} • <strong className="text-[#00A389]">{getTotalCount()} món</strong> đã chọn
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-full transition"
+            className="w-9 h-9 rounded-xl bg-[#F1F5F9] text-[#64748B] hover:text-[#0F172A] hover:bg-slate-200 flex items-center justify-center transition-all"
           >
-            <X className="w-5 h-5" />
+            <X size={18} />
           </button>
         </div>
 
+        {/* Ghi chú đơn hàng (chuẩn mobile OrderScreen) */}
+        <div className="px-4 pt-3 pb-1 shrink-0">
+          <input
+            type="text"
+            className="w-full bg-[#F8FAFC] rounded-xl px-3.5 py-2.5 text-[12.5px] text-[#0F172A] placeholder-[#94A3B8] border border-[#E2E8F0] focus:outline-hidden focus:border-[#00A389] focus:bg-white font-medium transition"
+            placeholder="Ghi chú đơn (vd: ít ngọt, nhiều đá, chia 2 túi...)"
+            value={orderNote}
+            onChange={(e) => setOrderNote(e.target.value)}
+          />
+        </div>
+
         {/* Scrollable Items List */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
           {items.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-zinc-500 py-12">
-              <AlertCircle className="w-10 h-10 mb-2 opacity-30" />
-              <p className="text-sm">{t('cart.empty', 'Giỏ hàng của bạn đang trống')}</p>
+            <div className="py-14 flex flex-col items-center justify-center text-[#94A3B8]">
+              <ShoppingBag size={40} className="mb-2 opacity-30 text-[#94A3B8]" />
+              <p className="text-[13.5px] font-bold text-[#0F172A]">{t('cart.empty', 'Giỏ hàng của bạn đang trống')}</p>
+              <p className="text-xs text-[#94A3B8] mt-1">Hãy chọn món ngon từ thực đơn để tiếp tục</p>
             </div>
           ) : (
             items.map((item) => (
               <div
                 key={item.cartItemId}
-                className="bg-zinc-800/50 border border-zinc-800 rounded-2xl p-3.5 space-y-2"
+                className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-3 flex gap-3 items-center justify-between"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h5 className="font-semibold text-sm text-zinc-100">{item.name}</h5>
-                    <span className="text-xs font-bold text-amber-400">
-                      {(item.unitPrice * item.quantity).toLocaleString('vi-VN')}đ
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeItem(item.cartItemId)}
-                    className="p-1 text-zinc-500 hover:text-red-400 transition"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                {/* Thumbnail */}
+                <div className="relative w-12 h-12 bg-white rounded-xl overflow-hidden shrink-0 border border-[#E2E8F0]">
+                  {item.imageUrl ? (
+                    <Image
+                      src={item.imageUrl}
+                      alt={item.name}
+                      fill
+                      sizes="48px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[#94A3B8] text-[10px] font-mono">
+                      HiAI
+                    </div>
+                  )}
                 </div>
 
-                {/* Modifiers List */}
-                {item.selectedModifiers.length > 0 && (
-                  <div className="text-[11px] text-zinc-400 space-y-0.5 border-l-2 border-amber-500/40 pl-2">
-                    {item.selectedModifiers.map((mod, idx) => (
-                      <p key={idx}>
-                        • {mod.optionName}
-                        {mod.extraPrice > 0 && ` (+${mod.extraPrice.toLocaleString('vi-VN')}đ)`}
-                      </p>
-                    ))}
-                  </div>
-                )}
-
-                {/* Note */}
-                {item.note && (
-                  <div className="bg-zinc-900/60 rounded px-2 py-1 space-y-0.5">
-                    <span className="text-[11px] text-zinc-500 italic block">
-                      {t('menu.note', 'Ghi chú')}:
-                    </span>
-                    <NoteLinesDark note={item.note} />
-                  </div>
-                )}
-
-                {/* Quantity Controls */}
-                <div className="flex items-center justify-end gap-2 pt-1">
-                  <div className="flex items-center gap-2 bg-zinc-900 rounded-lg p-1 border border-zinc-700">
+                {/* Details */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1">
+                    <h5 className="font-bold text-[13.5px] text-[#0F172A] truncate">
+                      {item.name}
+                    </h5>
                     <button
                       type="button"
-                      onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}
-                      className="p-1 hover:bg-zinc-800 text-zinc-300 rounded"
+                      onClick={() => removeItem(item.cartItemId)}
+                      className="p-1 text-[#94A3B8] hover:text-red-500 transition-colors"
+                      title="Xoá món"
                     >
-                      <Minus className="w-3.5 h-3.5" />
+                      <Trash2 size={15} />
                     </button>
-                    <span className="w-5 text-center text-xs font-bold text-zinc-200">
-                      {item.quantity}
+                  </div>
+
+                  {/* Modifiers List */}
+                  {item.selectedModifiers && item.selectedModifiers.length > 0 && (
+                    <p className="text-[11px] text-[#00A389] font-medium truncate mt-0.5">
+                      {item.selectedModifiers.map((m) => m.optionName).join(', ')}
+                    </p>
+                  )}
+
+                  {/* Note */}
+                  {item.note && (
+                    <p className="text-[11px] text-[#64748B] italic truncate mt-0.5">
+                      Ghi chú: {item.note}
+                    </p>
+                  )}
+
+                  {/* Price & Stepper */}
+                  <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-200/60">
+                    <span className="text-[13px] font-black text-[#008770] font-mono">
+                      {(item.unitPrice * item.quantity).toLocaleString('vi-VN')}đ
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
-                      className="p-1 hover:bg-zinc-800 text-zinc-300 rounded"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
+
+                    {/* Stepper chuẩn Mobile */}
+                    <div className="flex items-center bg-white rounded-lg px-1.5 py-0.5 border border-[#E2E8F0] gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}
+                        className="p-1 text-[#475569] hover:text-[#0F172A] active:scale-90"
+                      >
+                        <Minus size={12} strokeWidth={2.5} />
+                      </button>
+                      <span className="w-4 text-center text-[12px] font-extrabold text-[#0F172A]">
+                        {item.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
+                        className="p-1 text-[#475569] hover:text-[#0F172A] active:scale-90"
+                      >
+                        <Plus size={12} strokeWidth={2.5} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -225,79 +286,68 @@ export function CartDrawer({
 
         {/* Voucher & Pricing Section */}
         {items.length > 0 && (
-          <div className="p-4 sm:p-5 border-t border-zinc-800 bg-zinc-950/80 space-y-3">
+          <div className="p-4 border-t border-[#F1F5F9] bg-white space-y-3 shrink-0">
             {/* Voucher input */}
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
                   <input
                     type="text"
                     value={voucherCode}
                     onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
                     placeholder={t('cart.voucherPlaceholder', 'Nhập mã giảm giá...')}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 uppercase focus:outline-none focus:border-amber-500"
+                    className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl pl-9 pr-3 py-2 text-[12px] text-[#0F172A] placeholder-[#94A3B8] uppercase font-mono font-bold focus:outline-hidden focus:border-[#00A389]"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={handleApplyVoucher}
                   disabled={isApplyingVoucher || !voucherCode.trim()}
-                  className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 rounded-xl disabled:opacity-40 transition"
+                  className="px-3.5 py-2 bg-[#00A389] hover:bg-[#008770] text-xs font-bold text-white rounded-xl disabled:opacity-40 transition"
                 >
-                  {isApplyingVoucher ? t('common.loading', 'Đang kiểm tra...') : t('cart.applyVoucher', 'Áp dụng')}
+                  {isApplyingVoucher ? t('common.loading', 'Kiểm tra...') : t('cart.applyVoucher', 'Áp dụng')}
                 </button>
               </div>
-              {voucherError && <p className="text-[11px] text-red-400 pl-1">{voucherError}</p>}
-              {discountAmount > 0 && (
-                <p className="text-[11px] text-emerald-400 pl-1">
-                  {t('cart.appliedVoucher', 'Đã áp dụng giảm')} -{discountAmount.toLocaleString('vi-VN')}đ!
-                </p>
-              )}
+              {voucherError && <p className="text-[11px] text-red-500 font-bold">{voucherError}</p>}
             </div>
 
-            {/* Price Breakdown */}
-            <div className="space-y-1.5 text-xs text-zinc-400 pt-1">
-              <div className="flex justify-between">
-                <span>{t('cart.subTotal', 'Tạm tính')}</span>
-                <span className="text-zinc-200 font-medium">
-                  {subTotal.toLocaleString('vi-VN')}đ
-                </span>
+            {/* Total Pricing Details */}
+            <div className="space-y-1 text-[12.5px] border-t border-[#F1F5F9] pt-2">
+              <div className="flex justify-between text-[#64748B]">
+                <span>Tạm tính ({getTotalCount()} món)</span>
+                <span className="font-mono font-bold">{subTotal.toLocaleString('vi-VN')}đ</span>
               </div>
               {discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-400">
-                  <span>{t('cart.discount', 'Giảm giá')}</span>
-                  <span>-{discountAmount.toLocaleString('vi-VN')}đ</span>
+                <div className="flex justify-between text-[#00A389] font-bold">
+                  <span>Giảm giá khuyến mãi</span>
+                  <span className="font-mono">-{discountAmount.toLocaleString('vi-VN')}đ</span>
                 </div>
               )}
-              <div className="flex justify-between text-sm font-bold text-zinc-100 pt-1 border-t border-zinc-800">
-                <span>{t('cart.totalAmount', 'Tổng cộng')}</span>
-                <span className="text-amber-400 text-base">
+              <div className="flex justify-between items-center text-[15px] pt-1 border-t border-slate-100 font-extrabold text-[#0F172A]">
+                <span>Tổng thanh toán</span>
+                <span className="text-[#008770] font-black font-mono text-[17px]">
                   {totalDue.toLocaleString('vi-VN')}đ
                 </span>
               </div>
             </div>
 
             {errorMsg && (
-              <p className="text-xs text-red-400 bg-red-950/40 border border-red-900 p-2 rounded-lg">
+              <p className="text-xs text-red-500 font-bold bg-red-50 p-2 rounded-xl border border-red-200">
                 {errorMsg}
               </p>
             )}
 
-            {/* Send to Kitchen CTA */}
+            {/* Submit Button */}
             <button
               type="button"
+              disabled={isSubmitting || items.length === 0}
               onClick={handleSendOrder}
-              disabled={isSubmitting}
               style={{ backgroundColor: primaryColor }}
-              className="w-full py-3.5 px-4 rounded-xl font-bold text-zinc-950 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-[0.98] transition hover:brightness-105 disabled:opacity-50"
+              className="w-full py-3.5 rounded-2xl font-extrabold text-white hover:brightness-105 flex items-center justify-center gap-2 shadow-xl shadow-[#00A389]/25 active:scale-[0.98] transition-all disabled:opacity-50 text-[14px]"
             >
-              <Send className="w-4 h-4" />
-              <span>
-                {isSubmitting
-                  ? t('cart.sending', 'Đang gửi...')
-                  : t('cart.sendOrder', 'Gửi Đơn Đến Bếp')}
-              </span>
+              <Send size={16} />
+              <span>{isSubmitting ? 'Đang gửi đơn...' : 'Xác nhận gọi món'}</span>
             </button>
           </div>
         )}

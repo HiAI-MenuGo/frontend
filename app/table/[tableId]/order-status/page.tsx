@@ -21,12 +21,27 @@ interface PageProps {
 export default function OrderStatusPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const { tableId, tenantId, branchId } = resolvedParams;
-  const { t } = useI18n();
+  const { t, setLocale } = useI18n();
   const basePath = tenantId && branchId ? `/${tenantId}/${branchId}/table/${tableId}` : `/table/${tableId}`;
+
+  useEffect(() => {
+    setLocale('vi');
+  }, [setLocale]);
 
   const [orderStatus, setOrderStatus] = useState<'PENDING' | 'PREPARING' | 'DONE'>('PREPARING');
   const [estimatedMinutes] = useState(12);
-  const [orderCode] = useState('#101');
+  const [orderCode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(`menugo_order_${tableId}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.orderCode) return parsed.orderCode;
+        }
+      } catch {}
+    }
+    return 'H-001';
+  });
   const [items] = useState<OrderItemLive[]>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -57,7 +72,8 @@ export default function OrderStatusPage({ params }: PageProps) {
   });
 
   useEffect(() => {
-    const socket = getSocket();
+    // QR guest join đúng table room để chỉ nhận update của bàn mình
+    const socket = getSocket({ tableId });
 
     const handleOrderUpdate = (payload: { status?: 'PENDING' | 'PREPARING' | 'DONE' }) => {
       if (payload.status) {
@@ -66,11 +82,13 @@ export default function OrderStatusPage({ params }: PageProps) {
     };
 
     socket.on('order:updated', handleOrderUpdate);
+    socket.on('order:item-status', handleOrderUpdate);
 
     return () => {
       socket.off('order:updated', handleOrderUpdate);
+      socket.off('order:item-status', handleOrderUpdate);
     };
-  }, []);
+  }, [tableId]);
 
   const totalAmount = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
 

@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '../../../../context/i18nContext';
 import apiFetch from '../../../../lib/api';
+import { fetchActiveTableSession } from '../../../../lib/api/sessions.api';
 
 interface PageProps {
   params: Promise<{ tableId: string; tenantId?: string; branchId?: string }>;
@@ -17,8 +18,12 @@ export default function TablePaymentPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const { tableId, tenantId, branchId } = resolvedParams;
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, setLocale } = useI18n();
   const basePath = tenantId && branchId ? `/${tenantId}/${branchId}/table/${tableId}` : `/table/${tableId}`;
+
+  useEffect(() => {
+    setLocale('vi');
+  }, [setLocale]);
 
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState(890); // ~15 minutes
@@ -32,13 +37,14 @@ export default function TablePaymentPage({ params }: PageProps) {
 
   // Bank Info & QR parameters từ TenantBranding (chỉ render QR khi branding thật về)
   const [bankReady, setBankReady] = useState(false);
+  const [activeOrderCode, setActiveOrderCode] = useState<string | null>(null);
   const [bankInfo, setBankInfo] = useState({
     bankName: '',
     bankCode: '',
     accountNo: '',
     accountName: '',
     amount: 125000,
-    memo: `MENUGO ${tableId.toUpperCase()} 101`,
+    memo: `MENUGO ${tableId.toUpperCase()} H-001`,
   });
 
   useEffect(() => {
@@ -46,10 +52,14 @@ export default function TablePaymentPage({ params }: PageProps) {
       const mode = (localStorage.getItem('menugo_bill_mode') as 'THERMAL' | 'ONLINE' | 'BOTH') || 'BOTH';
       setBillPrintMode(mode);
 
+      // 1. Thử đọc từ localStorage nếu khách vừa đặt hàng trên thiết bị này
       try {
         const saved = localStorage.getItem(`menugo_order_${tableId}`);
         if (saved) {
           const parsed = JSON.parse(saved);
+          if (parsed.orderCode) {
+            setActiveOrderCode(parsed.orderCode);
+          }
           if (parsed.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
             setOrderItems(
               parsed.items.map((i: any) => ({
@@ -64,6 +74,20 @@ export default function TablePaymentPage({ params }: PageProps) {
           }
         }
       } catch {}
+
+      // 2. Đồng thời truy vấn API Database thật để lấy dữ liệu chuẩn xác nhất của phiên bàn
+      fetchActiveTableSession(tableId)
+        .then((session) => {
+          if (session && session.items && session.items.length > 0) {
+            setOrderItems(session.items);
+            setBankInfo((prev) => ({
+              ...prev,
+              amount: session.total,
+              memo: `MENUGO ${session.sessionCode || tableId.toUpperCase()}`,
+            }));
+          }
+        })
+        .catch(() => {});
     }
   }, [tableId]);
 
@@ -81,7 +105,11 @@ export default function TablePaymentPage({ params }: PageProps) {
           if (res?.data?.tenantId) effectiveTenantId = res.data.tenantId;
         }
 
-        const endpoint = effectiveTenantId ? `/branding/${effectiveTenantId}` : `/branding/public?branchId=${effectiveBranchId}`;
+        // Scope branding theo đúng bàn QR (tableId lookup, chặn dò tenantId tùy ý)
+        const params = new URLSearchParams({ tableId });
+        if (effectiveBranchId && effectiveBranchId !== 'default-branch') params.set('branchId', effectiveBranchId);
+        if (effectiveTenantId) params.set('tenantId', effectiveTenantId);
+        const endpoint = `/branding/public?${params.toString()}`;
         const res = await apiFetch<{
           bankCode?: string;
           bankAccountNo?: string;
@@ -129,7 +157,8 @@ export default function TablePaymentPage({ params }: PageProps) {
       setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
-    const socket = getSocket();
+    // QR guest join đúng table room để chỉ nhận thanh toán của bàn mình
+    const socket = getSocket({ tableId });
 
     const handlePaymentCompleted = () => {
       setIsPaid(true);
@@ -141,7 +170,7 @@ export default function TablePaymentPage({ params }: PageProps) {
       clearInterval(timer);
       socket.off('payment:completed', handlePaymentCompleted);
     };
-  }, []);
+  }, [tableId]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -163,7 +192,7 @@ export default function TablePaymentPage({ params }: PageProps) {
     const vatRate = typeof window !== 'undefined' ? Number(localStorage.getItem('app-vat-rate') || 8) : 8;
     const tax = Math.round(subtotal * (vatRate / 100));
     const grandTotal = subtotal + tax;
-    const orderCode = `HD-${tableId.toUpperCase()}-${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }).replace(':', '')}`;
+    const orderCode = activeOrderCode || `H-${tableId.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(-3) || '001'}`;
     const currentDate = new Date().toLocaleString('vi-VN');
 
     if (billPrintMode === 'THERMAL') {

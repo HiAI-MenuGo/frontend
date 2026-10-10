@@ -17,6 +17,8 @@ export interface TableDTO {
   name: string;
   status: BackendTableStatus;
   branchId: string;
+  branchName?: string;
+  branchCode?: string;
   currentSessionId?: string;
   customerCount?: number;
   totalAmount?: number;
@@ -36,6 +38,8 @@ export interface UiTable {
   chairs: number;
   area: 'MAIN_DINING' | 'TERRACE' | 'OUTDOOR';
   branchId?: string;
+  branchName?: string;
+  branchCode?: string;
   tenantId?: string;
   currentCustomer?: string;
   currentSessionId?: string;
@@ -59,6 +63,8 @@ export function adaptTable(t: TableDTO): UiTable {
     chairs: capacity <= 10 ? capacity : 10,
     area: 'MAIN_DINING',
     branchId: t?.branchId,
+    branchName: t?.branchName,
+    branchCode: t?.branchCode,
     currentCustomer: undefined,
     currentSessionId: t?.currentSessionId,
     totalAmount: t?.totalAmount,
@@ -93,6 +99,8 @@ export interface LiveOrderDTO {
   tableName?: string;
   branchId: string;
   tenantId: string;
+  branchName?: string;
+  branchCode?: string;
   createdAt: string;
 }
 
@@ -107,6 +115,53 @@ export interface AnalyticsOverviewDTO {
   };
   hourlyTrend: Array<{ time: string; revenue: number; orders: number }>;
   topItems: Array<{ name: string; soldCount: number; revenue: number; category: string }>;
+}
+
+export interface RevenueDailyItemDTO {
+  date: string;
+  orders: number;
+  revenue: number;
+  cash: number;
+  vietqr: number;
+  discount: number;
+}
+
+export interface PaymentBreakdownDTO {
+  method: string;
+  label: string;
+  amount: number;
+  percentage: number;
+}
+
+export interface RevenueOrderDTO {
+  id: string;
+  orderCode: string;
+  tableName: string;
+  createdAt: string;
+  totalAmount: number;
+  paymentMethod: string;
+  status: string;
+}
+
+export interface RevenueReportDTO {
+  branch: { id: string; name: string; code: string };
+  tenantName: string;
+  dateRange: { startDate: string; endDate: string };
+  summary: {
+    totalRevenue: number;
+    previousRevenue: number;
+    growthPercent: number;
+    orderCount: number;
+    avgOrderValue: number;
+    cashRevenue: number;
+    qrRevenue: number;
+    totalDiscount: number;
+  };
+  dailyTrend: RevenueDailyItemDTO[];
+  paymentBreakdown: PaymentBreakdownDTO[];
+  topItems: Array<{ name: string; soldCount: number; revenue: number; category: string }>;
+  categoryBreakdown: Array<{ category: string; revenue: number; count: number }>;
+  recentOrders: RevenueOrderDTO[];
 }
 
 export interface LoyaltyCustomerDTO {
@@ -152,6 +207,10 @@ export interface PendingSessionDTO {
   customerName?: string;
   items: Array<{ id: string; name: string; quantity: number; price: number; note?: string }>;
   createdAt: string;
+  branchId?: string;
+  branchName?: string;
+  branchCode?: string;
 }
 
+export const ALL_BRANCHES_ID = 'ALL';
 export const DEFAULT_BRANCH_ID = 'default-branch';
