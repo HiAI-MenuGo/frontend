@@ -14,10 +14,14 @@ function handleUnauthorized() {
   try {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    sessionStorage.setItem(
+      'auth_expired_reason',
+      'Phiên làm việc hoặc access token của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục làm việc.'
+    );
   } catch {
     // bỏ qua
   }
-  window.location.href = '/login';
+  window.location.href = '/login?expired=1';
 }
 
 export async function apiFetch<T = any>(

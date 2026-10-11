@@ -43,13 +43,7 @@ import type { RevenueReportDTO } from '@/lib/api/types';
 import { formatVND } from '@/lib/format';
 import { useBranchStore } from '@/stores/branch.store';
 import { useHeaderStore } from '@/stores/header.store';
-
-function formatDateInput(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
+import { formatDateInput, formatDisplayDate, parseDisplayDate, displayToApiDate, apiToDisplayDate, getDefaultReportRange } from '@/lib/date';
 
 const PAYMENT_COLORS: Record<string, string> = {
   VIETQR: '#6366F1',
@@ -59,12 +53,9 @@ const PAYMENT_COLORS: Record<string, string> = {
 export default function DashboardView() {
   const selectedBranchId = useBranchStore((s) => s.selectedBranchId);
   const [mounted, setMounted] = useState(false);
-  const [startDate, setStartDate] = useState<string>(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 29);
-    return formatDateInput(d);
-  });
-  const [endDate, setEndDate] = useState<string>(() => formatDateInput(new Date()));
+  const defaultRange = getDefaultReportRange();
+  const [startDate, setStartDate] = useState<string>(defaultRange.startDate); // DD-MM-YYYY
+  const [endDate, setEndDate] = useState<string>(defaultRange.endDate);       // DD-MM-YYYY
 
   const [data, setData] = useState<RevenueReportDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,8 +80,8 @@ export default function DashboardView() {
     setError(null);
     try {
       const res = await fetchRevenueReport({
-        startDate,
-        endDate,
+        startDate: displayToApiDate(startDate),
+        endDate: displayToApiDate(endDate),
         branchId: selectedBranchId === 'ALL' ? 'ALL' : selectedBranchId,
       });
       setData(res);
@@ -111,8 +102,8 @@ export default function DashboardView() {
     setExporting(true);
     try {
       await downloadRevenueExcel({
-        startDate,
-        endDate,
+        startDate: displayToApiDate(startDate),
+        endDate: displayToApiDate(endDate),
         branchId: selectedBranchId === 'ALL' ? 'ALL' : selectedBranchId,
       });
       setToastMsg({
@@ -141,16 +132,16 @@ export default function DashboardView() {
           <Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
           <input
             type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            value={displayToApiDate(startDate)}
+            onChange={(e) => setStartDate(e.target.value ? apiToDisplayDate(e.target.value) : '')}
             className="bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
             title="Từ ngày"
           />
           <span className="text-[#94A3B8]">➔</span>
           <input
             type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            value={displayToApiDate(endDate)}
+            onChange={(e) => setEndDate(e.target.value ? apiToDisplayDate(e.target.value) : '')}
             className="bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
             title="Đến ngày"
           />

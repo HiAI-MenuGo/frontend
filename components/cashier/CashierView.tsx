@@ -21,10 +21,11 @@ import {
 import { formatVND } from '@/lib/format';
 import { fetchPendingPayments, payCash, createVietQR, type VietQRResult } from '@/lib/api/sessions.api';
 import type { PendingSessionDTO } from '@/lib/api/types';
-import { getSocket } from '@/lib/socket';
 import { BillPrintModal } from '@/components/payment/BillPrintModal';
 import { useHeaderStore } from '@/stores/header.store';
 import { useBranchStore } from '@/stores/branch.store';
+import { useSocket } from '@/context/SocketContext';
+import { formatDisplayDateTime } from '@/lib/date';
 
 export interface PendingBill {
   sessionId: string;
@@ -236,7 +237,7 @@ export default function CashierView() {
         tableName: d.tableName || d.tableId || 'Bàn không tên',
         total: d.total,
         count: d.items ? d.items.length : 1,
-        time: new Date(d.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        time: formatDisplayDateTime(d.createdAt),
         staff: d.customerName || 'Nhân viên',
         createdAt: d.createdAt,
         branchId: d.branchId,
@@ -260,13 +261,10 @@ export default function CashierView() {
   }, [selectedBranchId]);
 
   // Lắng nghe sự kiện Socket.IO Realtime
+  const { on, off, isConnected } = useSocket();
+
   useEffect(() => {
-    let socket;
-    try {
-      socket = getSocket();
-    } catch {
-      return;
-    }
+    if (!isConnected) return;
 
     const onPaymentCompleted = (payload: { sessionId: string; amount: number; tableName?: string; method?: string }) => {
       playPaymentChime();
@@ -299,20 +297,20 @@ export default function CashierView() {
       loadBills(true);
     };
 
-    socket.on('payment:completed', onPaymentCompleted);
-    socket.on('session:updated', onSessionUpdated);
-    socket.on('session:created', onSessionUpdated);
-    socket.on('order:new', onSessionUpdated);
-    socket.on('table:status_changed', onTableStatusChanged);
+    on('payment:completed', onPaymentCompleted);
+    on('session:updated', onSessionUpdated);
+    on('session:created', onSessionUpdated);
+    on('order:new', onSessionUpdated);
+    on('table:status_changed', onTableStatusChanged);
 
     return () => {
-      socket.off('payment:completed', onPaymentCompleted);
-      socket.off('session:updated', onSessionUpdated);
-      socket.off('session:created', onSessionUpdated);
-      socket.off('order:new', onSessionUpdated);
-      socket.off('table:status_changed', onTableStatusChanged);
+      off('payment:completed', onPaymentCompleted);
+      off('session:updated', onSessionUpdated);
+      off('session:created', onSessionUpdated);
+      off('order:new', onSessionUpdated);
+      off('table:status_changed', onTableStatusChanged);
     };
-  }, [loadBills, playPaymentChime, qrModalBill, cashModalBill, checkoutModalBill, showToast]);
+  }, [isConnected, on, off, loadBills, playPaymentChime, qrModalBill, cashModalBill, checkoutModalBill, showToast]);
 
   // Bộ đếm ngược VietQR Modal (60s)
   useEffect(() => {

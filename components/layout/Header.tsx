@@ -22,6 +22,7 @@ const getRouteTitle = (path: string | null): string => {
   if (path === '/menu' || path.startsWith('/menu/')) return 'Quản lý món';
   if (path === '/inventory' || path.startsWith('/inventory/')) return 'Quản lý nguyên liệu';
   if (path === '/history' || path.startsWith('/history/')) return 'Lịch sử đơn';
+  if (path === '/requests' || path.startsWith('/requests/')) return 'Khách hàng';
   if (path === '/customers' || path.startsWith('/customers/')) return 'Khách hàng';
   if (path === '/staff' || path.startsWith('/staff/')) return 'Quản lý nhân viên';
   if (path === '/settings' || path.startsWith('/settings/')) return 'Cài đặt';

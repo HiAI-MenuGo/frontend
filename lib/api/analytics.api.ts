@@ -13,14 +13,25 @@ export async function fetchAnalyticsOverview(branchId = 'ALL', date?: string): P
   return res.data;
 }
 
+function toApiDate(d?: string): string | undefined {
+  if (!d) return undefined;
+  if (/^\d{2}-\d{2}-\d{4}$/.test(d)) {
+    const [day, month, year] = d.split('-');
+    return `${year}-${month}-${day}`;
+  }
+  return d;
+}
+
 export async function fetchRevenueReport(params: {
   branchId?: string;
   startDate?: string;
   endDate?: string;
 }): Promise<RevenueReportDTO> {
   const query = new URLSearchParams({ branchId: params.branchId || 'ALL' });
-  if (params.startDate) query.set('startDate', params.startDate);
-  if (params.endDate) query.set('endDate', params.endDate);
+  const sDate = toApiDate(params.startDate);
+  const eDate = toApiDate(params.endDate);
+  if (sDate) query.set('startDate', sDate);
+  if (eDate) query.set('endDate', eDate);
 
   const res = await apiFetch<RevenueReportDTO>(`/analytics/revenue?${query.toString()}`);
   if (!res.success) throw new Error(res.message || 'Không tải được báo cáo doanh thu');
@@ -34,8 +45,10 @@ export async function downloadRevenueExcel(params: {
   endDate?: string;
 }): Promise<void> {
   const query = new URLSearchParams({ branchId: params.branchId || 'ALL' });
-  if (params.startDate) query.set('startDate', params.startDate);
-  if (params.endDate) query.set('endDate', params.endDate);
+  const sDate = toApiDate(params.startDate);
+  const eDate = toApiDate(params.endDate);
+  if (sDate) query.set('startDate', sDate);
+  if (eDate) query.set('endDate', eDate);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const url = `${API_URL}/analytics/revenue/export?${query.toString()}`;

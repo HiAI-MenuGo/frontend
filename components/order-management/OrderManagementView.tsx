@@ -11,7 +11,7 @@ import { useSearchStore } from '@/stores/search.store';
 import { useHeaderStore } from '@/stores/header.store';
 import { useBranchStore } from '@/stores/branch.store';
 import { formatVND } from '@/lib/format';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/context/SocketContext';
 
 type OrderTab = 'PENDING' | 'CONFIRMED' | 'DONE';
 
@@ -38,6 +38,9 @@ export default function OrderManagementView() {
   const [error, setError] = useState<string | null>(null);
   const [acting, setActing] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+
+  // Socket for realtime order updates
+  const { on, off, isConnected } = useSocket();
 
   const load = useCallback(async (silent = false) => {
     if (!silent) {
@@ -127,12 +130,8 @@ export default function OrderManagementView() {
 
   // Realtime giống mobile: đơn mới (kêu chuông) / đổi trạng thái / hủy đơn
   useEffect(() => {
-    let socket;
-    try {
-      socket = getSocket();
-    } catch {
-      return;
-    }
+    if (!isConnected) return;
+
     const onNew = (newOrder: ManagedOrder) => {
       if (soundOn) beep();
       setOrders((prev) =>
@@ -148,15 +147,17 @@ export default function OrderManagementView() {
       setOrders((prev) => prev.filter((o) => o.id !== payload.orderId));
       setSelected((prev) => (prev && prev.id === payload.orderId ? null : prev));
     };
-    socket.on('order:new', onNew);
-    socket.on('order:updated', onUpdated);
-    socket.on('order:voided', onVoided);
+
+    on('order:new', onNew);
+    on('order:updated', onUpdated);
+    on('order:voided', onVoided);
+
     return () => {
-      socket.off('order:new', onNew);
-      socket.off('order:updated', onUpdated);
-      socket.off('order:voided', onVoided);
+      off('order:new', onNew);
+      off('order:updated', onUpdated);
+      off('order:voided', onVoided);
     };
-  }, [beep, soundOn]);
+  }, [isConnected, on, off, beep, soundOn]);
 
   const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
   const confirmedCount = orders.filter((o) => o.status === 'CONFIRMED').length;

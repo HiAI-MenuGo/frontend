@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getSocket } from '../../../lib/socket';
+import { useSocket } from '../../../context/SocketContext';
 
 export interface MenuItemView {
   id: string;
@@ -36,16 +36,29 @@ export interface MenuItemView {
   }>;
 }
 
-export function useMenuSoldOut(initialItems: MenuItemView[]) {
+export function useMenuSoldOut(initialItems: MenuItemView[], tableId?: string) {
   const [items, setItems] = useState<MenuItemView[]>(initialItems);
+  const { on, off, isConnected } = useSocket();
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setItems(initialItems);
+    setItems((prev) => {
+      if (
+        prev.length === initialItems.length &&
+        prev.every(
+          (p, idx) =>
+            p.id === initialItems[idx]?.id &&
+            p.isSoldOut === initialItems[idx]?.isSoldOut &&
+            p.basePrice === initialItems[idx]?.basePrice
+        )
+      ) {
+        return prev;
+      }
+      return initialItems;
+    });
   }, [initialItems]);
 
   useEffect(() => {
-    const socket = getSocket();
+    if (!isConnected) return;
 
     const handleSoldOutUpdated = (payload: { itemId: string; isSoldOut: boolean }) => {
       setItems((prev) =>
@@ -55,12 +68,12 @@ export function useMenuSoldOut(initialItems: MenuItemView[]) {
       );
     };
 
-    socket.on('sold_out:updated', handleSoldOutUpdated);
+    on('sold_out:updated', handleSoldOutUpdated);
 
     return () => {
-      socket.off('sold_out:updated', handleSoldOutUpdated);
+      off('sold_out:updated', handleSoldOutUpdated);
     };
-  }, []);
+  }, [isConnected, on, off, tableId]);
 
   return { items, setItems };
 }

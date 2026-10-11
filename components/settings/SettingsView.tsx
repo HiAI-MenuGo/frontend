@@ -266,8 +266,44 @@ export default function SettingsView() {
     try {
       const res = await uploadImageFile(file, 'hiai-menugo/branding');
       setLogoUrl(res.url);
+
+      // Tự động lưu logo mới trực tiếp vào cơ sở dữ liệu ngay lập tức
+      const updated = await updateBranding({
+        restaurantName: restaurantName.trim() || undefined,
+        logoUrl: res.url,
+        bankCode,
+        bankAccountNo,
+        bankAccountName,
+        footerText,
+      });
+      setData(updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3500);
     } catch (err: any) {
       alert('Tải logo lên thất bại: ' + (err.message || ''));
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    setLogoUrl('');
+    setUploadingLogo(true);
+    try {
+      const updated = await updateBranding({
+        restaurantName: restaurantName.trim() || undefined,
+        logoUrl: '',
+        bankCode,
+        bankAccountNo,
+        bankAccountName,
+        footerText,
+      });
+      setData(updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      alert('Lỗi khi xoá logo: ' + (err?.message || 'Không thể xoá logo'));
     } finally {
       setUploadingLogo(false);
       if (logoInputRef.current) logoInputRef.current.value = '';
@@ -280,7 +316,7 @@ export default function SettingsView() {
     try {
       const updated = await updateBranding({
         restaurantName: restaurantName.trim() || undefined,
-        logoUrl: logoUrl.trim() || undefined,
+        logoUrl: logoUrl.trim() ? logoUrl.trim() : '',
         bankCode,
         bankAccountNo,
         bankAccountName,
@@ -426,24 +462,24 @@ export default function SettingsView() {
                         ) : (
                           <>
                             <UploadCloud size={14} />
-                            <span>Tải logo lên (Cloudinary)</span>
+                            <span>Tải logo lên</span>
                           </>
                         )}
                       </button>
                       {logoUrl && (
                         <button
                           type="button"
-                          onClick={() => setLogoUrl('')}
+                          onClick={handleRemoveLogo}
                           className="h-9 px-3 text-[12px] font-bold text-rose-500 hover:text-rose-600 transition-colors"
                         >
                           Xoá
                         </button>
                       )}
                     </div>
-                    {logoUrl && logoUrl.includes('cloudinary') && (
+                    {logoUrl && (
                       <div className="flex items-center gap-1 text-[11px] font-semibold text-[#00A389]">
-                        <Cloud size={12} />
-                        <span>Đã lưu trữ trên Cloudinary</span>
+                        <CheckCircle2 size={12} />
+                        <span>Logo đã lưu vào hệ thống</span>
                       </div>
                     )}
                   </div>

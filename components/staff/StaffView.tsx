@@ -10,6 +10,7 @@ import type { StaffUser, StaffRole } from '@/lib/api/users.api';
 import { fetchBranches, type Branch } from '@/lib/api/branches.api';
 import { useAuthStore } from '@/stores/auth.store';
 import { useHeaderStore } from '@/stores/header.store';
+import { formatDisplayDate, formatDisplayDateTime } from '@/lib/date';
 
 const ROLE_BADGE: Record<string, string> = {
   ADMIN: 'bg-purple-50 text-purple-700 border border-purple-200',
@@ -390,7 +391,7 @@ export default function StaffView() {
                   <Calendar size={12} /> Ngày tham gia
                 </div>
                 <div className="font-semibold text-slate-800">
-                  {selectedStaff.createdAt ? new Date(selectedStaff.createdAt).toLocaleDateString('vi-VN') : '—'}
+                  {selectedStaff.createdAt ? formatDisplayDate(selectedStaff.createdAt) : '—'}
                 </div>
               </div>
 
@@ -399,7 +400,7 @@ export default function StaffView() {
                   <Clock size={12} /> Hoạt động lần cuối
                 </div>
                 <div className="font-semibold text-slate-700">
-                  {selectedStaff.lastLoginAt ? new Date(selectedStaff.lastLoginAt).toLocaleString('vi-VN') : 'Chưa đăng nhập'}
+                  {selectedStaff.lastLoginAt ? formatDisplayDateTime(selectedStaff.lastLoginAt) : 'Chưa đăng nhập'}
                 </div>
               </div>
             </div>

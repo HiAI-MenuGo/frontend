@@ -5,8 +5,10 @@ import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { fetchActiveOrders } from '@/lib/api/orders.api';
-import { fetchMe, AuthError } from '@/lib/api/auth.api';
+import { fetchMe, AuthError, isTokenExpired } from '@/lib/api/auth.api';
 import { useAuthStore } from '@/stores/auth.store';
+
+import { SocketProvider } from '@/context/SocketContext';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -31,6 +33,22 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       router.replace('/login');
       return;
     }
+
+    // Kiểm tra nhanh token cục bộ xem đã quá hạn exp chưa
+    const localToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (localToken && isTokenExpired(localToken)) {
+      logout();
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(
+          'auth_expired_reason',
+          'Phiên làm việc hoặc access token của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục làm việc.'
+        );
+      }
+      setVerifying(false);
+      router.replace('/login?expired=1');
+      return;
+    }
+
     let cancelled = false;
     fetchMe()
       .then(() => {
@@ -45,12 +63,38 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           return;
         }
         logout();
-        router.replace('/login');
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(
+            'auth_expired_reason',
+            'Phiên làm việc hoặc access token của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục làm việc.'
+          );
+        }
+        router.replace('/login?expired=1');
       });
     return () => {
       cancelled = true;
     };
   }, [isLoading, isAuthenticated, router, logout]);
+
+  // Kiểm tra định kỳ hạn của token trong lúc người dùng đang thao tác
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const interval = setInterval(() => {
+      const currentToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (currentToken && isTokenExpired(currentToken)) {
+        logout();
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(
+            'auth_expired_reason',
+            'Phiên làm việc hoặc access token của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục làm việc.'
+          );
+        }
+        router.replace('/login?expired=1');
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, logout, router]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -87,7 +131,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#F4F6F8] font-sans text-slate-800 antialiased selection:bg-[#00A389] selection:text-white">
+    <SocketProvider>
+      <div className="flex h-screen w-screen overflow-hidden bg-[#F4F6F8] font-sans text-slate-800 antialiased selection:bg-[#00A389] selection:text-white">
       {/* Sidebar overlay trên mobile */}
       {sidebarOpen && (
         <div
@@ -111,5 +156,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </main>
       </div>
     </div>
+    </SocketProvider>
   );
 }

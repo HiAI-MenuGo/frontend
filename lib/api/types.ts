@@ -1,8 +1,14 @@
-// Shared backend DTOs — khớp 1:1 với backend/src/controllers
+export interface MenuItemCategoryObject {
+  id: string;
+  name: string;
+  isDrink?: boolean;
+}
+
 export interface MenuItemDTO {
   id: string;
   name: string;
   category: string;
+  categoryObj?: MenuItemCategoryObject;
   price: number;
   imageUrl: string;
   isPopular?: boolean;

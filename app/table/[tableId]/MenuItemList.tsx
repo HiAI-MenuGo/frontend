@@ -12,6 +12,7 @@ interface MenuItemListProps {
   categories: Array<{ id: string; name: string }>;
   onSelectItem: (item: MenuItemView) => void;
   primaryColor?: string;
+  isLoading?: boolean;
 }
 
 export function MenuItemList({
@@ -19,6 +20,7 @@ export function MenuItemList({
   categories,
   onSelectItem,
   primaryColor = '#00A389',
+  isLoading = false,
 }: MenuItemListProps) {
   const { t } = useI18n();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -143,7 +145,24 @@ export function MenuItemList({
       </div>
 
       {/* Menu Item Grid (2-col Mobile) */}
-      {filteredItems.length === 0 ? (
+      {isLoading && items.length === 0 ? (
+        <div className="grid grid-cols-2 gap-3 sm:gap-3.5 animate-pulse">
+          {[1, 2, 3, 4, 5, 6].map((idx) => (
+            <div
+              key={idx}
+              className="bg-white rounded-[18px] p-3 border border-[#E2E8F0] shadow-2xs space-y-2.5"
+            >
+              <div className="aspect-[4/3] w-full bg-slate-100 rounded-[13px]" />
+              <div className="h-4 bg-slate-100 rounded-md w-3/4" />
+              <div className="h-3 bg-slate-100 rounded-md w-1/2" />
+              <div className="flex justify-between items-center pt-1 border-t border-slate-50">
+                <div className="h-4 bg-slate-100 rounded-md w-1/3" />
+                <div className="w-7 h-7 bg-slate-100 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredItems.length === 0 ? (
         <div className="py-14 text-center text-[#94A3B8] flex flex-col items-center justify-center bg-white rounded-3xl border border-dashed border-[#E2E8F0]">
           <AlertCircle className="w-9 h-9 mb-2 opacity-40 text-[#94A3B8]" />
           <p className="text-[13.5px] font-bold text-[#0F172A]">{t('menu.noMatch', 'Không tìm thấy món phù hợp')}</p>

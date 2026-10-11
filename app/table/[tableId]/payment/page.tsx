@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect, use } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { getSocket } from '../../../../lib/socket';
 import { ArrowLeft, CheckCircle2, Copy, ShieldCheck, Clock, Download, Printer } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '../../../../context/i18nContext';
 import apiFetch from '../../../../lib/api';
 import { fetchActiveTableSession } from '../../../../lib/api/sessions.api';
+import { useSocket } from '../../../../context/SocketContext';
 
 interface PageProps {
   params: Promise<{ tableId: string; tenantId?: string; branchId?: string }>;
@@ -19,6 +19,7 @@ export default function TablePaymentPage({ params }: PageProps) {
   const { tableId, tenantId, branchId } = resolvedParams;
   const router = useRouter();
   const { t, setLocale } = useI18n();
+  const { on, off, isConnected } = useSocket();
   const basePath = tenantId && branchId ? `/${tenantId}/${branchId}/table/${tableId}` : `/table/${tableId}`;
 
   useEffect(() => {
@@ -157,20 +158,22 @@ export default function TablePaymentPage({ params }: PageProps) {
       setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
-    // QR guest join đúng table room để chỉ nhận thanh toán của bàn mình
-    const socket = getSocket({ tableId });
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!isConnected) return;
 
     const handlePaymentCompleted = () => {
       setIsPaid(true);
     };
 
-    socket.on('payment:completed', handlePaymentCompleted);
+    on('payment:completed', handlePaymentCompleted);
 
     return () => {
-      clearInterval(timer);
-      socket.off('payment:completed', handlePaymentCompleted);
+      off('payment:completed', handlePaymentCompleted);
     };
-  }, [tableId]);
+  }, [isConnected, on, off]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -418,7 +421,7 @@ export default function TablePaymentPage({ params }: PageProps) {
             </span>
           </div>
           <div className="flex justify-between items-center py-1">
-            <span className="text-zinc-400">{t('menu.note', 'Nội dung chuyển')}</span>
+            <span className="text-zinc-400">{t('bank.memo', 'Nội dung chuyển')}</span>
             <div className="flex items-center gap-2">
               <span className="font-mono font-bold text-emerald-400">{bankInfo.memo}</span>
               <button
@@ -443,7 +446,14 @@ export default function TablePaymentPage({ params }: PageProps) {
       {/* Manual Test Complete Button for Demo */}
       <button
         type="button"
-        onClick={() => {
+        onClick={async () => {
+          try {
+            await apiFetch(`/sessions/${encodeURIComponent(tableId)}/demo-pay`, {
+              method: 'POST',
+            });
+          } catch (err) {
+            console.warn('[TablePaymentPage] Demo settle failed:', err);
+          }
           setIsPaid(true);
         }}
         className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-semibold transition cursor-pointer"

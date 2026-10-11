@@ -17,21 +17,36 @@ import {
   Receipt,
   Pencil,
   Trash2,
+  BellRing,
+  Star,
 } from 'lucide-react';
+import CustomerRequestsView from '@/components/requests/CustomerRequestsView';
+import { fetchCustomerCalls } from '@/lib/api/customerRequests.api';
+import { getSocket } from '@/lib/socket';
 import {
   lookupCustomerByPhone,
   adjustCustomerPoints,
+  fetchCustomersList,
+  createCustomer as createCustomerApi,
   fetchTiers,
   createTier,
   updateTier,
   deleteTier,
+  deleteCustomer,
 } from '@/lib/api/customers.api';
 import type { MembershipTierDTO } from '@/lib/api/types';
 import { formatVND } from '@/lib/format';
 import { useHeaderStore } from '@/stores/header.store';
 
+export type CustomersTabType = 'members' | 'calls' | 'reviews';
+
+export interface CustomersViewProps {
+  initialTab?: CustomersTabType;
+}
+
 export interface Customer {
   id: string;
+  code?: string;
   phone: string;
   tier: string;
   totalSpend: number;
@@ -142,13 +157,46 @@ const TIER_COLOR_PRESETS = [
   { name: 'Xanh POS', hex: '#00A389' },
 ];
 
-export default function CustomersView() {
+export default function CustomersView({ initialTab = 'members' }: CustomersViewProps = {}) {
+  const [activeTab, setActiveTab] = useState<CustomersTabType>(initialTab);
+  const [pendingCallsCount, setPendingCallsCount] = useState(0);
+
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [tierList, setTierList] = useState<TierItem[]>(defaultTiers);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTier, setSelectedTier] = useState<string>('All');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
+  // Quản lý Modal xác nhận xoá khách hàng
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+  const [deletingCustomer, setDeletingCustomer] = useState(false);
+
+  // Đếm số lượng cuộc gọi bàn đang chờ phục vụ
+  useEffect(() => {
+    fetchCustomerCalls({ status: 'PENDING' })
+      .then((res) => setPendingCallsCount(res.summary.pending))
+      .catch(() => {});
+
+    const socket = getSocket();
+    if (!socket) return;
+
+    const onCall = () => {
+      setPendingCallsCount((prev) => prev + 1);
+    };
+    const onUpdated = () => {
+      fetchCustomerCalls({ status: 'PENDING' })
+        .then((res) => setPendingCallsCount(res.summary.pending))
+        .catch(() => {});
+    };
+
+    socket.on('call_staff:request', onCall);
+    socket.on('call_staff:updated', onUpdated);
+    return () => {
+      socket.off('call_staff:request', onCall);
+      socket.off('call_staff:updated', onUpdated);
+    };
+  }, []);
 
   // Quản lý Modal Tạo / Chỉnh sửa Phân Hạng
   const [showTierModal, setShowTierModal] = useState(false);
@@ -174,6 +222,33 @@ export default function CustomersView() {
 
   const [searchingRemote, setSearchingRemote] = useState(false);
   const [remoteMessage, setRemoteMessage] = useState<string | null>(null);
+
+  const loadCustomersData = React.useCallback(async () => {
+    try {
+      const list = await fetchCustomersList();
+      if (Array.isArray(list) && list.length > 0) {
+        setCustomers(
+          list.map((c: any, idx: number) => ({
+            id: c.id || `KH-${String(idx + 1).padStart(3, '0')}`,
+            code: `KH-${String(idx + 1).padStart(3, '0')}`,
+            phone: c.phone,
+            tier: c.tier || 'Đồng',
+            totalSpend: c.totalSpend ?? c.totalSpent ?? 0,
+            ordersCount: c.ordersCount ?? 0,
+            points: c.points ?? c.loyaltyPoints ?? 0,
+            lastVisit: c.lastVisit || 'Vừa tham gia',
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn('Could not load customers list from API:', err);
+    }
+  }, []);
+
+  // Tải danh sách khách hàng từ database
+  useEffect(() => {
+    loadCustomersData();
+  }, [loadCustomersData]);
 
   // Tải danh sách phân hạng từ backend
   useEffect(() => {
@@ -203,17 +278,19 @@ export default function CustomersView() {
   const setCustomAction = useHeaderStore((s) => s.setCustomAction);
 
   useEffect(() => {
-    setCustomAction(
-      <button
-        onClick={() => setShowAddModal(true)}
-        className="h-10 px-4 rounded-2xl bg-[#00A389] hover:bg-[#008f77] text-white font-extrabold text-[13px] flex items-center gap-2 shadow-sm shadow-[#00A389]/20 transition-all active:scale-[0.98] shrink-0"
-      >
-        <Plus size={16} strokeWidth={2.5} />
-        <span>Đăng ký thành viên</span>
-      </button>
-    );
+    if (activeTab === 'members') {
+      setCustomAction(
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="h-10 px-4 rounded-2xl bg-[#00A389] hover:bg-[#008f77] text-white font-extrabold text-[13px] flex items-center gap-2 shadow-sm shadow-[#00A389]/20 transition-all active:scale-[0.98] shrink-0"
+        >
+          <Plus size={16} strokeWidth={2.5} />
+          <span>Đăng ký thành viên</span>
+        </button>
+      );
+    }
     return () => setCustomAction(null);
-  }, [setCustomAction]);
+  }, [setCustomAction, activeTab]);
 
   // Helper lấy thông tin & styling hạng thành viên
   const getTierInfo = React.useCallback(
@@ -316,27 +393,25 @@ export default function CustomersView() {
   };
 
   // Tạo hội viên mới (chỉ cần nhập SĐT)
-  const handleCreateCustomer = (e: React.FormEvent) => {
+  const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.phone.trim()) return;
+    const cleanPhone = formData.phone.trim();
+    if (!cleanPhone) return;
 
-    const newCust: Customer = {
-      id: `KH-${String(customers.length + 1).padStart(3, '0')}`,
-      phone: formData.phone.trim(),
-      tier: formData.tier || tierList[tierList.length - 1]?.name || 'Đồng',
-      totalSpend: 0,
-      ordersCount: 0,
-      points: 50, // 50 điểm chào mừng
-      lastVisit: 'Vừa đăng ký',
-    };
+    try {
+      await createCustomerApi({
+        phone: cleanPhone,
+        name: cleanPhone,
+        initialPoints: 50,
+      });
+      await loadCustomersData();
+    } catch {
+      await adjustCustomerPoints(cleanPhone, 50, cleanPhone).catch(() => {});
+      await loadCustomersData();
+    }
 
-    setCustomers((prev) => [newCust, ...prev]);
     setFormData({ phone: '', tier: 'Đồng' });
     setShowAddModal(false);
-    setSelectedCustomer(newCust);
-
-    // Đồng bộ backend
-    adjustCustomerPoints(newCust.phone, 50, newCust.phone).catch(() => {});
   };
 
   // Điều chỉnh điểm thưởng khách hàng
@@ -348,6 +423,7 @@ export default function CustomersView() {
     setAdjusting(true);
     try {
       await adjustCustomerPoints(selectedCustomer.phone, delta, selectedCustomer.phone).catch(() => {});
+      await loadCustomersData();
 
       const newPoints = Math.max(0, selectedCustomer.points + delta);
 
@@ -371,6 +447,41 @@ export default function CustomersView() {
       alert('Không thể cập nhật điểm thưởng');
     } finally {
       setAdjusting(false);
+    }
+  };
+
+  // Xác nhận và thực hiện xoá khách hàng khỏi hệ thống
+  const handleConfirmDeleteCustomer = async () => {
+    if (!customerToDelete) return;
+    setDeletingCustomer(true);
+    try {
+      // Gọi API xoá khách hàng từ server (hỗ trợ cả id lẫn phone)
+      await deleteCustomer(customerToDelete.id).catch(async () => {
+        if (customerToDelete.phone) {
+          await deleteCustomer(customerToDelete.phone).catch(() => {});
+        }
+      });
+
+      // Cập nhật danh sách local ngay lập tức
+      setCustomers((prev) =>
+        prev.filter((c) => c.id !== customerToDelete.id && c.phone !== customerToDelete.phone)
+      );
+
+      // Đóng modal hồ sơ nếu khách đang được xem chi tiết bị xoá
+      if (
+        selectedCustomer &&
+        (selectedCustomer.id === customerToDelete.id || selectedCustomer.phone === customerToDelete.phone)
+      ) {
+        setSelectedCustomer(null);
+      }
+
+      setRemoteMessage(`Đã xoá khách hàng ${customerToDelete.phone} thành công.`);
+      setTimeout(() => setRemoteMessage(null), 4000);
+      setCustomerToDelete(null);
+    } catch (err: any) {
+      alert(err?.message || 'Không thể xoá khách hàng lúc này');
+    } finally {
+      setDeletingCustomer(false);
     }
   };
 
@@ -486,8 +597,68 @@ export default function CustomersView() {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 space-y-6 max-w-7xl mx-auto w-full">
-      {/* 4 Thẻ Thống Kê Tổng Quan */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      {/* ======================================================== */}
+      {/* THANH TAB BAR: Hội viên & Tích điểm | Yêu cầu gọi bàn | Đánh giá & Rating */}
+      {/* ======================================================== */}
+      <div className="flex border-b border-[#E2E8F0] gap-4 sm:gap-8 pb-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab('members')}
+          className={`pb-3 text-[14.5px] font-black flex items-center gap-2 transition-all relative cursor-pointer ${
+            activeTab === 'members'
+              ? 'text-[#00A389]'
+              : 'text-[#64748B] hover:text-[#0F172A]'
+          }`}
+        >
+          <Users size={18} />
+          <span>Hội viên & Tích điểm</span>
+          {activeTab === 'members' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.75 bg-[#00A389] rounded-full" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('calls')}
+          className={`pb-3 text-[14.5px] font-black flex items-center gap-2 transition-all relative cursor-pointer ${
+            activeTab === 'calls'
+              ? 'text-[#00A389]'
+              : 'text-[#64748B] hover:text-[#0F172A]'
+          }`}
+        >
+          <BellRing size={18} />
+          <span>Yêu cầu gọi bàn</span>
+          {pendingCallsCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-[#EF4444] text-white animate-pulse shadow-xs">
+              {pendingCallsCount} mới
+            </span>
+          )}
+          {activeTab === 'calls' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.75 bg-[#00A389] rounded-full" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('reviews')}
+          className={`pb-3 text-[14.5px] font-black flex items-center gap-2 transition-all relative cursor-pointer ${
+            activeTab === 'reviews'
+              ? 'text-amber-600'
+              : 'text-[#64748B] hover:text-[#0F172A]'
+          }`}
+        >
+          <Star size={18} className="fill-amber-400 text-amber-500" />
+          <span>Đánh giá & Rating</span>
+          {activeTab === 'reviews' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.75 bg-amber-500 rounded-full" />
+          )}
+        </button>
+      </div>
+
+      {activeTab === 'members' ? (
+        <>
+          {/* 4 Thẻ Thống Kê Tổng Quan */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
         <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#E2E8F0] shadow-2xs flex items-center gap-3.5">
           <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
             <Users size={22} />
@@ -686,7 +857,7 @@ export default function CustomersView() {
                               {c.phone}
                             </span>
                             <span className="font-mono font-bold text-[11.5px] text-[#94A3B8] block">
-                              {c.id}
+                              {c.code || c.id}
                             </span>
                           </div>
                         </div>
@@ -734,16 +905,31 @@ export default function CustomersView() {
 
                       {/* Thao tác */}
                       <td className="py-4 px-4 sm:px-6 text-center">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedCustomer(c);
-                          }}
-                          className="h-8 px-3 rounded-lg text-[#00A389] hover:bg-[#E6F7F4] font-bold text-[12px] inline-flex items-center gap-1 transition-all"
-                        >
-                          <span>Hồ sơ</span>
-                          <ChevronRight size={14} />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCustomer(c);
+                            }}
+                            className="h-8 px-2.5 rounded-lg text-[#00A389] hover:bg-[#E6F7F4] font-bold text-[12px] inline-flex items-center gap-1 transition-all cursor-pointer"
+                            title="Xem chi tiết hồ sơ"
+                          >
+                            <span>Hồ sơ</span>
+                            <ChevronRight size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCustomerToDelete(c);
+                            }}
+                            className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 flex items-center justify-center transition-all cursor-pointer"
+                            title={`Xoá khách hàng ${c.phone}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -910,7 +1096,7 @@ export default function CustomersView() {
                             </span>
                           </div>
                           <span className="text-[11px] text-slate-300 font-mono block mt-0.5">
-                            Mã thẻ: {selectedCustomer.id}
+                            Mã thẻ: {selectedCustomer.code || selectedCustomer.id}
                           </span>
                         </div>
                       </div>
@@ -1040,12 +1226,23 @@ export default function CustomersView() {
               </div>
             </div>
 
-            <button
-              onClick={() => setSelectedCustomer(null)}
-              className="w-full h-11 bg-slate-100 hover:bg-slate-200 text-[#0F172A] font-extrabold rounded-2xl text-[13px] transition-all"
-            >
-              Đóng hồ sơ
-            </button>
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setCustomerToDelete(selectedCustomer)}
+                className="w-full sm:flex-1 h-11 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-extrabold rounded-2xl text-[13px] flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Trash2 size={15} />
+                <span>Xoá khách hàng này</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCustomer(null)}
+                className="w-full sm:flex-1 h-11 bg-slate-100 hover:bg-slate-200 text-[#0F172A] font-extrabold rounded-2xl text-[13px] transition-all cursor-pointer"
+              >
+                Đóng hồ sơ
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1286,6 +1483,71 @@ export default function CustomersView() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal Xác Nhận Xoá Khách Hàng */}
+      {customerToDelete && (
+        <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-[26px] max-w-md w-full p-6 shadow-2xl border border-[#E2E8F0] animate-in fade-in zoom-in-95 duration-150 space-y-4 my-8">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h3 className="text-[17px] font-black text-[#0F172A]">Xác nhận xoá khách hàng?</h3>
+                <p className="text-[12px] text-[#64748B]">Hành động này sẽ xóa dữ liệu và không thể hoàn tác</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-[13px] space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-[#64748B]">Số điện thoại:</span>
+                <span className="font-mono font-black text-[#0F172A] text-[14px]">{customerToDelete.phone}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#64748B]">Mã khách hàng:</span>
+                <span className="font-mono font-bold text-slate-700">{customerToDelete.code || customerToDelete.id}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#64748B]">Phân hạng:</span>
+                <span className="font-black text-purple-700">{customerToDelete.tier}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#64748B]">Điểm thưởng tích lũy:</span>
+                <span className="font-mono font-black text-amber-600">{customerToDelete.points.toLocaleString('vi-VN')} pts</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={deletingCustomer}
+                onClick={() => setCustomerToDelete(null)}
+                className="h-10.5 px-4.5 rounded-xl border border-slate-200 text-[#64748B] hover:bg-slate-100 font-bold text-[13px] transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={deletingCustomer}
+                onClick={handleConfirmDeleteCustomer}
+                className="h-10.5 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-[13px] shadow-sm transition-all active:scale-[0.98] flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 size={15} />
+                <span>{deletingCustomer ? 'Đang xoá...' : 'Xác nhận xoá'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+        </>
+      ) : (
+        <CustomerRequestsView
+          activeTab={activeTab}
+          onTabChange={(t) => setActiveTab(t)}
+          hideTabBar
+          embedded
+        />
       )}
     </div>
   );

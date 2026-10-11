@@ -28,6 +28,7 @@ export const metadata: Metadata = {
 };
 
 import { I18nProvider } from "../context/i18nContext";
+import { SocketProvider } from "../context/SocketContext";
 
 export default function RootLayout({
   children,
@@ -40,7 +41,9 @@ export default function RootLayout({
       className={`${beVietnamPro.variable} ${geistMono.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans bg-[#F4F6F8] text-[#0F172A] selection:bg-[#00A389] selection:text-white">
-        <I18nProvider>{children}</I18nProvider>
+        <I18nProvider>
+          <SocketProvider>{children}</SocketProvider>
+        </I18nProvider>
       </body>
     </html>
   );

@@ -22,9 +22,9 @@ import {
   deleteIngredient,
   type IngredientDTO,
 } from '@/lib/api/ingredients.api';
-import { getSocket } from '@/lib/socket';
 import { useHeaderStore } from '@/stores/header.store';
 import { useBranchStore } from '@/stores/branch.store';
+import { useSocket } from '@/context/SocketContext';
 
 export default function InventoryView() {
   const [ingredients, setIngredients] = useState<IngredientDTO[]>([]);
@@ -115,13 +115,10 @@ export default function InventoryView() {
   }, [loadData]);
 
   // Lắng nghe Socket.IO Realtime
+  const { on, off, isConnected } = useSocket();
+
   useEffect(() => {
-    let socket;
-    try {
-      socket = getSocket();
-    } catch {
-      return;
-    }
+    if (!isConnected) return;
 
     const onWarning = (payload: { ingredientId: string; name: string; currentStock: number; unit: string }) => {
       showToast('warning', `Cảnh báo: Nguyên liệu "${payload.name}" sắp hết! (Còn ${payload.currentStock} ${payload.unit})`);
@@ -136,14 +133,14 @@ export default function InventoryView() {
       );
     };
 
-    socket.on('inventory:warning', onWarning);
-    socket.on('inventory:updated', onUpdated);
+    on('inventory:warning', onWarning);
+    on('inventory:updated', onUpdated);
 
     return () => {
-      socket.off('inventory:warning', onWarning);
-      socket.off('inventory:updated', onUpdated);
+      off('inventory:warning', onWarning);
+      off('inventory:updated', onUpdated);
     };
-  }, [showToast]);
+  }, [isConnected, on, off, showToast]);
 
   // Danh mục duy nhất
   const categories = useMemo(() => {

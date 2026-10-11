@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
-import { getSocket } from '../../../../lib/socket';
 import { Clock, CheckCircle2, Flame, ArrowLeft, QrCode } from 'lucide-react';
 import Link from 'next/link';
 import { useI18n } from '../../../../context/i18nContext';
+import { useSocket } from '../../../../context/SocketContext';
 
 interface OrderItemLive {
   id: string;
@@ -22,6 +22,7 @@ export default function OrderStatusPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const { tableId, tenantId, branchId } = resolvedParams;
   const { t, setLocale } = useI18n();
+  const { on, off, isConnected } = useSocket();
   const basePath = tenantId && branchId ? `/${tenantId}/${branchId}/table/${tableId}` : `/table/${tableId}`;
 
   useEffect(() => {
@@ -72,8 +73,7 @@ export default function OrderStatusPage({ params }: PageProps) {
   });
 
   useEffect(() => {
-    // QR guest join đúng table room để chỉ nhận update của bàn mình
-    const socket = getSocket({ tableId });
+    if (!isConnected) return;
 
     const handleOrderUpdate = (payload: { status?: 'PENDING' | 'PREPARING' | 'DONE' }) => {
       if (payload.status) {
@@ -81,14 +81,14 @@ export default function OrderStatusPage({ params }: PageProps) {
       }
     };
 
-    socket.on('order:updated', handleOrderUpdate);
-    socket.on('order:item-status', handleOrderUpdate);
+    on('order:updated', handleOrderUpdate);
+    on('order:item-status', handleOrderUpdate);
 
     return () => {
-      socket.off('order:updated', handleOrderUpdate);
-      socket.off('order:item-status', handleOrderUpdate);
+      off('order:updated', handleOrderUpdate);
+      off('order:item-status', handleOrderUpdate);
     };
-  }, [tableId]);
+  }, [isConnected, on, off, tableId]);
 
   const totalAmount = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
 

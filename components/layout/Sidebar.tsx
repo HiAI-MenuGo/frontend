@@ -20,8 +20,11 @@ import {
   Package,
   History,
   CircleDollarSign,
+  BellRing,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
+import { fetchCustomerCalls } from '@/lib/api/customerRequests.api';
+import { useSocket } from '@/context/SocketContext';
 
 const NAV = [
   { href: '/dashboard', label: 'Doanh thu', icon: CircleDollarSign },
@@ -48,6 +51,43 @@ export default function Sidebar({ orderBadgeCount = 0 }: { orderBadgeCount?: num
   const [collapsed, setCollapsed] = useState(false);
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef({ x: 0, w: DEFAULT_WIDTH });
+  const [pendingCallCount, setPendingCallCount] = useState(0);
+
+  // Socket for realtime call staff notifications
+  const { on, off, isConnected } = useSocket();
+
+  // Lắng nghe số lượng yêu cầu gọi bàn đang chờ xử lý
+  useEffect(() => {
+    fetchCustomerCalls({ status: 'PENDING' })
+      .then((res) => setPendingCallCount(res.summary.pending))
+      .catch(() => {});
+
+    if (!isConnected) return;
+
+    const onCall = () => {
+      setPendingCallCount((c) => c + 1);
+    };
+    const onUpdated = () => {
+      fetchCustomerCalls({ status: 'PENDING' })
+        .then((res) => setPendingCallCount(res.summary.pending))
+        .catch(() => {});
+    };
+
+    on('call_staff:request', onCall);
+    on('call_staff:updated', onUpdated);
+
+    const interval = setInterval(() => {
+      fetchCustomerCalls({ status: 'PENDING' })
+        .then((res) => setPendingCallCount(res.summary.pending))
+        .catch(() => {});
+    }, 15000);
+
+    return () => {
+      off('call_staff:request', onCall);
+      off('call_staff:updated', onUpdated);
+      clearInterval(interval);
+    };
+  }, [isConnected, on, off]);
 
   // Đọc kích thước đã lưu
   useEffect(() => {
@@ -164,6 +204,18 @@ export default function Sidebar({ orderBadgeCount = 0 }: { orderBadgeCount?: num
                   ) : (
                     <span className="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#00A389] text-white">
                       {orderBadgeCount > 99 ? '99+' : orderBadgeCount}
+                    </span>
+                  )
+                ) : null}
+                {item.href === '/customers' && pendingCallCount > 0 ? (
+                  collapsed ? (
+                    <span className="absolute mt-[-22px] ml-[22px] min-w-4 h-4 px-1 rounded-full text-[10px] font-bold bg-rose-500 text-white flex items-center justify-center animate-pulse">
+                      {pendingCallCount > 99 ? '99+' : pendingCallCount}
+                    </span>
+                  ) : (
+                    <span className="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500 text-white flex items-center gap-1 shadow-xs animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                      {pendingCallCount > 99 ? '99+' : pendingCallCount}
                     </span>
                   )
                 ) : null}

@@ -19,6 +19,7 @@ import {
   addOrderToCookie,
   CustomerOrderHistoryRecord,
 } from '@/lib/orderHistoryCookie';
+import { formatDisplayDateTime } from '@/lib/date';
 
 interface CustomerOrderHistoryModalProps {
   isOpen: boolean;
@@ -238,14 +239,7 @@ export function CustomerOrderHistoryModal({
             /* TAB 2: TỪNG ĐỢT GỬI ĐƠN */
             <div className="space-y-3">
               {orders.map((ord, idx) => {
-                const formattedTime = new Date(ord.createdAt).toLocaleTimeString('vi-VN', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                });
-                const formattedDate = new Date(ord.createdAt).toLocaleDateString('vi-VN', {
-                  day: '2-digit',
-                  month: '2-digit',
-                });
+                const formatted = formatDisplayDateTime(ord.createdAt);
 
                 return (
                   <div
@@ -259,7 +253,7 @@ export function CustomerOrderHistoryModal({
                           {ord.orderCode || `Đơn #${orders.length - idx}`}
                         </span>
                         <span className="text-[11.5px] font-medium text-[#64748B]">
-                          {formattedTime} • {formattedDate}
+                          {formatted}
                         </span>
                       </div>
                       <span className="flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">

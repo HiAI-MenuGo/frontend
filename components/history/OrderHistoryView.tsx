@@ -22,9 +22,10 @@ import {
 import { formatVND } from '@/lib/format';
 import { fetchOrderHistory, voidOrder, downloadOrderHistoryExcel } from '@/lib/api/orders.api';
 import type { LiveOrderDTO } from '@/lib/api/types';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/context/SocketContext';
 import { BillPrintModal } from '@/components/payment/BillPrintModal';
 import { useBranchStore } from '@/stores/branch.store';
+import { displayToApiDate, apiToDisplayDate, getDefaultReportRange } from '@/lib/date';
 
 export interface HistoryOrderItem {
   id: string;
@@ -57,8 +58,9 @@ export default function OrderHistoryView() {
   const [methodFilter, setMethodFilter] = useState<'ALL' | 'CASH' | 'VIETQR'>('ALL');
 
   // Khoảng ngày lọc & xuất Excel
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const defaultRange = getDefaultReportRange();
+  const [startDate, setStartDate] = useState<string>(defaultRange.startDate); // DD-MM-YYYY
+  const [endDate, setEndDate] = useState<string>(defaultRange.endDate);       // DD-MM-YYYY
   const [exporting, setExporting] = useState(false);
 
   // Modal Chi Tiết Hoá Đơn
@@ -95,8 +97,8 @@ export default function OrderHistoryView() {
         1,
         100,
         searchQuery || undefined,
-        startDate || undefined,
-        endDate || undefined
+        startDate ? displayToApiDate(startDate) : undefined,
+        endDate ? displayToApiDate(endDate) : undefined
       );
       if (res && res.orders) {
         const formatted: HistoryOrderItem[] = res.orders.map((o: LiveOrderDTO) => ({
@@ -137,8 +139,8 @@ export default function OrderHistoryView() {
       const branchId = selectedBranchId === 'ALL' ? 'ALL' : selectedBranchId;
       await downloadOrderHistoryExcel({
         branchId,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
+        startDate: startDate ? displayToApiDate(startDate) : undefined,
+        endDate: endDate ? displayToApiDate(endDate) : undefined,
         search: searchQuery || undefined,
         status: statusFilter,
       });
@@ -156,13 +158,10 @@ export default function OrderHistoryView() {
   }, [loadHistory]);
 
   // Realtime Socket
+  const { on, off, isConnected } = useSocket();
+
   useEffect(() => {
-    let socket;
-    try {
-      socket = getSocket();
-    } catch {
-      return;
-    }
+    if (!isConnected) return;
 
     const onPaymentCompleted = () => {
       loadHistory(true);
@@ -172,14 +171,14 @@ export default function OrderHistoryView() {
       loadHistory(true);
     };
 
-    socket.on('payment:completed', onPaymentCompleted);
-    socket.on('order:updated', onOrderUpdated);
+    on('payment:completed', onPaymentCompleted);
+    on('order:updated', onOrderUpdated);
 
     return () => {
-      socket.off('payment:completed', onPaymentCompleted);
-      socket.off('order:updated', onOrderUpdated);
+      off('payment:completed', onPaymentCompleted);
+      off('order:updated', onOrderUpdated);
     };
-  }, [loadHistory]);
+  }, [isConnected, on, off, loadHistory]);
 
   // Thống kê
   const completedCount = useMemo(() => orders.filter((o) => o.status === 'COMPLETED').length, [orders]);
@@ -371,16 +370,16 @@ export default function OrderHistoryView() {
               <Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
               <input
                 type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                value={displayToApiDate(startDate)}
+                onChange={(e) => setStartDate(e.target.value ? apiToDisplayDate(e.target.value) : '')}
                 className="bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
                 title="Từ ngày"
               />
               <span className="text-[#94A3B8]">➔</span>
               <input
                 type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                value={displayToApiDate(endDate)}
+                onChange={(e) => setEndDate(e.target.value ? apiToDisplayDate(e.target.value) : '')}
                 className="bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
                 title="Đến ngày"
               />

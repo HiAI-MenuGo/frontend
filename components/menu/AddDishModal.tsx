@@ -16,11 +16,13 @@ import {
 } from 'lucide-react';
 import { formatVND } from '@/lib/format';
 import { uploadImageFile } from '@/lib/api/upload.api';
+import type { MenuItemDTO } from '@/lib/api/types';
 
 interface AddDishModalProps {
   isOpen: boolean;
   onClose: () => void;
   categories: string[];
+  initialDish?: MenuItemDTO | null;
   onSave: (item: {
     name: string;
     category: string;
@@ -43,7 +45,7 @@ const PRESET_IMAGES = [
   { label: 'Trà sữa', url: 'https://images.unsplash.com/photo-1558857563-b37df2d2b512?w=500&q=80' },
 ];
 
-export function AddDishModal({ isOpen, onClose, categories, onSave, onRenameCategory }: AddDishModalProps) {
+export function AddDishModal({ isOpen, onClose, categories, initialDish, onSave, onRenameCategory }: AddDishModalProps) {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState('');
@@ -96,11 +98,31 @@ export function AddDishModal({ isOpen, onClose, categories, onSave, onRenameCate
 
   useEffect(() => {
     if (isOpen) {
-      setCategory('');
+      if (initialDish) {
+        setName(initialDish.name || '');
+        setPrice(initialDish.price ? initialDish.price.toString() : '');
+        const catName =
+          typeof initialDish.category === 'string'
+            ? initialDish.category
+            : (initialDish.category as any)?.name || '';
+        setCategory(catName);
+        setImageUrl(initialDish.imageUrl || PRESET_IMAGES[0].url);
+        setDescription((initialDish as any).description || '');
+        setIsPopular(Boolean(initialDish.isPopular));
+        setPrepTime((initialDish as any).prepTimeMinutes || 10);
+      } else {
+        setName('');
+        setPrice('');
+        setCategory('');
+        setImageUrl(PRESET_IMAGES[2].url);
+        setDescription('');
+        setIsPopular(false);
+        setPrepTime(10);
+      }
       setIsEditingCategory(false);
       setIsAddingCategory(false);
     }
-  }, [isOpen]);
+  }, [isOpen, initialDish]);
 
   const handleSelectCategory = (cat: string) => {
     if (category === cat) {
@@ -228,7 +250,7 @@ export function AddDishModal({ isOpen, onClose, categories, onSave, onRenameCate
               <ArrowLeft size={18} />
             </button>
             <h2 className="text-[19px] font-black text-[#0F172A] tracking-tight">
-              Thêm Món Ăn Mới
+              {initialDish ? 'Chỉnh Sửa Món Ăn' : 'Thêm Món Ăn Mới'}
             </h2>
           </div>
 
@@ -735,8 +757,12 @@ export function AddDishModal({ isOpen, onClose, categories, onSave, onRenameCate
             disabled={saving}
             className="flex-1 h-12 rounded-2xl bg-[#00A389] hover:bg-[#008f77] text-white font-extrabold text-[13.5px] flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-95 disabled:opacity-50"
           >
-            <Plus size={18} strokeWidth={2.5} />
-            <span>{saving ? 'Đang lưu...' : 'Thêm món ăn'}</span>
+            {initialDish ? (
+              <Check size={18} strokeWidth={2.5} />
+            ) : (
+              <Plus size={18} strokeWidth={2.5} />
+            )}
+            <span>{saving ? 'Đang lưu...' : initialDish ? 'Lưu thay đổi' : 'Thêm món ăn'}</span>
           </button>
         </div>
       </div>

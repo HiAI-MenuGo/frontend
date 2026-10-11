@@ -15,6 +15,7 @@ interface BillPrintModalProps {
   total: number;
   paymentMethod: string;
   storeName?: string;
+  discount?: number;
 }
 
 export function BillPrintModal({
@@ -28,6 +29,7 @@ export function BillPrintModal({
   total,
   paymentMethod,
   storeName = 'MenuGO',
+  discount,
 }: BillPrintModalProps) {
   if (!isOpen) return null;
   const currentDate = new Date().toLocaleString('vi-VN');
@@ -72,6 +74,12 @@ export function BillPrintModal({
               <span>Tạm tính:</span>
               <span>{formatVND(subtotal)}</span>
             </div>
+            {discount && discount > 0 ? (
+              <div className="flex justify-between text-amber-600 font-bold">
+                <span>Chiết khấu:</span>
+                <span>-{formatVND(discount)}</span>
+              </div>
+            ) : null}
             <div className="flex justify-between text-[#64748B]">
               <span>Thuế VAT:</span>
               <span>{formatVND(tax)}</span>
