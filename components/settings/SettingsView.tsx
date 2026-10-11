@@ -400,7 +400,6 @@ export default function SettingsView() {
               </div>
               <div>
                 <h2 className="text-[15px] font-black text-[#0F172A]">Thông tin quán & In hoá đơn</h2>
-                <p className="text-[12px] text-[#64748B]">Thông tin hiển thị trên hoá đơn thanh toán</p>
               </div>
             </div>
 
@@ -416,13 +415,9 @@ export default function SettingsView() {
                     type="text"
                     value={restaurantName}
                     onChange={(e) => setRestaurantName(e.target.value)}
-                    placeholder="Nhập tên nhà hàng / quán ăn..."
                     className="w-full h-11 pl-10 pr-3.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-[13.5px] font-bold text-[#0F172A] placeholder-[#94A3B8] focus:bg-white focus:border-[#00A389] focus:outline-hidden transition-all"
                   />
                 </div>
-                <p className="text-[11.5px] text-[#94A3B8] mt-1">
-                  Tên quán hiển thị ở tiêu đề hoá đơn in, thực đơn online và toàn hệ thống.
-                </p>
               </div>
 
               {/* Logo quán */}
@@ -484,9 +479,6 @@ export default function SettingsView() {
                     )}
                   </div>
                 </div>
-                <p className="text-[11.5px] text-[#94A3B8] mt-1.5">
-                  Logo hiển thị trên Web QR Menu của khách, trung tâm mã QR bàn và đầu phiếu in nhiệt.
-                </p>
               </div>
 
               <div>
@@ -499,11 +491,7 @@ export default function SettingsView() {
                   value={footerText}
                   onChange={(e) => setFooterText(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-[13px] text-[#0F172A] placeholder-[#94A3B8] focus:bg-white focus:border-[#00A389] focus:outline-hidden transition-all resize-none"
-                  placeholder="VD: Cảm ơn quý khách và hẹn gặp lại! Hotline: 0909 xxx xxx"
                 />
-                <p className="text-[11.5px] text-[#94A3B8] mt-1">
-                  Đoạn văn bản này sẽ được in ở cuối mỗi tờ hoá đơn nhiệt 80mm gửi cho khách.
-                </p>
               </div>
             </div>
           </div>
@@ -516,7 +504,6 @@ export default function SettingsView() {
               </div>
               <div>
                 <h2 className="text-[15px] font-black text-[#0F172A]">Thuế & Tiền tệ</h2>
-                <p className="text-[12px] text-[#64748B]">Tỷ lệ thuế suất áp dụng cho tổng giá trị đơn</p>
               </div>
             </div>
 
@@ -575,7 +562,6 @@ export default function SettingsView() {
               </div>
               <div>
                 <h2 className="text-[15px] font-black text-[#0F172A]">Phương thức in & Xuất bill</h2>
-                <p className="text-[12px] text-[#64748B]">Tùy chọn in bill nhiệt tại quầy hoặc cấp bill online cho khách tải về</p>
               </div>
             </div>
 
@@ -780,7 +766,6 @@ export default function SettingsView() {
                     type="text"
                     value={bankCode}
                     onChange={(e) => setBankCode(e.target.value)}
-                    placeholder="970436 (Vietcombank), 970415 (VietinBank)..."
                     className="w-full h-11 pl-10 pr-3.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-[13px] text-[#0F172A] placeholder-[#94A3B8] focus:bg-white focus:border-[#00A389] focus:outline-hidden transition-all font-medium"
                   />
                 </div>
@@ -795,7 +780,6 @@ export default function SettingsView() {
                   type="text"
                   value={bankAccountNo}
                   onChange={(e) => setBankAccountNo(e.target.value)}
-                  placeholder="Nhập số tài khoản ngân hàng..."
                   className="w-full h-11 px-3.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-[13px] font-bold text-[#0F172A] placeholder-[#94A3B8] focus:bg-white focus:border-[#00A389] focus:outline-hidden transition-all"
                 />
               </div>
@@ -809,7 +793,6 @@ export default function SettingsView() {
                   type="text"
                   value={bankAccountName}
                   onChange={(e) => setBankAccountName(e.target.value.toUpperCase())}
-                  placeholder="NGUYEN VAN A"
                   className="w-full h-11 px-3.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-[13px] font-bold text-[#0F172A] placeholder-[#94A3B8] uppercase focus:bg-white focus:border-[#00A389] focus:outline-hidden transition-all"
                 />
               </div>
@@ -841,9 +824,6 @@ export default function SettingsView() {
                 </div>
                 <div>
                   <h3 className="font-black text-[19px] text-[#0F172A] tracking-tight">Quản lý chi nhánh</h3>
-                  <p className="text-[12.5px] text-[#64748B]">
-                    Cập nhật địa chỉ, số điện thoại hoặc thêm/sửa/xoá chi nhánh trong hệ thống.
-                  </p>
                 </div>
               </div>
             </div>
@@ -907,9 +887,6 @@ export default function SettingsView() {
                       </>
                     )}
                   </span>
-                  <span className="text-[11.5px] text-slate-500 font-medium hidden sm:inline">
-                    * Địa chỉ chi nhánh sẽ tự động đồng bộ sang Menu QR của khách hàng
-                  </span>
                 </div>
 
                 {createBranchError && (
@@ -929,7 +906,6 @@ export default function SettingsView() {
                       type="text"
                       value={newBranchName}
                       onChange={(e) => setNewBranchName(e.target.value)}
-                      placeholder="VD: Chi nhánh Quận 1, Chi nhánh Thủ Đức..."
                       required
                       className="w-full h-10 px-3.5 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:border-[#00A389] focus:outline-hidden transition"
                     />
@@ -943,8 +919,7 @@ export default function SettingsView() {
                       type="text"
                       value={newBranchCode}
                       onChange={(e) => setNewBranchCode(e.target.value.toUpperCase())}
-                      placeholder="VD: CN-Q1, TS-01..."
-                      className="w-full h-10 px-3.5 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 uppercase font-mono focus:border-[#00A389] focus:outline-hidden transition"
+                      className="w-full h-10 px-3.5 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 uppercase focus:border-[#00A389] focus:outline-hidden transition"
                     />
                   </div>
                 </div>
@@ -954,20 +929,15 @@ export default function SettingsView() {
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-[12px] font-bold text-slate-700 flex items-center gap-1.5">
                       <MapPin size={14} className="text-[#00A389]" />
-                      <span>Địa chỉ chi nhánh (Hiển thị trực tiếp trên Menu QR khách & Bill in)</span>
+                      <span>Địa chỉ chi nhánh</span>
                     </label>
-                    <span className="text-[11px] text-[#00A389] font-bold">Đồng bộ tự động</span>
                   </div>
                   <input
                     type="text"
                     value={newBranchAddress}
                     onChange={(e) => setNewBranchAddress(e.target.value)}
-                    placeholder="VD: 123 Võ Văn Ngân, Phường Linh Chiểu, TP. Thủ Đức, TP. HCM"
                     className="w-full h-10 px-3.5 bg-white border border-slate-200 rounded-xl text-[13px] text-slate-900 focus:border-[#00A389] focus:outline-hidden transition"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Khách hàng khi quét mã QR tại bàn của chi nhánh này sẽ nhìn thấy địa chỉ trên ở đầu thực đơn và biên lai thanh toán.
-                  </p>
                 </div>
 
                 {/* Nhóm 3: Số điện thoại hotline & Giờ phục vụ */}
@@ -981,7 +951,6 @@ export default function SettingsView() {
                       type="text"
                       value={newBranchPhone}
                       onChange={(e) => setNewBranchPhone(e.target.value)}
-                      placeholder="VD: 028 3896 7890 hoặc 0909 123 456"
                       className="w-full h-10 px-3.5 bg-white border border-slate-200 rounded-xl text-[13px] text-slate-900 focus:border-[#00A389] focus:outline-hidden transition"
                     />
                   </div>
@@ -992,7 +961,6 @@ export default function SettingsView() {
                     </label>
                     <input
                       type="text"
-                      placeholder="VD: 07:00 - 22:30 hàng ngày"
                       className="w-full h-10 px-3.5 bg-white border border-slate-200 rounded-xl text-[13px] text-slate-900 focus:border-[#00A389] focus:outline-hidden transition"
                     />
                   </div>
@@ -1224,7 +1192,6 @@ export default function SettingsView() {
                 type="text"
                 value={confirmDeleteName}
                 onChange={(e) => setConfirmDeleteName(e.target.value)}
-                placeholder={`Nhập chính xác "${branchToDelete.name}"`}
                 className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-[13px] font-bold text-[#0F172A] placeholder-slate-400 focus:border-rose-500 focus:outline-hidden"
               />
             </div>

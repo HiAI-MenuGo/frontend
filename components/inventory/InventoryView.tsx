@@ -277,7 +277,7 @@ export default function InventoryView() {
   }, [adjustingItem, adjustAmount, adjustType]);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#F8FAFC] overflow-hidden">
+    <div className="flex-1 flex flex-col h-full min-h-0 min-w-0 bg-[#F8FAFC] overflow-hidden">
       {/* Toast thông báo */}
       {toast && (
         <div className="fixed top-20 right-8 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
@@ -346,7 +346,7 @@ export default function InventoryView() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm theo tên nguyên liệu, danh mục, đơn vị..."
+              placeholder="tìm kiếm..."
               className="w-full h-10 pl-10 pr-9 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-[13px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-hidden focus:border-[#00A389] focus:bg-white transition-all"
             />
             {searchQuery && (
@@ -415,7 +415,7 @@ export default function InventoryView() {
       </div>
 
       {/* Danh sách Nguyên Liệu (Table / Grid) */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div className="flex-1 overflow-y-auto min-h-0 p-3 sm:p-4 lg:p-6 view-scroll">
         {loading ? (
           <div className="h-64 flex flex-col items-center justify-center gap-3">
             <RefreshCw className="w-8 h-8 text-[#00A389] animate-spin" />
@@ -447,7 +447,7 @@ export default function InventoryView() {
           </div>
         ) : (
           <div className="bg-white rounded-3xl border border-[#E2E8F0] overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto table-scroll -mx-1 px-1">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-[#F1F5F9] bg-[#F8FAFC] text-[11px] font-extrabold uppercase tracking-wider text-[#64748B]">
@@ -560,7 +560,7 @@ export default function InventoryView() {
       {/* ============================================================== */}
       {activeDetailItem && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E2E8F0] relative">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-[#E2E8F0] relative flex flex-col overflow-hidden modal-panel">
             <button
               onClick={() => setDetailItemId(null)}
               className="absolute top-5 right-5 text-[#94A3B8] hover:text-[#0F172A] p-1.5 rounded-full hover:bg-[#F8FAFC] transition-colors"
@@ -722,8 +722,8 @@ export default function InventoryView() {
       {/* MODAL 1: ĐIỀU CHỈNH TỒN KHO (NHẬP THÊM / XUẤT HAO HỤT / KIỂM KÊ) */}
       {/* ============================================================== */}
       {adjustingItem && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E2E8F0] relative">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-[#E2E8F0] relative flex flex-col overflow-hidden modal-panel">
             <button
               onClick={() => setAdjustingItem(null)}
               className="absolute top-5 right-5 text-[#94A3B8] hover:text-[#0F172A] p-1.5 rounded-full hover:bg-[#F8FAFC]"
@@ -812,7 +812,6 @@ export default function InventoryView() {
                   autoFocus
                   value={adjustAmount}
                   onChange={(e) => setAdjustAmount(e.target.value)}
-                  placeholder="Nhập số lượng..."
                   className="w-full h-11 pl-4 pr-16 rounded-2xl bg-[#F8FAFC] border border-[#CBD5E1] text-[15px] font-bold text-[#0F172A] placeholder:text-[#94A3B8] placeholder:font-normal focus:outline-hidden focus:border-[#00A389] focus:bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-all"
                 />
                 <span className="absolute right-3 px-2 py-0.5 rounded-lg bg-slate-200/70 text-[12px] font-bold text-[#475569] pointer-events-none select-none">
@@ -885,8 +884,8 @@ export default function InventoryView() {
       {/* MODAL 2: THÊM NGUYÊN LIỆU MỚI */}
       {/* ============================================================== */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E2E8F0] relative">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-[#E2E8F0] relative flex flex-col overflow-hidden modal-panel">
             <button
               onClick={() => setIsAddModalOpen(false)}
               className="absolute top-5 right-5 text-[#94A3B8] hover:text-[#0F172A] p-1.5 rounded-full hover:bg-[#F8FAFC]"
@@ -900,7 +899,6 @@ export default function InventoryView() {
               </div>
               <div>
                 <h3 className="text-[17px] font-black text-[#0F172A]">Thêm Nguyên Vật Liệu Mới</h3>
-                <p className="text-[12px] text-[#64748B]">Thêm mặt hàng để theo dõi tồn kho</p>
               </div>
             </div>
 
@@ -914,7 +912,6 @@ export default function InventoryView() {
                   required
                   value={newForm.name}
                   onChange={(e) => setNewForm({ ...newForm, name: e.target.value })}
-                  placeholder="Ví dụ: Hạt Cà Phê Arabica Cầu Đất..."
                   className="w-full h-11 px-3.5 rounded-2xl bg-[#F8FAFC] border border-[#CBD5E1] text-[13px] text-[#0F172A] font-bold focus:outline-hidden focus:border-[#00A389] focus:bg-white"
                 />
               </div>
@@ -948,7 +945,6 @@ export default function InventoryView() {
                     required
                     value={newForm.unit}
                     onChange={(e) => setNewForm({ ...newForm, unit: e.target.value })}
-                    placeholder="kg, lon, hộp 1L..."
                     className="w-full h-11 px-3.5 rounded-2xl bg-[#F8FAFC] border border-[#CBD5E1] text-[13px] text-[#0F172A] font-bold focus:outline-hidden focus:border-[#00A389] focus:bg-white"
                   />
                 </div>
@@ -965,7 +961,6 @@ export default function InventoryView() {
                     required
                     value={newForm.quantity}
                     onChange={(e) => setNewForm({ ...newForm, quantity: e.target.value })}
-                    placeholder="0"
                     className="w-full h-11 px-3.5 rounded-2xl bg-[#F8FAFC] border border-[#CBD5E1] text-[14px] font-black text-[#0F172A] focus:outline-hidden focus:border-[#00A389] focus:bg-white"
                   />
                 </div>
@@ -977,7 +972,6 @@ export default function InventoryView() {
                     step="any"
                     value={newForm.lowStockThreshold}
                     onChange={(e) => setNewForm({ ...newForm, lowStockThreshold: e.target.value })}
-                    placeholder="5"
                     className="w-full h-11 px-3.5 rounded-2xl bg-[#F8FAFC] border border-[#CBD5E1] text-[14px] font-black text-[#0F172A] focus:outline-hidden focus:border-[#00A389] focus:bg-white"
                   />
                 </div>
@@ -1009,8 +1003,8 @@ export default function InventoryView() {
       {/* MODAL 3: XÁC NHẬN XOÁ NGUYÊN LIỆU */}
       {/* ============================================================== */}
       {deletingItem && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-rose-200 text-center">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-sm w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-rose-200 text-center flex flex-col overflow-hidden modal-panel">
             <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-3">
               <Trash2 size={24} />
             </div>

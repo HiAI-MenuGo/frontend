@@ -21,6 +21,7 @@ import {
   History,
   CircleDollarSign,
   BellRing,
+  TicketPercent,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { fetchCustomerCalls } from '@/lib/api/customerRequests.api';
@@ -36,6 +37,7 @@ const NAV = [
   { href: '/inventory', label: 'Nguyên liệu', icon: Package },
   { href: '/history', label: 'Lịch sử đơn', icon: History },
   { href: '/customers', label: 'Khách hàng', icon: Users },
+  { href: '/promotions', label: 'Khuyến mãi', icon: TicketPercent },
   { href: '/staff', label: 'Nhân viên', icon: UserPlus },
 ] as const;
 
@@ -151,15 +153,26 @@ export default function Sidebar({ orderBadgeCount = 0 }: { orderBadgeCount?: num
 
   const labelClass = 'truncate whitespace-nowrap overflow-hidden text-ellipsis min-w-0 flex-1';
 
+  // Tự thu gọn sidebar khi màn hình ngang hẹp (laptop 1024-1280) để dành chỗ cho nội dung
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = localStorage.getItem('sidebar-collapsed');
+    if (saved !== null) return; // tôn trọng lựa chọn tay của user
+    if (window.innerWidth < 1280) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCollapsed(true);
+    }
+  }, []);
+
   return (
     <aside
       style={{ width: effectiveWidth }}
-      className={`relative shrink-0 bg-white border-r border-[#F1F5F9] flex flex-col justify-between py-6 h-screen sticky top-0 select-none z-30 ${
+      className={`relative shrink-0 bg-white border-r border-[#F1F5F9] flex flex-col justify-between py-4 lg:py-6 h-dvh sticky top-0 select-none z-30 ${
         dragging ? '' : 'transition-[width] duration-200 ease-out'
-      } ${collapsed ? 'px-3' : 'px-4'}`}
+      } ${collapsed ? 'px-2 lg:px-3' : 'px-3 lg:px-4'}`}
     >
-      <div className="min-w-0">
-        <div className={`flex items-center mb-8 ${collapsed ? 'justify-center px-0' : 'gap-3 px-2'}`}>
+      <div className="min-w-0 flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className={`flex items-center mb-5 lg:mb-8 shrink-0 ${collapsed ? 'justify-center px-0' : 'gap-3 px-2'}`}>
           <Link href="/dashboard" className="flex items-center gap-3 min-w-0" title="MenuGO by HiAI">
             <div className="w-10 h-10 shrink-0 rounded-2xl bg-[#E6F7F4] flex items-center justify-center text-[#00A389] shadow-sm">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -175,7 +188,7 @@ export default function Sidebar({ orderBadgeCount = 0 }: { orderBadgeCount?: num
           </Link>
         </div>
 
-        <nav className="space-y-1.5">
+        <nav className="space-y-1 lg:space-y-1.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-0.5 pb-2 no-scrollbar">
           {NAV.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
@@ -225,7 +238,7 @@ export default function Sidebar({ orderBadgeCount = 0 }: { orderBadgeCount?: num
         </nav>
       </div>
 
-      <div className={`space-y-1.5 pt-4 border-t border-[#F1F5F9] ${collapsed ? 'flex flex-col items-center' : ''}`}>
+      <div className={`space-y-1 lg:space-y-1.5 pt-3 lg:pt-4 border-t border-[#F1F5F9] shrink-0 ${collapsed ? 'flex flex-col items-center' : ''}`}>
         <Link
           href="/settings"
           title="Cài đặt"

@@ -130,7 +130,15 @@ export default function CustomerRequestsView({
         type: callTypeFilter,
         branchId: selectedBranchId,
       });
-      setCalls(res.calls);
+      // Chuẩn hóa và loại bỏ trùng lặp id nếu có
+      const uniqueCallsMap = new Map<string, CustomerCallItem>();
+      (res.calls || []).forEach((c, idx) => {
+        const cId = c.id || `call-${c.tableId || 'tbl'}-${idx}`;
+        if (!uniqueCallsMap.has(cId)) {
+          uniqueCallsMap.set(cId, { ...c, id: cId });
+        }
+      });
+      setCalls(Array.from(uniqueCallsMap.values()));
       setCallsSummary(res.summary);
     } catch (err) {
       console.warn('Lỗi tải yêu cầu gọi bàn:', err);
@@ -171,9 +179,15 @@ export default function CustomerRequestsView({
     if (!isConnected) return;
 
     const handleNewCall = (newCall: CustomerCallItem) => {
+      if (!newCall) return;
       playNotificationSound();
+      const callId =
+        newCall.id ||
+        `call-${newCall.tableId || 'tbl'}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const callWithId: CustomerCallItem = { ...newCall, id: callId };
+
       setCalls((prev) => {
-        const next = [newCall, ...prev.filter((c) => c.id !== newCall.id)];
+        const next = [callWithId, ...prev.filter((c) => c.id !== callWithId.id)];
         setCallsSummary({
           total: next.length,
           pending: next.filter((c) => c.status === 'PENDING').length,
@@ -435,14 +449,15 @@ export default function CustomerRequestsView({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {calls.map((call) => {
+              {calls.map((call, idx) => {
                 const isPending = call.status === 'PENDING';
                 const isProcessing = call.status === 'PROCESSING';
                 const isCompleted = call.status === 'COMPLETED';
+                const callKey = call.id || `call-${call.tableId || 'tbl'}-${call.createdAt || idx}`;
 
                 return (
                   <div
-                    key={call.id}
+                    key={callKey}
                     className={`bg-white rounded-3xl p-5 border transition-all flex flex-col justify-between shadow-2xs hover:shadow-md ${
                       isPending
                         ? 'border-rose-300 ring-2 ring-rose-200/50'
@@ -683,11 +698,13 @@ export default function CustomerRequestsView({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {reviews.map((rev) => (
-                <div
-                  key={rev.id}
-                  className="bg-white rounded-3xl p-5 border border-[#E2E8F0] shadow-2xs hover:shadow-md transition-all space-y-3"
-                >
+              {reviews.map((rev, idx) => {
+                const revKey = rev.id || `rev-${rev.tableId || 'tbl'}-${rev.createdAt || idx}`;
+                return (
+                  <div
+                    key={revKey}
+                    className="bg-white rounded-3xl p-5 border border-[#E2E8F0] shadow-2xs hover:shadow-md transition-all space-y-3"
+                  >
                   {/* Header: Khách & Bàn & Số sao */}
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -737,7 +754,8 @@ export default function CustomerRequestsView({
                     <span>{formatDisplayDateTime(rev.createdAt)}</span>
                   </div>
                 </div>
-              ))}
+              );
+            })}
             </div>
           )}
         </div>

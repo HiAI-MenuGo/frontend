@@ -658,7 +658,7 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
       {activeTab === 'members' ? (
         <>
           {/* 4 Thẻ Thống Kê Tổng Quan */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 lg:gap-3.5 min-w-0">
         <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#E2E8F0] shadow-2xs flex items-center gap-3.5">
           <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
             <Users size={22} />
@@ -763,9 +763,9 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
               <Search className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Nhập số điện thoại, mã KH..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="tìm kiếm..."
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleRemoteLookup();
                 }}
@@ -807,7 +807,7 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
 
       {/* Bảng Danh Sách Khách Hàng (Định danh SĐT, tinh gọn) */}
       <div className="bg-white rounded-[26px] border border-[#E2E8F0] shadow-2xs overflow-hidden flex flex-col">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto table-scroll -mx-1 px-1">
           <table className="w-full text-left text-[13px]">
             <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[#64748B] font-extrabold uppercase tracking-wider text-[11px]">
               <tr>
@@ -969,7 +969,7 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 lg:gap-3.5 min-w-0">
           {tierList.map((t) => (
             <div
               key={t.id}
@@ -1036,8 +1036,8 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
 
       {/* Modal Chi Tiết Hồ Sơ Hội Viên */}
       {selectedCustomer && (
-        <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-[28px] max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-[#E2E8F0] relative animate-in fade-in zoom-in-95 duration-150 space-y-5 my-8">
+        <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-[28px] max-w-lg w-full max-h-[92dvh] my-auto p-4 sm:p-6 lg:p-7 shadow-2xl border border-[#E2E8F0] relative animate-in fade-in zoom-in-95 duration-150 space-y-4 lg:space-y-5 flex flex-col overflow-hidden modal-panel">
             <button
               onClick={() => setSelectedCustomer(null)}
               className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 text-[#94A3B8] hover:text-[#0F172A] transition-colors"
@@ -1197,7 +1197,6 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
                     value={pointsDelta}
                     onChange={(e) => setPointsDelta(e.target.value)}
                     className="w-full h-10 px-3 bg-white border border-[#E2E8F0] rounded-xl text-[13.5px] font-black text-[#0F172A] font-mono focus:border-[#00A389] focus:outline-hidden"
-                    placeholder="+/- điểm"
                   />
                 </div>
 
@@ -1249,8 +1248,8 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
 
       {/* Modal Đăng Ký Hội Viên Mới (Chỉ cần SĐT làm định danh chính) */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-[28px] max-w-md w-full p-6 shadow-2xl border border-[#E2E8F0] relative animate-in fade-in zoom-in-95 duration-150 space-y-4 my-8">
+        <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-[28px] max-w-md w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-[#E2E8F0] relative animate-in fade-in zoom-in-95 duration-150 space-y-4 flex flex-col overflow-hidden modal-panel">
             <button
               onClick={() => setShowAddModal(false)}
               className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 text-[#94A3B8] hover:text-[#0F172A] transition-colors"
@@ -1264,9 +1263,6 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
                 <Phone size={20} />
               </div>
               <h3 className="text-[18px] font-black text-[#0F172A]">Đăng ký hội viên tích điểm</h3>
-              <p className="text-[12.5px] text-[#64748B] mt-0.5">
-                Chỉ cần số điện thoại để ghi nhận tích điểm và ưu đãi cho khách tại quầy
-              </p>
             </div>
 
             <form onSubmit={handleCreateCustomer} className="space-y-3.5 text-[13px]">
@@ -1277,7 +1273,6 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
                 <input
                   type="tel"
                   required
-                  placeholder="Ví dụ: 0912 345 678"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[14px] font-bold text-[#0F172A] font-mono focus:bg-white focus:border-[#00A389] focus:outline-hidden"
@@ -1321,8 +1316,8 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
 
       {/* Modal Tạo / Chỉnh Sửa Hạng Thành Viên */}
       {showTierModal && (
-        <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-[28px] max-w-md w-full p-6 shadow-2xl border border-[#E2E8F0] relative animate-in fade-in zoom-in-95 duration-150 space-y-4 my-8">
+        <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-[28px] max-w-md w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-[#E2E8F0] relative animate-in fade-in zoom-in-95 duration-150 space-y-4 flex flex-col overflow-hidden modal-panel">
             <button
               onClick={() => {
                 setShowTierModal(false);
@@ -1340,9 +1335,6 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
               <h3 className="text-[18px] font-black text-[#0F172A]">
                 {editingTier ? 'Chỉnh sửa phân hạng' : 'Thêm phân hạng mới'}
               </h3>
-              <p className="text-[12.5px] text-[#64748B] mt-0.5">
-                Cấu hình tên hạng, ngưỡng điểm tích luỹ tối thiểu và tỷ lệ chiết khấu giảm giá
-              </p>
             </div>
 
             <form onSubmit={handleSaveTier} className="space-y-4 text-[13px]">
@@ -1353,7 +1345,6 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
                 <input
                   type="text"
                   required
-                  placeholder="Ví dụ: Bạch Kim, Khách VIP, Vàng..."
                   value={tierForm.name}
                   onChange={(e) => setTierForm({ ...tierForm, name: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[13.5px] font-bold text-[#0F172A] focus:bg-white focus:border-[#00A389] focus:outline-hidden"

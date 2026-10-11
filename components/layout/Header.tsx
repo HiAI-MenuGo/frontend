@@ -70,8 +70,8 @@ export default function Header({ unreadCount = 0, onOpenSidebar }: HeaderProps) 
   const isAllBranches = selectedBranchId === 'ALL' || !selectedBranchId;
 
   return (
-    <header className="h-[74px] px-6 sm:px-8 bg-white border-b border-[#F1F5F9] flex items-center justify-between sticky top-0 z-20 gap-4">
-      <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+    <header className="h-16 lg:h-[74px] px-3 sm:px-4 lg:px-6 xl:px-8 bg-white border-b border-[#F1F5F9] flex items-center justify-between sticky top-0 z-20 gap-2 sm:gap-3 lg:gap-4 min-w-0">
+      <div className="flex items-center gap-2 sm:gap-3 lg:gap-5 min-w-0 flex-shrink-1 flex-1">
         {onOpenSidebar && (
           <button
             onClick={onOpenSidebar}
@@ -81,7 +81,7 @@ export default function Header({ unreadCount = 0, onOpenSidebar }: HeaderProps) 
             <Menu size={18} />
           </button>
         )}
-        <h1 className="text-[20px] sm:text-[22px] font-black text-[#0F172A] tracking-tight shrink-0 whitespace-nowrap">
+        <h1 className="text-lg lg:text-[22px] font-black text-[#0F172A] tracking-tight shrink-0 whitespace-nowrap max-w-[38vw] lg:max-w-none truncate">
           {displayTitle}
         </h1>
 
@@ -184,8 +184,10 @@ export default function Header({ unreadCount = 0, onOpenSidebar }: HeaderProps) 
         </div>
       </div>
 
-      <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-        {customAction}
+      <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 min-w-0 flex-1 justify-end">
+        <div className="header-actions">
+          {customAction}
+        </div>
 
         <div className="relative">
           <button
@@ -213,12 +215,12 @@ export default function Header({ unreadCount = 0, onOpenSidebar }: HeaderProps) 
           )}
         </div>
 
-        <div className="flex items-center gap-3 pl-2 select-none">
-          <div className="w-10 h-10 rounded-2xl overflow-hidden border border-[#E2E8F0] shadow-2xs bg-[#E6F7F4] flex items-center justify-center font-extrabold text-[#00A389]">
+        <div className="flex items-center gap-2 lg:gap-3 pl-1 lg:pl-2 select-none shrink-0">
+          <div className="w-9 h-9 lg:w-10 lg:h-10 rounded-2xl overflow-hidden border border-[#E2E8F0] shadow-2xs bg-[#E6F7F4] flex items-center justify-center font-extrabold text-[#00A389]">
             {(user?.name?.[0] ?? 'A').toUpperCase()}
           </div>
-          <div className="flex flex-col text-left leading-tight hidden sm:flex">
-            <span className="font-bold text-[13.5px] text-[#0F172A]">{user?.name ?? 'Thu ngân'}</span>
+          <div className="flex-col text-left leading-tight hidden xl:flex">
+            <span className="font-bold text-[13.5px] text-[#0F172A] max-w-[120px] truncate">{user?.name ?? 'Thu ngân'}</span>
             <p className="text-[11.5px] font-semibold text-[#94A3B8]">{user?.role ?? 'STAFF'}</p>
           </div>
         </div>

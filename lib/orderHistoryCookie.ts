@@ -110,6 +110,45 @@ export function addOrderToCookie(
 }
 
 /**
+ * Cập nhật trạng thái đơn hàng trong cookie
+ * @returns true nếu đã cập nhật, false nếu không tìm thấy đơn
+ */
+export function updateOrderStatusInCookie(
+  tableId: string,
+  orderId: string,
+  status: string
+): boolean {
+  try {
+    const current = getOrderHistoryFromCookie();
+    const cleanTable = tableId.trim().toLowerCase();
+    
+    let updated = false;
+    const updatedList = current.map((ord) => {
+      // Match by tableId AND orderCode/id
+      const matchTable = (ord.tableId || '').trim().toLowerCase() === cleanTable;
+      const matchId = ord.orderCode === orderId || ord.id === orderId;
+      
+      if (matchTable && matchId) {
+        updated = true;
+        return { ...ord, status: status as 'PENDING' | 'PREPARING' | 'DONE' };
+      }
+      return ord;
+    });
+
+    if (updated) {
+      setCookie('menugo_order_history', JSON.stringify(updatedList));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('menugo:order_history_changed', { detail: updatedList }));
+      }
+    }
+    return updated;
+  } catch (err) {
+    console.warn('Lỗi cập nhật trạng thái đơn trong cookie:', err);
+    return false;
+  }
+}
+
+/**
  * Xoá lịch sử món đã gọi trong cookie (có thể xoá theo bàn hoặc toàn bộ)
  */
 export function clearOrderHistoryCookie(tableId?: string): void {

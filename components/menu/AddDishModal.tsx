@@ -278,7 +278,6 @@ export function AddDishModal({ isOpen, onClose, categories, initialDish, onSave,
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="VD: Cà Phê Muối Hoàng Gia, Trà Đào..."
                   className="flex-1 text-[13.5px] text-slate-900 placeholder:text-slate-400 bg-transparent outline-none"
                 />
                 {name.length > 0 && (
@@ -309,7 +308,6 @@ export function AddDishModal({ isOpen, onClose, categories, initialDish, onSave,
                   min={0}
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  placeholder="VD: 35000"
                   className="flex-1 text-[13.5px] text-slate-900 placeholder:text-slate-400 bg-transparent outline-none font-medium"
                 />
               </div>
@@ -382,7 +380,6 @@ export function AddDishModal({ isOpen, onClose, categories, initialDish, onSave,
                       type="text"
                       value={editCategoryName}
                       onChange={(e) => setEditCategoryName(e.target.value)}
-                      placeholder="Nhập tên mới cho danh mục..."
                       className="flex-1 text-[13px] text-slate-900 bg-transparent outline-none font-bold"
                       autoFocus
                       onKeyDown={(e) => {
@@ -428,7 +425,6 @@ export function AddDishModal({ isOpen, onClose, categories, initialDish, onSave,
                       type="text"
                       value={newCategoryName}
                       onChange={(e) => setNewCategoryName(e.target.value)}
-                      placeholder="VD: Trà Trái Cây, Sinh Tố..."
                       className="flex-1 text-[13px] text-slate-900 bg-transparent outline-none font-bold"
                       autoFocus
                       onKeyDown={(e) => {
@@ -501,7 +497,6 @@ export function AddDishModal({ isOpen, onClose, categories, initialDish, onSave,
                   type="text"
                   value={newModifier}
                   onChange={(e) => setNewModifier(e.target.value)}
-                  placeholder="VD: Size L (+10k), Ít đường, Thêm trân châu..."
                   className="flex-1 text-[12.5px] px-3 py-1.5 bg-white border border-slate-300 rounded-xl outline-none"
                 />
                 <button
@@ -652,7 +647,6 @@ export function AddDishModal({ isOpen, onClose, categories, initialDish, onSave,
                   type="url"
                   value={customUrlInput}
                   onChange={(e) => setCustomUrlInput(e.target.value)}
-                  placeholder="Dán đường dẫn ảnh: https://..."
                   className="flex-1 text-[12.5px] px-3 py-1.5 bg-white border border-slate-300 rounded-xl outline-none"
                 />
                 <button
@@ -712,7 +706,6 @@ export function AddDishModal({ isOpen, onClose, categories, initialDish, onSave,
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="VD: Cà phê phin truyền thống thơm ngon kết hợp cùng sữa đặc béo ngậy..."
               className="w-full text-[13px] p-3 bg-white rounded-2xl border border-slate-300 outline-none focus:border-[#00A389] focus:ring-2 focus:ring-[#00A389]/20 shadow-2xs resize-none"
             />
           </div>

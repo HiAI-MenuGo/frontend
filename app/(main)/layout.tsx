@@ -132,7 +132,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <SocketProvider>
-      <div className="flex h-screen w-screen overflow-hidden bg-[#F4F6F8] font-sans text-slate-800 antialiased selection:bg-[#00A389] selection:text-white">
+      <div className="flex h-dvh w-screen overflow-hidden bg-[#F4F6F8] font-sans text-slate-800 antialiased selection:bg-[#00A389] selection:text-white">
       {/* Sidebar overlay trên mobile */}
       {sidebarOpen && (
         <div
@@ -145,11 +145,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <Sidebar orderBadgeCount={activeCount} />
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden">
         <Header unreadCount={activeCount} onOpenSidebar={() => setSidebarOpen(true)} />
         <main
-          className={`flex-1 overflow-hidden flex flex-col min-h-0 ${
-            isOrdersPage ? 'p-0' : 'px-3 pb-3 pt-1 sm:px-6 sm:pb-6'
+          className={`flex-1 overflow-hidden flex flex-col min-h-0 min-w-0 ${
+            isOrdersPage ? 'p-0' : 'px-3 pb-3 pt-2 sm:px-4 sm:pb-4 lg:px-6 lg:pb-6 xl:px-8'
           }`}
         >
           {children}

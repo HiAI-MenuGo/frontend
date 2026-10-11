@@ -94,8 +94,8 @@ export function ItemOptionsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-      <div className="bg-white rounded-[28px] sm:rounded-[32px] max-w-lg sm:max-w-xl w-full overflow-hidden shadow-2xl border border-[#E2E8F0] flex flex-col max-h-[92vh] relative">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150 overflow-y-auto">
+      <div className="bg-white rounded-[28px] sm:rounded-[32px] max-w-lg sm:max-w-xl w-full max-h-[92dvh] my-auto overflow-hidden shadow-2xl border border-[#E2E8F0] flex flex-col modal-panel relative">
         {/* Header Bar */}
         <div className="px-6 py-4.5 border-b border-[#F1F5F9] flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-3">
@@ -191,7 +191,6 @@ export function ItemOptionsModal({
               rows={3}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="VD: Ít ngọt, đậm vị trà, cho đá riêng, mang đi..."
               className="w-full p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[13.5px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-hidden focus:border-[#00A389] focus:bg-white resize-none transition-all leading-relaxed"
             />
           </div>

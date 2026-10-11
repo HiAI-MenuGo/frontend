@@ -260,7 +260,7 @@ export function CustomerItemOptionsModal({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
-              placeholder="VD: ít ngọt, nhiều đá, không lấy thìa nhựa..."
+              placeholder="Ghi chú"
               className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 text-[12.5px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-hidden focus:border-[#00A389] focus:bg-white resize-none"
             />
           </div>

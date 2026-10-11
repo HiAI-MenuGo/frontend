@@ -131,8 +131,8 @@ export function PaymentDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl max-w-4xl lg:max-w-5xl w-full p-5 sm:p-7 shadow-2xl border border-[#E2E8F0] relative flex flex-col max-h-[94vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 lg:p-5 animate-in fade-in duration-150 overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-4xl xl:max-w-5xl w-full max-h-[92dvh] my-auto p-4 sm:p-5 lg:p-7 shadow-2xl border border-[#E2E8F0] relative flex flex-col overflow-hidden modal-panel">
         {/* Nút đóng */}
         <button
           type="button"
@@ -279,8 +279,7 @@ export function PaymentDetailModal({
                           const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
                           setDiscountValue(val);
                         }}
-                        placeholder="Nhập % chiết khấu (0 - 100)..."
-                        className="flex-1 h-full bg-transparent text-[13px] font-bold text-[#0F172A] placeholder:text-slate-400 placeholder:font-normal focus:outline-hidden font-mono"
+                        className="flex-1 h-full bg-transparent text-[13px] font-bold text-[#0F172A] placeholder:text-slate-400 placeholder:font-normal focus:outline-hidden"
                       />
                       {discountValue > 0 && (
                         <button
@@ -332,8 +331,7 @@ export function PaymentDetailModal({
                           const raw = Number(e.target.value.replace(/\D/g, '')) || 0;
                           setDiscountValue(raw);
                         }}
-                        placeholder="Nhập số tiền giảm (VNĐ)..."
-                        className="flex-1 h-full bg-transparent text-[13px] font-bold text-[#0F172A] placeholder:text-slate-400 placeholder:font-normal focus:outline-hidden font-mono"
+                        className="flex-1 h-full bg-transparent text-[13px] font-bold text-[#0F172A] placeholder:text-slate-400 placeholder:font-normal focus:outline-hidden"
                       />
                       {discountValue > 0 && (
                         <button
@@ -491,8 +489,7 @@ export function PaymentDetailModal({
                           const raw = e.target.value.replace(/\D/g, '');
                           setCashReceivedInput(raw);
                         }}
-                        placeholder="0"
-                        className="flex-1 h-full bg-transparent text-[22px] sm:text-[24px] font-black text-[#0F172A] font-mono tracking-tight text-right pr-2 focus:outline-hidden placeholder:text-slate-300"
+                        className="flex-1 h-full bg-transparent text-[22px] sm:text-[24px] font-black text-[#0F172A] tracking-tight text-right pr-2 focus:outline-hidden placeholder:text-slate-300"
                       />
 
                       {/* Nút xóa nhanh nếu đã nhập tiền */}

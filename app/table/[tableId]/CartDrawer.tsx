@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import useCartStore from '../../../stores/cart.store';
-import { X, Trash2, Plus, Minus, Tag, Send, ShoppingBag } from 'lucide-react';
+import { X, Trash2, Plus, Minus, Tag, ShoppingBag } from 'lucide-react';
 import apiFetch from '../../../lib/api';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '../../../context/i18nContext';
@@ -17,6 +17,7 @@ interface CartDrawerProps {
   tenantId?: string;
   branchId?: string;
   primaryColor?: string;
+  onOrderSuccess?: () => void;
 }
 
 export function CartDrawer({
@@ -27,6 +28,7 @@ export function CartDrawer({
   tenantId = 'default-tenant',
   branchId = 'default-branch',
   primaryColor = '#00A389',
+  onOrderSuccess,
 }: CartDrawerProps) {
   const router = useRouter();
   const { t } = useI18n();
@@ -148,10 +150,15 @@ export function CartDrawer({
 
       clearCart();
       onClose();
-      const basePath = tenantId && branchId
-        ? `/${tenantId}/${branchId}/table/${tableId}`
-        : `/table/${tableId}`;
-      router.push(`${basePath}/order-status`);
+
+      // Bắn sự kiện cập nhật lịch sử món và tự động mở modal lịch sử món đã gọi
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('menugo:order_history_changed'));
+        window.dispatchEvent(new CustomEvent('menugo:open_order_history'));
+      }
+      if (onOrderSuccess) {
+        onOrderSuccess();
+      }
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : t('errors.network', 'Lỗi gửi đơn'));
     } finally {
@@ -165,7 +172,7 @@ export function CartDrawer({
         {/* Header Bar chuẩn Mobile */}
         <div className="p-4 border-b border-[#F1F5F9] flex items-center justify-between bg-white shrink-0">
           <div>
-            <h3 className="text-[18px] font-extrabold text-[#0F172A]">Xác Nhận Đơn Món</h3>
+            <h3 className="text-[18px] font-extrabold text-[#0F172A]">Tuỳ chọn</h3>
             <p className="text-[12px] text-[#64748B] mt-0.5 font-medium">
               {tableName} • <strong className="text-[#00A389]">{getTotalCount()} món</strong> đã chọn
             </p>
@@ -184,7 +191,7 @@ export function CartDrawer({
           <input
             type="text"
             className="w-full bg-[#F8FAFC] rounded-xl px-3.5 py-2.5 text-[12.5px] text-[#0F172A] placeholder-[#94A3B8] border border-[#E2E8F0] focus:outline-hidden focus:border-[#00A389] focus:bg-white font-medium transition"
-            placeholder="Ghi chú đơn (vd: ít ngọt, nhiều đá, chia 2 túi...)"
+            placeholder="Ghi chú"
             value={orderNote}
             onChange={(e) => setOrderNote(e.target.value)}
           />
@@ -296,7 +303,6 @@ export function CartDrawer({
                     type="text"
                     value={voucherCode}
                     onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                    placeholder={t('cart.voucherPlaceholder', 'Nhập mã giảm giá...')}
                     className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl pl-9 pr-3 py-2 text-[12px] text-[#0F172A] placeholder-[#94A3B8] uppercase font-mono font-bold focus:outline-hidden focus:border-[#00A389]"
                   />
                 </div>
@@ -344,10 +350,9 @@ export function CartDrawer({
               disabled={isSubmitting || items.length === 0}
               onClick={handleSendOrder}
               style={{ backgroundColor: primaryColor }}
-              className="w-full py-3.5 rounded-2xl font-extrabold text-white hover:brightness-105 flex items-center justify-center gap-2 shadow-xl shadow-[#00A389]/25 active:scale-[0.98] transition-all disabled:opacity-50 text-[14px]"
+              className="w-full py-3.5 rounded-2xl font-extrabold text-white hover:brightness-105 flex items-center justify-center shadow-xl shadow-[#00A389]/25 active:scale-[0.98] transition-all disabled:opacity-50 text-[14px]"
             >
-              <Send size={16} />
-              <span>{isSubmitting ? 'Đang gửi đơn...' : 'Xác nhận gọi món'}</span>
+              <span>{isSubmitting ? 'Đang gửi...' : 'Xác nhận'}</span>
             </button>
           </div>
         )}

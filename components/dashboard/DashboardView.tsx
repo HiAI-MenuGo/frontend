@@ -126,9 +126,9 @@ export default function DashboardView() {
   // Đưa toàn bộ bộ lọc khoảng ngày & nút xuất Excel lên Topbar
   useEffect(() => {
     setCustomAction(
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2 max-w-full overflow-x-auto no-scrollbar py-0.5">
         {/* Date Pickers (Từ ngày - Đến ngày) */}
-        <div className="flex items-center gap-1.5 bg-[#F8FAFC] px-3 h-10 rounded-2xl border border-[#E2E8F0] text-xs font-medium text-[#0F172A] shadow-2xs">
+        <div className="flex items-center gap-1.5 bg-[#F8FAFC] px-2 lg:px-3 h-9 lg:h-10 rounded-2xl border border-[#E2E8F0] text-xs font-medium text-[#0F172A] shadow-2xs shrink-0">
           <Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
           <input
             type="date"
@@ -164,7 +164,7 @@ export default function DashboardView() {
         <button
           onClick={handleExportExcel}
           disabled={exporting || loading}
-          className={`h-10 px-4 rounded-2xl font-bold text-xs flex items-center gap-2 transition-all shadow-xs shrink-0 cursor-pointer ${
+          className={`h-9 lg:h-10 px-3 lg:px-4 rounded-2xl font-bold text-xs flex items-center gap-2 transition-all shadow-xs shrink-0 cursor-pointer whitespace-nowrap ${
             exporting || loading
               ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
               : 'bg-[#00A389] hover:bg-[#008f77] text-white hover:shadow-md hover:shadow-emerald-500/20 active:scale-98'
@@ -172,11 +172,12 @@ export default function DashboardView() {
           title={`Tải báo cáo doanh thu file Excel (.xlsx) từ ${startDate || 'tất cả'} đến ${endDate || 'nay'}`}
         >
           {exporting ? (
-            <RefreshCw className="w-3.5 h-3.5 animate-spin text-white" />
+            <RefreshCw className="w-3.5 h-3.5 animate-spin text-white shrink-0" />
           ) : (
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-100" />
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
           )}
-          <span>{exporting ? 'Đang tạo...' : 'Xuất Báo Cáo Excel'}</span>
+          <span className="hidden xl:inline">{exporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
+          <span className="xl:hidden">{exporting ? '...' : 'Xuất'}</span>
         </button>
       </div>
     );
@@ -211,7 +212,7 @@ export default function DashboardView() {
   }, [data?.recentOrders, orderSearch]);
 
   return (
-    <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-1 pb-10">
+    <div className="flex-1 flex flex-col gap-4 lg:gap-6 overflow-y-auto min-h-0 pr-1 pb-10 view-scroll compact-y">
       {/* Toast thông báo xuất file */}
       {toastMsg && (
         <div
@@ -249,16 +250,16 @@ export default function DashboardView() {
       )}
 
       {/* KPI METRIC CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 lg:gap-4">
         {/* Card 1: Tổng Doanh Thu */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-xs relative overflow-hidden group hover:shadow-md transition">
+        <div className="bg-white rounded-3xl p-4 lg:p-5 border border-slate-100 shadow-xs relative overflow-hidden group hover:shadow-md transition min-w-0">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Tổng Doanh Thu</span>
             <div className="w-10 h-10 rounded-2xl bg-[#E6F7F4] text-[#00A389] flex items-center justify-center">
               <CircleDollarSign className="w-5 h-5" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-[#0F172A] tracking-tight">
+          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-[#0F172A] tracking-tight kpi-value">
             {data ? formatVND(data.summary.totalRevenue) : '0 ₫'}
           </div>
           <div className="mt-2 flex items-center gap-2">
@@ -288,14 +289,14 @@ export default function DashboardView() {
         </div>
 
         {/* Card 2: Giá Trị Đơn Trung Bình (AOV) */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-xs relative overflow-hidden group hover:shadow-md transition">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Giá Trị TB / Đơn (AOV)</span>
-            <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center">
+        <div className="bg-white rounded-3xl p-4 lg:p-5 border border-slate-100 shadow-xs relative overflow-hidden group hover:shadow-md transition min-w-0">
+          <div className="flex items-center justify-between mb-3 gap-2 min-w-0">
+            <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider truncate">Giá Trị TB / Đơn (AOV)</span>
+            <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
               <ShoppingBag className="w-5 h-5" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-[#0F172A] tracking-tight">
+          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-[#0F172A] tracking-tight kpi-value">
             {data ? formatVND(data.summary.avgOrderValue) : '0 ₫'}
           </div>
           <div className="mt-2 text-xs text-[#94A3B8] font-medium">
@@ -308,14 +309,14 @@ export default function DashboardView() {
         </div>
 
         {/* Card 3: Doanh Thu VietQR */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-xs relative overflow-hidden group hover:shadow-md transition">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Chuyển Khoản VietQR</span>
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+        <div className="bg-white rounded-3xl p-4 lg:p-5 border border-slate-100 shadow-xs relative overflow-hidden group hover:shadow-md transition min-w-0">
+          <div className="flex items-center justify-between mb-3 gap-2 min-w-0">
+            <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider truncate">Chuyển Khoản VietQR</span>
+            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
               <QrCode className="w-5 h-5" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-[#0F172A] tracking-tight">
+          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-[#0F172A] tracking-tight kpi-value">
             {data ? formatVND(data.summary.qrRevenue) : '0 ₫'}
           </div>
           <div className="mt-2 flex items-center gap-2">
@@ -333,14 +334,14 @@ export default function DashboardView() {
         </div>
 
         {/* Card 4: Doanh Thu Tiền Mặt */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-xs relative overflow-hidden group hover:shadow-md transition">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Tiền Mặt Thu Ngân</span>
-            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+        <div className="bg-white rounded-3xl p-4 lg:p-5 border border-slate-100 shadow-xs relative overflow-hidden group hover:shadow-md transition min-w-0">
+          <div className="flex items-center justify-between mb-3 gap-2 min-w-0">
+            <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider truncate">Tiền Mặt</span>
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
               <Banknote className="w-5 h-5" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-[#0F172A] tracking-tight">
+          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-[#0F172A] tracking-tight kpi-value">
             {data ? formatVND(data.summary.cashRevenue) : '0 ₫'}
           </div>
           <div className="mt-2 flex items-center gap-2">
@@ -359,9 +360,9 @@ export default function DashboardView() {
       </div>
 
       {/* CHARTS ROW (Biểu đồ xu hướng & Biểu đồ cơ cấu thanh toán) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
         {/* Biểu đồ xu hướng doanh thu theo ngày */}
-        <div className="lg:col-span-2 bg-white rounded-3xl p-5 sm:p-6 border border-slate-100 shadow-xs flex flex-col justify-between">
+        <div className="xl:col-span-2 bg-white rounded-3xl p-4 sm:p-5 lg:p-6 border border-slate-100 shadow-xs flex flex-col justify-between min-w-0 overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div>
               <h2 className="text-base font-extrabold text-[#0F172A] flex items-center gap-2">
@@ -396,7 +397,7 @@ export default function DashboardView() {
             </div>
           </div>
 
-          <div className="h-72 w-full">
+          <div className="h-60 lg:h-72 w-full min-w-0">
             {mounted && chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -493,7 +494,7 @@ export default function DashboardView() {
             </p>
           </div>
 
-          <div className="h-52 w-full my-3 flex items-center justify-center">
+          <div className="h-44 lg:h-52 w-full my-3 flex items-center justify-center min-w-0">
             {mounted && data?.paymentBreakdown && data.paymentBreakdown.some((p) => p.amount > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -624,9 +625,6 @@ export default function DashboardView() {
               <Layers className="w-5 h-5 text-[#00A389]" />
               <span>Doanh Thu Theo Nhóm Món</span>
             </h2>
-            <p className="text-xs text-[#64748B] mt-0.5">
-              Phân loại đóng góp theo từng nhóm danh mục thực đơn
-            </p>
           </div>
 
           <div className="space-y-3 my-4">
@@ -692,9 +690,9 @@ export default function DashboardView() {
               <Search className="w-4 h-4 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Tìm mã đơn (H-...), bàn..."
                 value={orderSearch}
                 onChange={(e) => setOrderSearch(e.target.value)}
+                placeholder="tìm kiếm..."
                 className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-xs text-[#0F172A] focus:outline-hidden focus:border-[#00A389] font-medium"
               />
             </div>

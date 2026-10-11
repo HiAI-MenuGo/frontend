@@ -95,7 +95,7 @@ export function MenuItemList({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t('menu.searchPlaceholder', 'Tìm kiếm món ngon, đồ uống...')}
+            placeholder={t('menu.searchPlaceholder', 'tìm kiếm...')}
             className="flex-1 bg-transparent text-[13.5px] text-[#0F172A] placeholder-[#94A3B8] font-medium outline-hidden"
           />
           {searchQuery.length > 0 && (

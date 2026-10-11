@@ -121,7 +121,7 @@ export default function ManageDishesView() {
           <input
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
-            placeholder="Tìm theo tên món ăn..."
+            placeholder="tìm kiếm..."
             className="w-full h-10 pl-9 pr-8 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-[12.5px] font-medium focus:bg-white focus:outline-hidden focus:border-[#00A389] transition-all"
           />
           {localSearch && (
@@ -358,7 +358,7 @@ export default function ManageDishesView() {
   }
 
   return (
-    <div className="flex-1 flex overflow-hidden bg-[#F8FAFC]">
+    <div className="flex-1 flex overflow-hidden bg-[#F8FAFC] min-h-0 min-w-0">
       {/* Toast popup */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#0F172A] text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-[13px] font-semibold animate-in slide-in-from-bottom duration-200">
@@ -372,7 +372,7 @@ export default function ManageDishesView() {
       {/* ======================================================== */}
       {/* CỘT TRÁI: DANH MỤC NHÓM MÓN                              */}
       {/* ======================================================== */}
-      <div className="w-64 sm:w-72 shrink-0 bg-white border-r border-[#E2E8F0] flex flex-col h-full overflow-hidden select-none">
+      <div className="w-52 lg:w-64 xl:w-72 shrink-0 bg-white border-r border-[#E2E8F0] flex flex-col h-full min-h-0 overflow-hidden select-none">
         {/* Header nhóm món */}
         <div className="p-4 sm:p-5 pb-3 border-b border-[#F1F5F9] shrink-0">
           <div className="flex items-center justify-between mb-3">
@@ -395,7 +395,7 @@ export default function ManageDishesView() {
                 type="text"
                 value={categorySearch}
                 onChange={(e) => setCategorySearch(e.target.value)}
-                placeholder="Tìm nhóm món..."
+                placeholder="tìm kiếm..."
                 className="w-full h-8 pl-8 pr-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[12px] font-medium focus:bg-white focus:outline-hidden focus:border-[#00A389] transition-all"
               />
             </div>
@@ -461,7 +461,7 @@ export default function ManageDishesView() {
         {/* ======================================================== */}
         {/* 1. THẺ THỐNG KÊ TỔNG QUAN THỰC ĐƠN (KPI SUMMARY)          */}
         {/* ======================================================== */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 lg:gap-4 min-w-0">
           {/* Card: Tổng số món */}
           <div className="bg-white rounded-2xl p-4 border border-[#E2E8F0] shadow-2xs flex items-center justify-between">
             <div>
@@ -640,9 +640,9 @@ export default function ManageDishesView() {
           /* ======================================================== */
           /* 3A. GIAO DIỆN DẠNG BẢNG DANH SÁCH (LIST VIEW HIỆN ĐẠI)     */
           /* ======================================================== */
-          <div className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xs overflow-hidden">
+          <div className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xs overflow-hidden min-w-0">
             {/* Header Table */}
-            <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3.5 bg-[#F8FAFC] border-b border-[#E2E8F0] text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider items-center">
+            <div className="hidden lg:grid grid-cols-12 gap-3 xl:gap-4 px-4 xl:px-6 py-3.5 bg-[#F8FAFC] border-b border-[#E2E8F0] text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider items-center min-w-[720px]">
               <div className="col-span-5">Món ăn & Thực đơn</div>
               <div className="col-span-2 text-center">Danh mục</div>
               <div className="col-span-2 text-right">Đơn giá</div>
@@ -659,7 +659,7 @@ export default function ManageDishesView() {
                 return (
                   <div
                     key={dish.id}
-                    className={`p-4 sm:px-6 sm:py-4 flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 items-start md:items-center hover:bg-[#F8FAFC]/80 transition-colors group ${
+                    className={`p-4 lg:px-5 xl:px-6 lg:py-4 flex flex-col lg:grid lg:grid-cols-12 gap-3 lg:gap-3 xl:gap-4 items-start lg:items-center hover:bg-[#F8FAFC]/80 transition-colors group min-w-0 ${
                       isSoldOut ? 'bg-slate-50/50 opacity-80' : ''
                     }`}
                   >

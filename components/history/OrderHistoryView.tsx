@@ -231,7 +231,7 @@ export default function OrderHistoryView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#F8FAFC] overflow-hidden">
+    <div className="flex-1 flex flex-col h-full min-h-0 min-w-0 bg-[#F8FAFC] overflow-hidden">
       {/* Toast thông báo */}
       {toast && (
         <div className="fixed top-20 right-8 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
@@ -308,7 +308,7 @@ export default function OrderHistoryView() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm theo mã đơn, tên bàn, món ăn, nhân viên..."
+              placeholder="tìm kiếm..."
               className="w-full h-10 pl-10 pr-9 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-[13px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-hidden focus:border-[#00A389] focus:bg-white transition-all"
             />
             {searchQuery && (
@@ -414,7 +414,7 @@ export default function OrderHistoryView() {
               ) : (
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-100" />
               )}
-              <span>{exporting ? 'Đang xuất...' : 'Tải Báo Cáo Excel'}</span>
+              <span>{exporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
             </button>
 
             </div>
@@ -422,7 +422,7 @@ export default function OrderHistoryView() {
         </div>
 
       {/* Danh sách Lịch Sử Đơn Hàng (Table) */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div className="flex-1 overflow-y-auto min-h-0 p-3 sm:p-4 lg:p-6 view-scroll">
         {loading ? (
           <div className="h-64 flex flex-col items-center justify-center gap-3">
             <RefreshCw className="w-8 h-8 text-[#00A389] animate-spin" />
@@ -608,8 +608,8 @@ export default function OrderHistoryView() {
       {/* MODAL 1: CHI TIẾT ĐƠN HÀNG LỊCH SỬ */}
       {/* ============================================================== */}
       {detailOrder && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E2E8F0] relative">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-[#E2E8F0] relative flex flex-col overflow-hidden modal-panel">
             <button
               onClick={() => setDetailOrder(null)}
               className="absolute top-5 right-5 text-[#94A3B8] hover:text-[#0F172A] p-1.5 rounded-full hover:bg-[#F8FAFC]"
@@ -733,8 +733,8 @@ export default function OrderHistoryView() {
       {/* MODAL 2: HUỶ ĐƠN HÀNG */}
       {/* ============================================================== */}
       {voidingOrder && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-rose-200 text-center">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-sm w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-rose-200 text-center flex flex-col overflow-hidden modal-panel">
             <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-3">
               <XCircle size={24} />
             </div>

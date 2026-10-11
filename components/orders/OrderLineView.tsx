@@ -242,7 +242,7 @@ export default function OrderLineView() {
   }
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-[#F8FAFC] h-full min-h-0">
+    <div className="flex-1 flex flex-col xl:flex-row overflow-hidden bg-[#F8FAFC] h-full min-h-0 min-w-0">
       <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-8 sm:py-6 space-y-5 sm:space-y-7">
         <div className="space-y-3">
           <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden no-scrollbar">
@@ -276,7 +276,7 @@ export default function OrderLineView() {
           {filtered.length === 0 ? (
             <p className="text-sm text-slate-400 py-10 text-center">Không có món nào. Kiểm tra backend /api/menu/items.</p>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 pt-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-4 pt-2 min-w-0">
               {filtered.map((dish) => {
                 const dishCartItems = cart.filter((i) => i.dishId === dish.id);
                 const qty = dishCartItems.reduce((s, i) => s + i.quantity, 0);
@@ -376,7 +376,7 @@ export default function OrderLineView() {
         </div>
       </div>
 
-      <div className="w-full lg:w-[350px] xl:w-[370px] shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-[#E2E8F0] flex flex-col h-full overflow-hidden">
+      <div className="w-full xl:w-[340px] 2xl:w-[370px] shrink-0 bg-white border-t xl:border-t-0 xl:border-l border-[#E2E8F0] flex flex-col h-full min-h-0 overflow-hidden">
         {/* Phần trên: Bàn phục vụ & Danh sách món đã chọn (Cuộn độc lập) */}
         <div className="flex-1 min-h-0 flex flex-col p-4 sm:p-5 overflow-hidden">
           <div className="pb-3 border-b border-[#F1F5F9] shrink-0">

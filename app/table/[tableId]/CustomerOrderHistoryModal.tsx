@@ -10,7 +10,7 @@ import {
   Utensils,
   Receipt,
   ChevronRight,
-  Flame,
+  CreditCard,
 } from 'lucide-react';
 import {
   getOrderHistoryFromCookie,
@@ -20,13 +20,18 @@ import {
   CustomerOrderHistoryRecord,
 } from '@/lib/orderHistoryCookie';
 import { formatDisplayDateTime } from '@/lib/date';
+import { fetchActiveTableSession } from '@/lib/api/sessions.api';
+import { formatVND } from '@/lib/format';
 
 interface CustomerOrderHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   tableId: string;
   displayTableName: string;
+  tenantId?: string;
+  branchId?: string;
   onGoToMenu?: () => void;
+  onCallPayment?: () => void;
   primaryColor?: string;
 }
 
@@ -35,11 +40,19 @@ export function CustomerOrderHistoryModal({
   onClose,
   tableId,
   displayTableName,
+  tenantId,
+  branchId,
   onGoToMenu,
+  onCallPayment,
   primaryColor = '#00A389',
 }: CustomerOrderHistoryModalProps) {
   const [activeTab, setActiveTab] = useState<'aggregated' | 'batches'>('aggregated');
   const [orders, setOrders] = useState<CustomerOrderHistoryRecord[]>([]);
+  const [activeSession, setActiveSession] = useState<any | null>(null);
+
+  const basePath = tenantId && branchId
+    ? `/${tenantId}/${branchId}/table/${tableId}`
+    : `/table/${tableId}`;
 
   // Tải danh sách đơn hàng từ cookie
   const reloadHistory = () => {
@@ -82,12 +95,22 @@ export function CustomerOrderHistoryModal({
   useEffect(() => {
     if (isOpen) {
       reloadHistory();
+      fetchActiveTableSession(tableId)
+        .then((sess) => {
+          if (sess) setActiveSession(sess);
+        })
+        .catch(() => {});
     }
   }, [isOpen, tableId]);
 
   useEffect(() => {
     const handleUpdate = () => {
       reloadHistory();
+      fetchActiveTableSession(tableId)
+        .then((sess) => {
+          if (sess) setActiveSession(sess);
+        })
+        .catch(() => {});
     };
     if (typeof window !== 'undefined') {
       window.addEventListener('menugo:order_history_changed', handleUpdate);
@@ -102,6 +125,30 @@ export function CustomerOrderHistoryModal({
   const aggregatedItems = getAggregatedItemsFromHistory(orders);
   const totalItemCount = aggregatedItems.reduce((sum, item) => sum + item.totalQuantity, 0);
   const totalAmount = orders.reduce((sum, ord) => sum + (ord.totalAmount || 0), 0);
+
+  // Xác định các món đã làm xong từ phiên hoạt động của bàn
+  const doneSessionItems = (activeSession?.items || []).filter(
+    (it: any) => it.status === 'DONE' || it.status === 'READY' || it.status === 'SERVED'
+  );
+  const doneSessionTotal = doneSessionItems.reduce(
+    (sum: number, it: any) => sum + (it.price || 0) * (it.quantity || 1),
+    0
+  );
+
+  // Món đã xong từ cookie
+  const doneCookieOrders = orders.filter((o) => o.status === 'DONE');
+  const doneCookieTotal = doneCookieOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+  // Tổng tiền các món đã làm xong
+  const doneTotal = Math.max(doneSessionTotal, doneCookieTotal);
+  const hasDoneItems = doneTotal > 0 || doneSessionItems.length > 0;
+
+  const handleCheckout = () => {
+    onClose();
+    if (onCallPayment) {
+      onCallPayment();
+    }
+  };
 
   const handleClear = () => {
     if (window.confirm('Bạn có chắc muốn xoá lịch sử món đã gọi trong trình duyệt?')) {
@@ -256,9 +303,14 @@ export function CustomerOrderHistoryModal({
                           {formatted}
                         </span>
                       </div>
-                      <span className="flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                        <Flame size={12} className="text-amber-500" />
-                        <span>Bếp nhận</span>
+                      <span
+                        className={`inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-md border ${
+                          ord.status === 'DONE'
+                            ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                            : 'text-amber-700 bg-amber-50 border-amber-200'
+                        }`}
+                      >
+                        {ord.status === 'DONE' ? 'Đã làm xong' : 'Đang thực hiện'}
                       </span>
                     </div>
 
@@ -294,27 +346,44 @@ export function CustomerOrderHistoryModal({
         {/* Footer Actions */}
         {orders.length > 0 && (
           <div className="p-3.5 border-t border-[#F1F5F9] bg-white flex items-center justify-between gap-3 shrink-0">
-            <button
-              type="button"
-              onClick={handleClear}
-              className="px-3 py-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl text-[12px] font-bold flex items-center gap-1 transition"
-              title="Xoá lịch sử món đã gọi"
-            >
-              <Trash2 size={14} />
-              <span>Xoá lịch sử</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleClear}
+                className="px-2.5 py-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl text-[12px] font-bold flex items-center gap-1 transition"
+                title="Xoá lịch sử món đã gọi"
+              >
+                <Trash2 size={14} />
+                <span>Xoá</span>
+              </button>
 
+              {onGoToMenu && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onGoToMenu();
+                  }}
+                  className="px-2.5 py-2 text-[#64748B] hover:text-[#0F172A] hover:bg-slate-100 rounded-xl text-[12px] font-bold transition"
+                >
+                  + Gọi thêm
+                </button>
+              )}
+            </div>
+
+            {/* Nút Thanh toán toàn bộ các món đã làm xong */}
             <button
               type="button"
-              onClick={() => {
-                onClose();
-                if (onGoToMenu) onGoToMenu();
-              }}
+              onClick={handleCheckout}
               style={{ backgroundColor: primaryColor }}
-              className="px-5 py-2.5 rounded-xl font-extrabold text-white text-[12.5px] hover:brightness-105 active:scale-95 shadow-sm transition flex items-center gap-1.5"
+              className="px-5 py-2.5 rounded-xl font-extrabold text-white text-[13px] hover:brightness-105 active:scale-95 shadow-lg shadow-[#00A389]/20 transition flex items-center gap-1.5"
             >
-              <CheckCircle2 size={15} />
-              <span>Gọi thêm món</span>
+              <CreditCard size={15} />
+              <span>
+                {hasDoneItems
+                  ? `Thanh toán (${formatVND(doneTotal)})`
+                  : 'Thanh toán'}
+              </span>
             </button>
           </div>
         )}
