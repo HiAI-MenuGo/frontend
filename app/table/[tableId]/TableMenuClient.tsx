@@ -17,7 +17,6 @@ const CustomerOrderHistoryModal = dynamic(() => import('./CustomerOrderHistoryMo
 });
 import {
   ShoppingBag,
-  Wifi,
   MapPin,
   Menu as MenuIcon,
   Pencil,
@@ -25,7 +24,6 @@ import {
   Wallet,
   UserCheck,
   Star,
-  BookOpen,
   PhoneCall,
   X,
   CheckCircle2,
@@ -38,14 +36,25 @@ import {
   ShoppingCart,
   History,
 } from 'lucide-react';
-import { getOrderHistoryFromCookie, getAggregatedItemsFromHistory } from '@/lib/orderHistoryCookie';
+import {
+  getOrderHistoryFromCookie,
+  getAggregatedItemsFromHistory,
+  updateOrderStatusInCookie,
+} from '@/lib/orderHistoryCookie';
 import { useI18n } from '../../../context/i18nContext';
 import apiFetch from '../../../lib/api';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { lookupCustomerByPhone } from '@/lib/api/customers.api';
+import { lookupPublicCustomer } from '@/lib/api/customers.api';
 import type { LoyaltyCustomerDTO } from '@/lib/api/types';
+import { sendCustomerCall, sendCustomerReview } from '@/lib/api/customerRequests.api';
+import { useSocket } from '@/context/SocketContext';
 import { getSocket } from '@/lib/socket';
+
+// Memory cache module để chống chớp giật layout khi chuyển trang/lướt lại menu
+const menuCache = new Map<string, MenuItemView[]>();
+const categoriesCache = new Map<string, Array<{ id: string; name: string }>>();
+const brandingCache = new Map<string, Record<string, string>>();
 
 interface TableMenuClientProps {
   tableId: string;
@@ -62,6 +71,7 @@ export default function TableMenuClient({
 }: TableMenuClientProps) {
   const router = useRouter();
   const { t, setLocale } = useI18n();
+  const { emit, on, off, isConnected } = useSocket();
   const menuSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -71,125 +81,42 @@ export default function TableMenuClient({
 
   const [currentView, setCurrentView] = useState<'home' | 'menu'>(initialView);
 
+  // Lắng nghe nút Back trên trình duyệt / điện thoại để chuyển view mượt mà 0ms không remount
   useEffect(() => {
-    if (initialView) {
-      setCurrentView(initialView);
+    const onPopState = () => {
+      if (typeof window !== 'undefined') {
+        const isMenuRoute = window.location.pathname.endsWith('/menu');
+        setCurrentView(isMenuRoute ? 'menu' : 'home');
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  const cachedItems = menuCache.get(tableId);
+  const cachedCats = categoriesCache.get(tableId);
+  const cachedBrand = brandingCache.get(tableId);
+
+  const [isMenuLoading, setIsMenuLoading] = useState<boolean>(!cachedItems);
+
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>(
+    cachedCats || []
+  );
+
+  const [rawItems, setRawItems] = useState<MenuItemView[]>(cachedItems || []);
+
+  const [branding, setBranding] = useState(
+    cachedBrand || {
+      restaurantName: '',
+      address: '',
+      primaryColor: '#00A389',
+      logoUrl: '',
+      wifiSsid: '',
+      wifiPassword: '',
     }
-  }, [initialView]);
+  );
 
-  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([
-    { id: 'cat-1', name: 'Trà Trái Cây' },
-    { id: 'cat-2', name: 'Cà Phê' },
-    { id: 'cat-3', name: 'Đồ Ăn Nhẹ' },
-  ]);
-
-  const [rawItems, setRawItems] = useState<MenuItemView[]>([
-    {
-      id: 'item-1',
-      name: 'Trà Đào Cam Sả',
-      description: 'Hương vị đào tươi giòn ngọt kết hợp cam vàng mọng nước và sả thanh mát.',
-      basePrice: 45000,
-      imageUrl: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=500&h=500&fit=crop',
-      isSoldOut: false,
-      categoryId: 'cat-1',
-      category: { id: 'cat-1', name: 'Trà Trái Cây', isDrink: true },
-      modifierGroups: [
-        {
-          modifierGroup: {
-            id: 'mod-size',
-            name: 'Kích cỡ (Size)',
-            minSelect: 1,
-            maxSelect: 1,
-            isRequired: true,
-            options: [
-              { id: 'opt-m', name: 'Size M', extraPrice: 0, isDefault: true, isSoldOut: false },
-              { id: 'opt-l', name: 'Size L (+10.000đ)', extraPrice: 10000, isDefault: false, isSoldOut: false },
-            ],
-          },
-        },
-        {
-          modifierGroup: {
-            id: 'mod-sugar',
-            name: 'Độ ngọt (Đường)',
-            minSelect: 1,
-            maxSelect: 1,
-            isRequired: true,
-            options: [
-              { id: 'opt-s100', name: '100% Đường', extraPrice: 0, isDefault: true, isSoldOut: false },
-              { id: 'opt-s70', name: '70% Đường', extraPrice: 0, isDefault: false, isSoldOut: false },
-              { id: 'opt-s50', name: '50% Đường', extraPrice: 0, isDefault: false, isSoldOut: false },
-              { id: 'opt-s0', name: 'Không đường', extraPrice: 0, isDefault: false, isSoldOut: false },
-            ],
-          },
-        },
-        {
-          modifierGroup: {
-            id: 'mod-ice',
-            name: 'Lượng đá',
-            minSelect: 1,
-            maxSelect: 1,
-            isRequired: true,
-            options: [
-              { id: 'opt-i100', name: '100% Đá', extraPrice: 0, isDefault: true, isSoldOut: false },
-              { id: 'opt-i50', name: '50% Đá', extraPrice: 0, isDefault: false, isSoldOut: false },
-              { id: 'opt-i0', name: 'Không đá', extraPrice: 0, isDefault: false, isSoldOut: false },
-            ],
-          },
-        },
-      ],
-    },
-    {
-      id: 'item-2',
-      name: 'Cà Phê Muối Đặc Biệt',
-      description: 'Cà phê Robusta Đắk Lắk đậm đà hòa quyện cùng lớp kem muối béo ngậy mằn mặn.',
-      basePrice: 35000,
-      imageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&h=500&fit=crop',
-      isSoldOut: false,
-      categoryId: 'cat-2',
-      category: { id: 'cat-2', name: 'Cà Phê', isDrink: true },
-    },
-    {
-      id: 'item-3',
-      name: 'Bạc Xỉu Sữa Tươi 3 Tầng',
-      description: 'Hòa quyện giữa sữa tươi béo thơm, sữa đặc ngọt ngào và hương cà phê nguyên chất.',
-      basePrice: 38000,
-      imageUrl: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=500&h=500&fit=crop',
-      isSoldOut: false,
-      categoryId: 'cat-2',
-      category: { id: 'cat-2', name: 'Cà Phê', isDrink: true },
-    },
-    {
-      id: 'item-4',
-      name: 'Khoai Tây Chiên Phô Mai',
-      description: 'Khoai tây cắt ziczac chiên vàng ruộm lắc bột phô mai béo thơm ngất ngây.',
-      basePrice: 39000,
-      imageUrl: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500&h=500&fit=crop',
-      isSoldOut: false,
-      categoryId: 'cat-3',
-      category: { id: 'cat-3', name: 'Đồ Ăn Nhẹ', isDrink: false },
-    },
-    {
-      id: 'item-5',
-      name: 'Bánh Croissant Bơ Pháp',
-      description: 'Bánh sừng bò ngàn lớp thơm lừng bơ Pháp cao cấp, vỏ ngoài giòn xốp bên trong mềm ẩm.',
-      basePrice: 42000,
-      imageUrl: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=500&h=500&fit=crop',
-      isSoldOut: false,
-      categoryId: 'cat-3',
-      category: { id: 'cat-3', name: 'Đồ Ăn Nhẹ', isDrink: false },
-    },
-  ]);
-
-  const [branding, setBranding] = useState({
-    restaurantName: 'MenuGO',
-    address: '170 Bàu Cát, Phường 14, Tân Bình, Hồ Chí Minh',
-    primaryColor: '#00A389',
-    logoUrl: '',
-    wifiSsid: 'MenuGO_Guest_5G',
-    wifiPassword: '',
-  });
-
-  const { items: menuItems } = useMenuSoldOut(rawItems);
+  const { items: menuItems } = useMenuSoldOut(rawItems, tableId);
   const [selectedItem, setSelectedItem] = useState<MenuItemView | null>(null);
   const [isOptionsModalOpen, setIsOptionsModalOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -210,7 +137,7 @@ export default function TableMenuClient({
 
   // Modal Gọi nhân viên
   const [showCallStaffModal, setShowCallStaffModal] = useState(false);
-  const [callStaffReason, setCallStaffReason] = useState('Gặp nhân viên');
+  const [callStaffReason, setCallStaffReason] = useState('');
   const [callStaffDone, setCallStaffDone] = useState(false);
 
   // Modal Gọi thanh toán
@@ -240,19 +167,82 @@ export default function TableMenuClient({
     };
     updateCount();
 
+    const handleOpenHistory = () => {
+      setShowOrderHistoryModal(true);
+      showToast('Đã gửi món thành công! Bếp đang thực hiện.');
+    };
+
     if (typeof window !== 'undefined') {
       window.addEventListener('menugo:order_history_changed', updateCount);
+      window.addEventListener('menugo:open_order_history', handleOpenHistory);
       return () => {
         window.removeEventListener('menugo:order_history_changed', updateCount);
+        window.removeEventListener('menugo:open_order_history', handleOpenHistory);
       };
     }
   }, [tableId]);
+
+  // ========================================================
+  // REALTIME ORDER STATUS UPDATES (Socket.IO)
+  // ========================================================
+  useEffect(() => {
+    if (!isConnected || !tableId) return;
+
+    // Handle order status updates (order-level: PENDING -> PREPARING -> READY -> DONE)
+    const handleOrderUpdated = (payload: { orderId: string; status: string; branchId?: string }) => {
+      console.log('[TableMenuClient] Received order:updated', payload);
+      // Update the order status in cookie for this table
+      const updated = updateOrderStatusInCookie(tableId, payload.orderId, payload.status);
+      if (updated) {
+        showToast(`Đơn ${payload.orderId}: ${getStatusText(payload.status)}`);
+        // Notify open modal to refresh
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('menugo:order_history_changed'));
+        }
+      }
+    };
+
+    // Handle item status updates (item-level: PENDING -> PREPARING -> READY -> DONE)
+    const handleItemStatusUpdated = (payload: { orderId: string; itemId: string; status: string; branchId?: string }) => {
+      console.log('[TableMenuClient] Received order:item-status', payload);
+      // For item status, we also update the order status if needed
+      const updated = updateOrderStatusInCookie(tableId, payload.orderId, payload.status);
+      if (updated) {
+        showToast(`Món ${payload.itemId}: ${getStatusText(payload.status)}`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('menugo:order_history_changed'));
+        }
+      }
+    };
+
+    on('order:updated', handleOrderUpdated);
+    on('order:item-status', handleItemStatusUpdated);
+
+    return () => {
+      off('order:updated', handleOrderUpdated);
+      off('order:item-status', handleItemStatusUpdated);
+    };
+  }, [isConnected, tableId, on, off]);
 
   // Toast thông báo ngắn
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Helper: Chuyển trạng thái sang tiếng Việt
+  const getStatusText = (status: string): string => {
+    switch (status) {
+      case 'PENDING': return 'Chờ xác nhận';
+      case 'CONFIRMED': return 'Đã xác nhận';
+      case 'PREPARING': return 'Đang chế biến';
+      case 'READY': return 'Sẵn sàng';
+      case 'SERVED': return 'Đã phục vụ';
+      case 'DONE': return 'Đã làm xong';
+      case 'CANCELLED': return 'Đã hủy';
+      default: return status;
+    }
   };
 
   const { addItem, getTotalCount, getTotalAmount } = useCartStore();
@@ -285,12 +275,12 @@ export default function TableMenuClient({
       if (savedName) setGuestName(savedName);
       if (savedPhone) {
         setInputPhone(savedPhone);
-        lookupCustomerByPhone(savedPhone)
+        lookupPublicCustomer(savedPhone, tableId, savedName || undefined)
           .then((cust) => setLoyaltyCustomer(cust))
           .catch(() => {});
       }
     }
-  }, []);
+  }, [tableId]);
 
   useEffect(() => {
     // Resolve QR token nếu tableId là chuỗi JWT hoặc token đã mã hóa
@@ -312,6 +302,22 @@ export default function TableMenuClient({
       }
     };
     resolveTableToken();
+
+    // Khi khách truy cập từ mã QR -> tự động chuyển trạng thái bàn thành OCCUPIED (Đang có khách)
+    const occupyTable = async () => {
+      try {
+        await apiFetch('/tables/occupy', {
+          method: 'POST',
+          body: JSON.stringify({
+            tableId,
+            branchId: branchId || initialBranchId,
+          }),
+        });
+      } catch (err) {
+        console.warn('Could not mark table occupied:', err);
+      }
+    };
+    occupyTable();
 
     useCartStore.getState().setTableContext(
       tenantId || initialTenantId || 'default-tenant',
@@ -353,6 +359,7 @@ export default function TableMenuClient({
               modifierGroups: (item.modifierGroups as MenuItemView['modifierGroups']) || [],
             };
           });
+          menuCache.set(tableId, normalized);
           setRawItems(normalized);
 
           // Trích xuất danh mục
@@ -365,11 +372,15 @@ export default function TableMenuClient({
             }
           });
           if (catMap.size > 0) {
-            setCategories(Array.from(catMap.entries()).map(([id, name]) => ({ id, name })));
+            const cats = Array.from(catMap.entries()).map(([id, name]) => ({ id, name }));
+            categoriesCache.set(tableId, cats);
+            setCategories(cats);
           }
         }
       } catch (err) {
         console.warn('Fallback mock menu items:', err);
+      } finally {
+        setIsMenuLoading(false);
       }
     };
 
@@ -390,14 +401,18 @@ export default function TableMenuClient({
         const res = await apiFetch<Record<string, string>>(endpoint);
         const bData = res?.data;
         if (bData) {
+          const brandObj = {
+            restaurantName: bData.restaurantName || bData.name || 'MenuGO',
+            address: bData.address || '',
+            primaryColor: bData.primaryColor || '#00A389',
+            logoUrl: bData.logoUrl || '',
+            wifiSsid: bData.wifiSsid || '',
+            wifiPassword: bData.wifiPassword || '',
+          };
+          brandingCache.set(tableId, brandObj);
           setBranding((prev) => ({
             ...prev,
-            restaurantName: bData.restaurantName || bData.name || prev.restaurantName,
-            address: bData.address || prev.address,
-            primaryColor: bData.primaryColor || prev.primaryColor,
-            logoUrl: bData.logoUrl || prev.logoUrl,
-            wifiSsid: bData.wifiSsid || prev.wifiSsid,
-            wifiPassword: bData.wifiPassword || prev.wifiPassword,
+            ...brandObj,
           }));
         }
       } catch (err) {
@@ -408,6 +423,31 @@ export default function TableMenuClient({
     fetchMenu();
     fetchBranding();
   }, [tableId]);
+
+  // Lắng nghe cập nhật logo / branding thời gian thực từ trang quản trị Cài đặt
+  useEffect(() => {
+    if (!isConnected) return;
+    const handleBrandingUpdated = (updated: any) => {
+      if (!updated) return;
+      const brandObj = {
+        restaurantName: updated.tenant?.name || updated.restaurantName || branding.restaurantName,
+        address: updated.address || branding.address,
+        primaryColor: updated.primaryColor || branding.primaryColor,
+        logoUrl: updated.logoUrl || '',
+        wifiSsid: updated.wifiSsid || '',
+        wifiPassword: updated.wifiPassword || '',
+      };
+      brandingCache.set(tableId, brandObj);
+      setBranding((prev) => ({
+        ...prev,
+        ...brandObj,
+      }));
+    };
+    on('branding:updated', handleBrandingUpdated);
+    return () => {
+      off('branding:updated', handleBrandingUpdated);
+    };
+  }, [isConnected, tableId, on, off, branding.restaurantName, branding.address, branding.primaryColor]);
 
   const handleSelectItem = (item: MenuItemView) => {
     setSelectedItem(item);
@@ -440,7 +480,11 @@ export default function TableMenuClient({
     setLookingUpPhone(true);
     setLoyaltyMessage(null);
     try {
-      const cust = await lookupCustomerByPhone(clean);
+      const cust = await lookupPublicCustomer(
+        clean,
+        tableId,
+        guestName !== 'Quý khách' ? guestName : undefined
+      );
       setLoyaltyCustomer(cust);
       if (typeof window !== 'undefined') {
         localStorage.setItem('menugo_guest_phone', clean);
@@ -449,58 +493,49 @@ export default function TableMenuClient({
           setGuestName(cust.name);
         }
       }
-      setLoyaltyMessage(`Chào mừng ${cust.name || clean}! Bạn đang có ${cust.points} điểm.`);
+      const tierName = cust.tier?.name || 'Hội viên';
+      setLoyaltyMessage(
+        cust.points > 50
+          ? `Chào mừng ${cust.name || clean}! Bạn đang có ${cust.points} điểm (${tierName}).`
+          : `Đã kích hoạt tích điểm cho SĐT ${clean}! Bạn được tặng ${cust.points} điểm chào mừng (${tierName}).`
+      );
       setTimeout(() => setShowLoyaltyModal(false), 1500);
-    } catch {
-      // Nếu chưa có, kích hoạt đăng ký mới cho khách tại bàn
-      const fakeNew: LoyaltyCustomerDTO = {
-        id: `cust-${Date.now()}`,
-        name: clean,
-        phone: clean,
-        points: 50,
-        discountRate: 0,
-        totalSpent: 0,
-        tier: { id: 'tier-bronze', name: 'Đồng', discountRate: 0, color: '#B45309' },
-      };
-      setLoyaltyCustomer(fakeNew);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('menugo_guest_phone', clean);
-      }
-      setLoyaltyMessage('Số điện thoại mới đã được ghi nhận tích điểm cho hoá đơn bàn này!');
-      setTimeout(() => setShowLoyaltyModal(false), 1500);
+    } catch (err: any) {
+      setLoyaltyMessage(err?.message || 'Không thể tra cứu thông tin hội viên lúc này');
     } finally {
       setLookingUpPhone(false);
     }
   };
 
   // Gửi gọi nhân viên
-  const handleCallStaff = () => {
+  const handleCallStaff = async () => {
+    const finalReason = callStaffReason.trim() || 'Gặp nhân viên hỗ trợ';
     try {
-      const socket = getSocket({ tableId });
-      socket?.emit('call_staff:request', {
+      await sendCustomerCall({
         tableId,
         tableName: displayTableName,
-        reason: callStaffReason,
-        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        type: 'STAFF',
+        reason: finalReason,
       });
     } catch {}
     setCallStaffDone(true);
     setTimeout(() => {
       setCallStaffDone(false);
       setShowCallStaffModal(false);
-      showToast(`Đã gửi yêu cầu "${callStaffReason}" tới nhân viên phục vụ!`);
+      setCallStaffReason('');
+      showToast(`Đã gửi yêu cầu "${finalReason}" tới nhân viên phục vụ!`);
     }, 1200);
   };
 
   // Gửi gọi thanh toán
-  const handleCallPayment = () => {
+  const handleCallPayment = async () => {
     try {
-      const socket = getSocket({ tableId });
-      socket?.emit('call_staff:request', {
+      await sendCustomerCall({
         tableId,
         tableName: displayTableName,
-        reason: `Yêu cầu thanh toán (${paymentMethodChoice === 'VIETQR' ? 'VietQR' : 'Tiền mặt'})`,
-        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        type: 'PAYMENT',
+        paymentMethod: paymentMethodChoice,
+        reason: `Phương thức: ${paymentMethodChoice === 'VIETQR' ? 'Chuyển khoản' : 'Tiền mặt'}`,
       });
     } catch {}
     setCallPaymentDone(true);
@@ -512,8 +547,18 @@ export default function TableMenuClient({
   };
 
   // Gửi đánh giá
-  const handleSubmitReview = (e: React.FormEvent) => {
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      await sendCustomerReview({
+        tableId,
+        tableName: displayTableName,
+        rating,
+        comment: reviewNote,
+        customerName: guestName !== 'Quý khách' ? guestName : undefined,
+        customerPhone: inputPhone || undefined,
+      });
+    } catch {}
     setReviewSubmitted(true);
     setTimeout(() => {
       setReviewSubmitted(false);
@@ -531,16 +576,31 @@ export default function TableMenuClient({
 
   const handleGoToMenu = () => {
     setCurrentView('menu');
-    router.push(`${basePath}/menu`);
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', `${basePath}/menu`);
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
   };
 
   const handleGoToHome = () => {
     setCurrentView('home');
-    router.push(basePath);
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', basePath);
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
   };
 
   const totalCartCount = getTotalCount();
   const totalCartAmount = getTotalAmount();
+
+  // Màn hình Loading tối giản: chỉ 1 vòng tròn màu xanh lá ở giữa
+  if (isMenuLoading && rawItems.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-[#00A389]/20 border-t-[#00A389] rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F4F6F9] text-[#0F172A] flex flex-col justify-start">
@@ -556,26 +616,40 @@ export default function TableMenuClient({
       <div className="w-full max-w-md mx-auto bg-white min-h-screen flex flex-col shadow-sm relative pb-28">
         {currentView === 'home' ? (
           <>
-            {/* ========================================================= */}
+              {/* ========================================================= */}
             {/* TOP HEADER TRANG CHỦ: Menu, Tên thương hiệu, Địa chỉ       */}
             {/* ========================================================= */}
             <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md px-4 py-3 border-b border-[#F1F5F9] flex items-center justify-between">
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
                 <button
                   onClick={() => setShowRestaurantInfo(true)}
-                  className="p-1.5 -ml-1 text-[#334155] hover:text-[#0F172A] rounded-xl hover:bg-slate-100 transition-colors"
+                  className="p-1.5 -ml-1 text-[#334155] hover:text-[#0F172A] rounded-xl hover:bg-slate-100 transition-colors shrink-0"
                   aria-label="Thông tin nhà hàng"
                 >
                   <MenuIcon size={22} />
                 </button>
-                <div className="min-w-0">
-                  <h1 className="font-black text-[16px] text-[#0F172A] tracking-tight uppercase truncate">
-                    {branding.restaurantName || 'MenuGO'}
-                  </h1>
-                  <div className="flex items-center gap-1 text-[11.5px] text-[#64748B] truncate">
-                    <MapPin size={11} className="text-[#00A389] shrink-0" />
-                    <span className="truncate">{branding.address}</span>
+
+                {branding.logoUrl ? (
+                  <div className="w-10 h-10 rounded-xl border border-[#E2E8F0] bg-white overflow-hidden flex items-center justify-center shrink-0 shadow-2xs">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={branding.logoUrl}
+                      alt={branding.restaurantName || 'Logo quán'}
+                      className="w-full h-full object-contain p-0.5"
+                    />
                   </div>
+                ) : null}
+
+                <div className="min-w-0 flex-1">
+                  <h1 className="font-black text-[16px] text-[#0F172A] tracking-tight uppercase truncate">
+                    {branding.restaurantName || 'Thực đơn gọi món'}
+                  </h1>
+                  {branding.address ? (
+                    <div className="flex items-center gap-1 text-[11.5px] text-[#64748B] truncate">
+                      <MapPin size={11} className="text-[#00A389] shrink-0" />
+                      <span className="truncate">{branding.address}</span>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </header>
@@ -589,7 +663,7 @@ export default function TableMenuClient({
                 <div className="absolute inset-0 z-0">
                   <Image
                     src="/images/o2o_menu_banner.jpg"
-                    alt="MenuGO O2O Menu Điện Tử"
+                    alt="Menu Điện Tử"
                     fill
                     priority
                     className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
@@ -597,19 +671,34 @@ export default function TableMenuClient({
                   <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
                 </div>
 
-                <div className="relative z-10 space-y-1">
-                  <div className="inline-block px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-black uppercase tracking-wider text-amber-200 border border-white/20">
-                    Quét QRCode tại bàn
+                <div className="relative z-10 flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="inline-block px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-black uppercase tracking-wider text-amber-200 border border-white/20">
+                      Quét QRCode tại bàn
+                    </div>
+                    {branding.restaurantName ? (
+                      <h2 className="text-[20px] font-black text-white leading-tight drop-shadow-sm">
+                        {branding.restaurantName}
+                      </h2>
+                    ) : null}
+                    <div className="text-[17px] font-black text-amber-300 drop-shadow-sm tracking-wide">
+                      MENU ĐIỆN TỬ
+                    </div>
+                    <p className="text-[11.5px] font-medium text-slate-100 drop-shadow-sm max-w-[210px] leading-snug">
+                      “Gọi món”, “gọi nhân viên” trên chính điện thoại của bạn
+                    </p>
                   </div>
-                  <h2 className="text-[20px] font-black text-white leading-tight drop-shadow-sm">
-                    MenuGO O2O
-                  </h2>
-                  <div className="text-[17px] font-black text-amber-300 drop-shadow-sm tracking-wide">
-                    MENU ĐIỆN TỬ
-                  </div>
-                  <p className="text-[11.5px] font-medium text-slate-100 drop-shadow-sm max-w-[210px] leading-snug">
-                    “Gọi món”, “gọi nhân viên” trên chính điện thoại của bạn
-                  </p>
+
+                  {branding.logoUrl ? (
+                    <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-white/95 p-1.5 shadow-md border border-white/50 flex items-center justify-center overflow-hidden shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={branding.logoUrl}
+                        alt={branding.restaurantName || 'Logo quán'}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="relative z-10 flex items-center gap-1.5 pt-2">
@@ -740,19 +829,13 @@ export default function TableMenuClient({
                 onClick={handleGoToMenu}
                 className="p-4 sm:p-5 rounded-[24px] bg-gradient-to-r from-[#00A389] via-[#059669] to-[#047857] text-white shadow-md shadow-[#00A389]/25 flex items-center justify-between gap-4 cursor-pointer hover:brightness-105 active:scale-[0.99] transition-all relative overflow-hidden"
               >
-                <div className="relative z-10 flex items-center gap-3">
-                  <span className="text-[17px] font-black tracking-wide">
-                    Xem Menu - Gọi món
-                  </span>
-                  <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-                    <ChevronRight size={16} className="text-white" />
-                  </div>
-                </div>
+                <span className="text-[17px] font-black tracking-wide">
+                  Xem Menu - Gọi món
+                </span>
 
-                <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/20">
-                  <BookOpen size={24} className="text-white" />
-                </div>
-              </div>
+                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/20">
+                  <ChevronRight size={22} className="text-white" strokeWidth={2.5} />
+                </div>            </div>
             </div>
           </>
         ) : (
@@ -815,6 +898,7 @@ export default function TableMenuClient({
               <MenuItemList
                 items={menuItems}
                 categories={categories}
+                isLoading={isMenuLoading && menuItems.length === 0}
                 onSelectItem={handleSelectItem}
                 primaryColor={branding.primaryColor}
               />
@@ -828,8 +912,8 @@ export default function TableMenuClient({
         <button
           type="button"
           onClick={() => setShowOrderHistoryModal(true)}
-          className={`fixed z-40 w-13 h-13 rounded-full bg-white hover:bg-slate-50 border-2 border-[#00A389] text-[#00A389] shadow-xl flex items-center justify-center active:scale-95 transition-all ${
-            totalCartCount > 0 ? 'bottom-22 right-4' : 'bottom-6 right-4'
+          className={`fixed z-40 w-13 h-13 rounded-full bg-white hover:bg-slate-50 border-2 border-[#00A389] text-[#00A389] shadow-xl flex items-center justify-center active:scale-95 transition-all duration-300 ease-in-out right-4 ${
+            totalCartCount > 0 ? 'bottom-22' : 'bottom-6'
           }`}
           title="Lịch sử các món đã gọi"
           aria-label="Lịch sử món đã gọi"
@@ -899,10 +983,9 @@ export default function TableMenuClient({
                   <input
                     type="tel"
                     required
-                    placeholder="0912 345 678"
                     value={inputPhone}
                     onChange={(e) => setInputPhone(e.target.value)}
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[14px] font-mono font-bold text-[#0F172A] focus:bg-white focus:border-[#00A389] focus:outline-hidden"
+                    className="w-full pl-10 pr-3.5 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[14px] font-bold text-[#0F172A] focus:bg-white focus:border-[#00A389] focus:outline-hidden"
                   />
                 </div>
               </div>
@@ -959,36 +1042,25 @@ export default function TableMenuClient({
               </button>
             </div>
 
-            <div className="space-y-2 text-[12.5px]">
-              <span className="block font-bold text-[#0F172A] mb-1">Chọn yêu cầu cần hỗ trợ:</span>
-              {[
-                'Gặp nhân viên hỗ trợ',
-                'Xin thêm đá',
-                'Xin thêm nước lọc',
-                'Lấy thêm giấy ăn / muỗng đũa',
-                'Dọn bàn',
-              ].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setCallStaffReason(r)}
-                  className={`w-full p-2.5 rounded-xl border text-left font-bold transition-all flex items-center justify-between ${
-                    callStaffReason === r
-                      ? 'border-[#00A389] bg-[#E6F7F4] text-[#00A389]'
-                      : 'border-slate-200 text-[#475569] hover:bg-slate-50'
-                  }`}
-                >
-                  <span>{r}</span>
-                  {callStaffReason === r && <CheckCircle2 size={15} />}
-                </button>
-              ))}
+            <div className="space-y-2">
+              <label htmlFor="staffReasonInput" className="block font-bold text-[13px] text-[#0F172A]">
+                Nội dung yêu cầu cần hỗ trợ:
+              </label>
+              <textarea
+                id="staffReasonInput"
+                rows={3}
+                value={callStaffReason}
+                onChange={(e) => setCallStaffReason(e.target.value)}
+                className="w-full p-3.5 rounded-2xl border border-slate-200 text-[13.5px] text-[#0F172A] placeholder:text-slate-400 focus:outline-hidden focus:border-[#00A389] focus:ring-2 focus:ring-[#00A389]/20 transition-all resize-none font-medium leading-relaxed bg-[#F8FAFC] focus:bg-white"
+                autoFocus
+              />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setShowCallStaffModal(false)}
-                className="px-4 py-2 rounded-xl border border-[#E2E8F0] font-bold text-[#64748B]"
+                className="px-4 py-2.5 rounded-xl border border-[#E2E8F0] font-bold text-[#64748B] hover:bg-slate-50 transition-colors text-[13px]"
               >
                 Hủy
               </button>
@@ -996,9 +1068,9 @@ export default function TableMenuClient({
                 type="button"
                 onClick={handleCallStaff}
                 disabled={callStaffDone}
-                className="px-5 py-2 rounded-xl bg-[#00A389] hover:bg-[#008f77] text-white font-extrabold shadow-sm"
+                className="px-5 py-2.5 rounded-xl bg-[#00A389] hover:bg-[#008f77] text-white font-extrabold shadow-sm active:scale-95 transition-all text-[13px] disabled:opacity-50"
               >
-                {callStaffDone ? 'Đã gọi...' : 'Gửi yêu cầu'}
+                {callStaffDone ? 'Đã gửi...' : 'Gửi yêu cầu'}
               </button>
             </div>
           </div>
@@ -1040,7 +1112,7 @@ export default function TableMenuClient({
                     : 'border-slate-200 text-[#475569] hover:bg-slate-50'
                 }`}
               >
-                <span>Chuyển khoản VietQR (Quét mã)</span>
+                <span>Chuyển khoản</span>
                 {paymentMethodChoice === 'VIETQR' && <CheckCircle2 size={16} />}
               </button>
               <button
@@ -1131,7 +1203,6 @@ export default function TableMenuClient({
                   rows={3}
                   value={reviewNote}
                   onChange={(e) => setReviewNote(e.target.value)}
-                  placeholder="Món ăn ngon, phục vụ nhanh chóng và nhiệt tình..."
                   className="w-full p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[12.5px] text-[#0F172A] focus:bg-white focus:border-[#00A389] focus:outline-hidden resize-none"
                 />
               </div>
@@ -1175,7 +1246,6 @@ export default function TableMenuClient({
               type="text"
               value={tempGuestName}
               onChange={(e) => setTempGuestName(e.target.value)}
-              placeholder="Ví dụ: Anh Tuấn, Chị Mai..."
               className="w-full px-3.5 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[13px] font-bold text-[#0F172A] focus:bg-white focus:border-[#00A389] focus:outline-hidden"
             />
             <div className="flex justify-end gap-2">
@@ -1222,6 +1292,16 @@ export default function TableMenuClient({
             </div>
 
             <div className="space-y-3 text-[12.5px] bg-[#F8FAFC] p-4 rounded-2xl border border-[#E2E8F0]">
+              {branding.logoUrl ? (
+                <div className="w-16 h-16 rounded-2xl border border-[#E2E8F0] bg-white p-1.5 mx-auto flex items-center justify-center shadow-xs">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={branding.logoUrl}
+                    alt={branding.restaurantName || 'Logo quán'}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              ) : null}
               <div className="flex items-start gap-2">
                 <MapPin size={15} className="text-[#00A389] shrink-0 mt-0.5" />
                 <div>
@@ -1229,23 +1309,6 @@ export default function TableMenuClient({
                   <span className="text-[#64748B] text-[12px]">{branding.address}</span>
                 </div>
               </div>
-
-              {branding.wifiSsid && (
-                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
-                  <span className="text-[#64748B] flex items-center gap-1.5">
-                    <Wifi size={14} className="text-amber-500" />
-                    <span>Wifi:</span>
-                  </span>
-                  <span className="font-bold text-[#0F172A] font-mono">{branding.wifiSsid}</span>
-                </div>
-              )}
-
-              {branding.wifiPassword && (
-                <div className="flex items-center justify-between">
-                  <span className="text-[#64748B]">Mật khẩu:</span>
-                  <span className="font-bold text-[#0F172A] font-mono">{branding.wifiPassword}</span>
-                </div>
-              )}
 
               <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
                 <span className="text-[#64748B] flex items-center gap-1.5">
@@ -1285,6 +1348,11 @@ export default function TableMenuClient({
         tenantId={tenantId}
         branchId={branchId}
         primaryColor={branding.primaryColor}
+        onOrderSuccess={() => {
+          setIsCartOpen(false);
+          setShowOrderHistoryModal(true);
+          showToast('Đã gửi món thành công! Bếp đang thực hiện.');
+        }}
       />
 
       <CustomerOrderHistoryModal
@@ -1292,7 +1360,10 @@ export default function TableMenuClient({
         onClose={() => setShowOrderHistoryModal(false)}
         tableId={tableId}
         displayTableName={displayTableName}
+        tenantId={tenantId}
+        branchId={branchId}
         onGoToMenu={handleGoToMenu}
+        onCallPayment={() => setShowCallPaymentModal(true)}
         primaryColor={branding.primaryColor}
       />
     </div>

@@ -11,7 +11,7 @@ import { useSearchStore } from '@/stores/search.store';
 import { useHeaderStore } from '@/stores/header.store';
 import { useBranchStore } from '@/stores/branch.store';
 import { formatVND } from '@/lib/format';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/context/SocketContext';
 
 type OrderTab = 'PENDING' | 'CONFIRMED' | 'DONE';
 
@@ -38,6 +38,9 @@ export default function OrderManagementView() {
   const [error, setError] = useState<string | null>(null);
   const [acting, setActing] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+
+  // Socket for realtime order updates
+  const { on, off, isConnected } = useSocket();
 
   const load = useCallback(async (silent = false) => {
     if (!silent) {
@@ -127,12 +130,8 @@ export default function OrderManagementView() {
 
   // Realtime giống mobile: đơn mới (kêu chuông) / đổi trạng thái / hủy đơn
   useEffect(() => {
-    let socket;
-    try {
-      socket = getSocket();
-    } catch {
-      return;
-    }
+    if (!isConnected) return;
+
     const onNew = (newOrder: ManagedOrder) => {
       if (soundOn) beep();
       setOrders((prev) =>
@@ -148,15 +147,17 @@ export default function OrderManagementView() {
       setOrders((prev) => prev.filter((o) => o.id !== payload.orderId));
       setSelected((prev) => (prev && prev.id === payload.orderId ? null : prev));
     };
-    socket.on('order:new', onNew);
-    socket.on('order:updated', onUpdated);
-    socket.on('order:voided', onVoided);
+
+    on('order:new', onNew);
+    on('order:updated', onUpdated);
+    on('order:voided', onVoided);
+
     return () => {
-      socket.off('order:new', onNew);
-      socket.off('order:updated', onUpdated);
-      socket.off('order:voided', onVoided);
+      off('order:new', onNew);
+      off('order:updated', onUpdated);
+      off('order:voided', onVoided);
     };
-  }, [beep, soundOn]);
+  }, [isConnected, on, off, beep, soundOn]);
 
   const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
   const confirmedCount = orders.filter((o) => o.status === 'CONFIRMED').length;
@@ -368,25 +369,25 @@ export default function OrderManagementView() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-      <div className="flex bg-[#EDF0F3] p-1 rounded-[14px]">
+    <div className="flex-1 flex flex-col gap-3 lg:gap-4 overflow-hidden min-h-0 min-w-0">
+      <div className="flex bg-[#EDF0F3] p-1 rounded-[14px] shrink-0 min-w-0">
         {tabs.map((t) => {
           const isActive = activeTab === t.key;
           return (
             <button
               key={t.key}
               onClick={() => setActiveTab(t.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[10px] ${isActive ? 'bg-white shadow-2xs' : ''}`}
+              className={`flex-1 flex items-center justify-center gap-1 lg:gap-1.5 py-2 rounded-[10px] min-w-0 ${isActive ? 'bg-white shadow-2xs' : ''}`}
             >
-              <span className={`w-2 h-2 rounded-full ${t.dot}`} />
-              <span className={`text-[12px] ${isActive ? `${t.activeText} font-extrabold` : `font-semibold text-[#64748B]`}`}>{t.label}</span>
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${isActive ? `${t.activeBadge} text-white` : `${t.inactiveBadge} ${t.inactiveText}`}`}>{t.count}</span>
+              <span className={`w-2 h-2 rounded-full shrink-0 ${t.dot}`} />
+              <span className={`text-[11px] lg:text-[12px] truncate ${isActive ? `${t.activeText} font-extrabold` : `font-semibold text-[#64748B]`}`}>{t.label}</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${isActive ? `${t.activeBadge} text-white` : `${t.inactiveBadge} ${t.inactiveText}`}`}>{t.count}</span>
             </button>
           );
         })}
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-2">
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-3 pr-1 pb-2 view-scroll">
         {visible.length === 0 ? (
           <div className="bg-white rounded-[20px] p-8 flex flex-col items-center border border-[#E2E8F0] text-center">
             <div className="w-14 h-14 rounded-full bg-[#F1F5F9] flex items-center justify-center mb-3">
@@ -406,24 +407,24 @@ export default function OrderManagementView() {
                 onClick={() => setSelected(order)}
                 className="w-full text-left bg-white rounded-[18px] p-3.5 border border-[#E2E8F0] shadow-2xs"
               >
-                <div className="flex justify-between items-center mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[15px] font-extrabold text-[#0F172A]">Đơn {order.code}</span>
+                <div className="flex justify-between items-center mb-2 gap-2 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="text-[14px] lg:text-[15px] font-extrabold text-[#0F172A] truncate">Đơn {order.code}</span>
                     {order.status === 'CONFIRMED' && (
-                      <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${isOverdue ? 'bg-[#EF4444] text-white' : 'bg-[#ECFDF5] text-[#047857]'}`}>
+                      <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${isOverdue ? 'bg-[#EF4444] text-white' : 'bg-[#ECFDF5] text-[#047857]'}`}>
                         {isOverdue ? <AlertTriangle size={10} /> : <Timer size={10} />}
                         {isOverdue ? '0:00 (Quá hạn)' : formatCountdown(countdown)}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 shrink-0 min-w-0">
                     {order.branchName && (
-                      <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-extrabold text-[10.5px] flex items-center gap-1">
-                        <Building2 size={11} />
-                        <span>{order.branchName}</span>
+                      <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-extrabold text-[10.5px] hidden md:flex items-center gap-1 max-w-[140px]">
+                        <Building2 size={11} className="shrink-0" />
+                        <span className="truncate">{order.branchName}</span>
                       </span>
                     )}
-                    <span className="flex items-center gap-1 bg-[#F1F5F9] px-2 py-0.5 rounded-full text-[11px] text-[#64748B]">
+                    <span className="flex items-center gap-1 bg-[#F1F5F9] px-2 py-0.5 rounded-full text-[11px] text-[#64748B] whitespace-nowrap">
                       <Clock size={11} />
                       {order.time}
                     </span>
@@ -482,7 +483,7 @@ function SearchBox() {
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Tìm mã đơn, món..."
+        placeholder="tìm kiếm..."
         className="h-10 w-48 pl-9 pr-3 bg-white border border-[#E2E8F0] rounded-2xl text-[12.5px] focus:outline-none focus:border-[#00A389]"
       />
     </div>

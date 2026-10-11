@@ -21,10 +21,11 @@ import {
 import { formatVND } from '@/lib/format';
 import { fetchPendingPayments, payCash, createVietQR, type VietQRResult } from '@/lib/api/sessions.api';
 import type { PendingSessionDTO } from '@/lib/api/types';
-import { getSocket } from '@/lib/socket';
 import { BillPrintModal } from '@/components/payment/BillPrintModal';
 import { useHeaderStore } from '@/stores/header.store';
 import { useBranchStore } from '@/stores/branch.store';
+import { useSocket } from '@/context/SocketContext';
+import { formatDisplayDateTime } from '@/lib/date';
 
 export interface PendingBill {
   sessionId: string;
@@ -77,7 +78,7 @@ function CashierTopBarActions({
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Tìm bàn, món, thu ngân..."
+          placeholder="tìm kiếm..."
           className="w-full h-10 pl-9 pr-7 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-[12.5px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-hidden focus:border-[#00A389] focus:bg-white transition-all font-medium"
         />
         {searchQuery && (
@@ -236,7 +237,7 @@ export default function CashierView() {
         tableName: d.tableName || d.tableId || 'Bàn không tên',
         total: d.total,
         count: d.items ? d.items.length : 1,
-        time: new Date(d.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        time: formatDisplayDateTime(d.createdAt),
         staff: d.customerName || 'Nhân viên',
         createdAt: d.createdAt,
         branchId: d.branchId,
@@ -260,13 +261,10 @@ export default function CashierView() {
   }, [selectedBranchId]);
 
   // Lắng nghe sự kiện Socket.IO Realtime
+  const { on, off, isConnected } = useSocket();
+
   useEffect(() => {
-    let socket;
-    try {
-      socket = getSocket();
-    } catch {
-      return;
-    }
+    if (!isConnected) return;
 
     const onPaymentCompleted = (payload: { sessionId: string; amount: number; tableName?: string; method?: string }) => {
       playPaymentChime();
@@ -299,20 +297,20 @@ export default function CashierView() {
       loadBills(true);
     };
 
-    socket.on('payment:completed', onPaymentCompleted);
-    socket.on('session:updated', onSessionUpdated);
-    socket.on('session:created', onSessionUpdated);
-    socket.on('order:new', onSessionUpdated);
-    socket.on('table:status_changed', onTableStatusChanged);
+    on('payment:completed', onPaymentCompleted);
+    on('session:updated', onSessionUpdated);
+    on('session:created', onSessionUpdated);
+    on('order:new', onSessionUpdated);
+    on('table:status_changed', onTableStatusChanged);
 
     return () => {
-      socket.off('payment:completed', onPaymentCompleted);
-      socket.off('session:updated', onSessionUpdated);
-      socket.off('session:created', onSessionUpdated);
-      socket.off('order:new', onSessionUpdated);
-      socket.off('table:status_changed', onTableStatusChanged);
+      off('payment:completed', onPaymentCompleted);
+      off('session:updated', onSessionUpdated);
+      off('session:created', onSessionUpdated);
+      off('order:new', onSessionUpdated);
+      off('table:status_changed', onTableStatusChanged);
     };
-  }, [loadBills, playPaymentChime, qrModalBill, cashModalBill, checkoutModalBill, showToast]);
+  }, [isConnected, on, off, loadBills, playPaymentChime, qrModalBill, cashModalBill, checkoutModalBill, showToast]);
 
   // Bộ đếm ngược VietQR Modal (60s)
   useEffect(() => {
@@ -499,7 +497,7 @@ export default function CashierView() {
   const isCashSufficient = numericCashReceived >= (cashModalBill?.total || 0);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#F8FAFC] overflow-hidden">
+    <div className="flex-1 flex flex-col h-full min-h-0 min-w-0 bg-[#F8FAFC] overflow-hidden">
       {/* Toast thông báo nổi */}
       {toast && (
         <div className="fixed top-20 right-8 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
@@ -532,7 +530,7 @@ export default function CashierView() {
 
       {/* Thanh Thống Kê 3 Thẻ Metric (3 Divs) */}
       <div className="bg-white border-b border-[#E2E8F0] px-6 py-4 shrink-0 shadow-2xs">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full items-stretch">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4 w-full items-stretch min-w-0">
           {/* Div 1: Tổng tiền chờ thu */}
           <div className="bg-purple-50/80 border border-purple-200/80 rounded-2xl p-4 flex items-center justify-between transition-all hover:shadow-xs">
             <div>
@@ -610,7 +608,7 @@ export default function CashierView() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4.5 sm:gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-5 min-w-0">
             {filteredBills.map((bill) => (
               <div
                 key={bill.sessionId}
@@ -865,8 +863,8 @@ export default function CashierView() {
       {/* MODAL 1: THU TIỀN MẶT & TÍNH TIỀN THỐI (Desk Cashier Drawer) */}
       {/* ========================================================== */}
       {cashModalBill && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E2E8F0] relative">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-md w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-[#E2E8F0] relative flex flex-col overflow-hidden modal-panel">
             <button
               onClick={() => setCashModalBill(null)}
               className="absolute top-5 right-5 text-[#94A3B8] hover:text-[#0F172A] p-1.5 rounded-full hover:bg-[#F8FAFC]"
@@ -914,7 +912,6 @@ export default function CashierView() {
                     const raw = e.target.value.replace(/\D/g, '');
                     setCashReceivedInput(raw);
                   }}
-                  placeholder="Nhập số tiền..."
                   className="w-full h-12 px-4 rounded-2xl bg-[#F8FAFC] border-2 border-[#CBD5E1] text-[20px] font-black text-[#0F172A] focus:outline-hidden focus:border-emerald-500 focus:bg-white transition-all text-right pr-10"
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[14px] font-bold text-[#64748B]">₫</span>
@@ -1023,8 +1020,8 @@ export default function CashierView() {
       {/* MODAL 2: VIETQR ĐỘNG NAPAS 247 (Tự động nhận diện qua Socket) */}
       {/* ========================================================== */}
       {qrModalBill && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#E2E8F0] relative text-center">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-sm w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-[#E2E8F0] relative text-center flex flex-col overflow-hidden modal-panel">
             <button
               onClick={() => setQrModalBill(null)}
               className="absolute top-4 right-4 text-[#94A3B8] hover:text-[#0F172A] p-1.5 rounded-full hover:bg-[#F8FAFC]"

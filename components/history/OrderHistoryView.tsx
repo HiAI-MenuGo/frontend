@@ -22,9 +22,10 @@ import {
 import { formatVND } from '@/lib/format';
 import { fetchOrderHistory, voidOrder, downloadOrderHistoryExcel } from '@/lib/api/orders.api';
 import type { LiveOrderDTO } from '@/lib/api/types';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/context/SocketContext';
 import { BillPrintModal } from '@/components/payment/BillPrintModal';
 import { useBranchStore } from '@/stores/branch.store';
+import { displayToApiDate, apiToDisplayDate, getDefaultReportRange } from '@/lib/date';
 
 export interface HistoryOrderItem {
   id: string;
@@ -57,8 +58,9 @@ export default function OrderHistoryView() {
   const [methodFilter, setMethodFilter] = useState<'ALL' | 'CASH' | 'VIETQR'>('ALL');
 
   // Khoảng ngày lọc & xuất Excel
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const defaultRange = getDefaultReportRange();
+  const [startDate, setStartDate] = useState<string>(defaultRange.startDate); // DD-MM-YYYY
+  const [endDate, setEndDate] = useState<string>(defaultRange.endDate);       // DD-MM-YYYY
   const [exporting, setExporting] = useState(false);
 
   // Modal Chi Tiết Hoá Đơn
@@ -95,8 +97,8 @@ export default function OrderHistoryView() {
         1,
         100,
         searchQuery || undefined,
-        startDate || undefined,
-        endDate || undefined
+        startDate ? displayToApiDate(startDate) : undefined,
+        endDate ? displayToApiDate(endDate) : undefined
       );
       if (res && res.orders) {
         const formatted: HistoryOrderItem[] = res.orders.map((o: LiveOrderDTO) => ({
@@ -137,8 +139,8 @@ export default function OrderHistoryView() {
       const branchId = selectedBranchId === 'ALL' ? 'ALL' : selectedBranchId;
       await downloadOrderHistoryExcel({
         branchId,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
+        startDate: startDate ? displayToApiDate(startDate) : undefined,
+        endDate: endDate ? displayToApiDate(endDate) : undefined,
         search: searchQuery || undefined,
         status: statusFilter,
       });
@@ -156,13 +158,10 @@ export default function OrderHistoryView() {
   }, [loadHistory]);
 
   // Realtime Socket
+  const { on, off, isConnected } = useSocket();
+
   useEffect(() => {
-    let socket;
-    try {
-      socket = getSocket();
-    } catch {
-      return;
-    }
+    if (!isConnected) return;
 
     const onPaymentCompleted = () => {
       loadHistory(true);
@@ -172,14 +171,14 @@ export default function OrderHistoryView() {
       loadHistory(true);
     };
 
-    socket.on('payment:completed', onPaymentCompleted);
-    socket.on('order:updated', onOrderUpdated);
+    on('payment:completed', onPaymentCompleted);
+    on('order:updated', onOrderUpdated);
 
     return () => {
-      socket.off('payment:completed', onPaymentCompleted);
-      socket.off('order:updated', onOrderUpdated);
+      off('payment:completed', onPaymentCompleted);
+      off('order:updated', onOrderUpdated);
     };
-  }, [loadHistory]);
+  }, [isConnected, on, off, loadHistory]);
 
   // Thống kê
   const completedCount = useMemo(() => orders.filter((o) => o.status === 'COMPLETED').length, [orders]);
@@ -232,7 +231,7 @@ export default function OrderHistoryView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#F8FAFC] overflow-hidden">
+    <div className="flex-1 flex flex-col h-full min-h-0 min-w-0 bg-[#F8FAFC] overflow-hidden">
       {/* Toast thông báo */}
       {toast && (
         <div className="fixed top-20 right-8 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
@@ -309,7 +308,7 @@ export default function OrderHistoryView() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm theo mã đơn, tên bàn, món ăn, nhân viên..."
+              placeholder="tìm kiếm..."
               className="w-full h-10 pl-10 pr-9 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-[13px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-hidden focus:border-[#00A389] focus:bg-white transition-all"
             />
             {searchQuery && (
@@ -371,16 +370,16 @@ export default function OrderHistoryView() {
               <Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
               <input
                 type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                value={displayToApiDate(startDate)}
+                onChange={(e) => setStartDate(e.target.value ? apiToDisplayDate(e.target.value) : '')}
                 className="bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
                 title="Từ ngày"
               />
               <span className="text-[#94A3B8]">➔</span>
               <input
                 type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                value={displayToApiDate(endDate)}
+                onChange={(e) => setEndDate(e.target.value ? apiToDisplayDate(e.target.value) : '')}
                 className="bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
                 title="Đến ngày"
               />
@@ -415,7 +414,7 @@ export default function OrderHistoryView() {
               ) : (
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-100" />
               )}
-              <span>{exporting ? 'Đang xuất...' : 'Tải Báo Cáo Excel'}</span>
+              <span>{exporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
             </button>
 
             </div>
@@ -423,7 +422,7 @@ export default function OrderHistoryView() {
         </div>
 
       {/* Danh sách Lịch Sử Đơn Hàng (Table) */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div className="flex-1 overflow-y-auto min-h-0 p-3 sm:p-4 lg:p-6 view-scroll">
         {loading ? (
           <div className="h-64 flex flex-col items-center justify-center gap-3">
             <RefreshCw className="w-8 h-8 text-[#00A389] animate-spin" />
@@ -609,8 +608,8 @@ export default function OrderHistoryView() {
       {/* MODAL 1: CHI TIẾT ĐƠN HÀNG LỊCH SỬ */}
       {/* ============================================================== */}
       {detailOrder && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E2E8F0] relative">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-[#E2E8F0] relative flex flex-col overflow-hidden modal-panel">
             <button
               onClick={() => setDetailOrder(null)}
               className="absolute top-5 right-5 text-[#94A3B8] hover:text-[#0F172A] p-1.5 rounded-full hover:bg-[#F8FAFC]"
@@ -734,8 +733,8 @@ export default function OrderHistoryView() {
       {/* MODAL 2: HUỶ ĐƠN HÀNG */}
       {/* ============================================================== */}
       {voidingOrder && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-rose-200 text-center">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-sm w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-rose-200 text-center flex flex-col overflow-hidden modal-panel">
             <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-3">
               <XCircle size={24} />
             </div>

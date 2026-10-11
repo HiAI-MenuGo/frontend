@@ -53,11 +53,20 @@ export async function payCash(
   sessionId: string,
   cashReceived: number,
   branchId = DEFAULT_BRANCH_ID,
-  paymentMethod: 'CASH' | 'VIETQR' | string = 'CASH'
+  paymentMethod: 'CASH' | 'VIETQR' | string = 'CASH',
+  discountAmount?: number,
+  voucherCode?: string
 ) {
   const res = await apiFetch('/cashier/pay', {
     method: 'POST',
-    body: JSON.stringify({ sessionId, cashReceived, branchId, paymentMethod }),
+    body: JSON.stringify({
+      sessionId,
+      cashReceived,
+      branchId,
+      paymentMethod,
+      discountAmount,
+      voucherCode,
+    }),
   });
   if (!res.success) throw new Error(res.message || 'Thanh toán thất bại');
   return res.data as { total: number; cashReceived: number; change: number; pointsEarned: number; receiptId: string };

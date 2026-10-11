@@ -3,7 +3,7 @@ import { Be_Vietnam_Pro, Geist_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
 const beVietnamPro = Be_Vietnam_Pro({
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
   subsets: ["latin", "vietnamese"],
   variable: "--font-be-vietnam-pro",
   display: "swap",
@@ -28,6 +28,7 @@ export const metadata: Metadata = {
 };
 
 import { I18nProvider } from "../context/i18nContext";
+import { SocketProvider } from "../context/SocketContext";
 
 export default function RootLayout({
   children,
@@ -40,7 +41,9 @@ export default function RootLayout({
       className={`${beVietnamPro.variable} ${geistMono.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans bg-[#F4F6F8] text-[#0F172A] selection:bg-[#00A389] selection:text-white">
-        <I18nProvider>{children}</I18nProvider>
+        <I18nProvider>
+          <SocketProvider>{children}</SocketProvider>
+        </I18nProvider>
       </body>
     </html>
   );

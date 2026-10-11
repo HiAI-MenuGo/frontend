@@ -15,6 +15,7 @@ interface BillPrintModalProps {
   total: number;
   paymentMethod: string;
   storeName?: string;
+  discount?: number;
 }
 
 export function BillPrintModal({
@@ -28,14 +29,15 @@ export function BillPrintModal({
   total,
   paymentMethod,
   storeName = 'MenuGO',
+  discount,
 }: BillPrintModalProps) {
   if (!isOpen) return null;
   const currentDate = new Date().toLocaleString('vi-VN');
   const paymentLabel = paymentMethod === 'cash' ? 'Tiền mặt' : paymentMethod === 'scan' || paymentMethod === 'VIETQR' ? 'VietQR' : 'Tiền mặt';
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#E2E8F0] relative">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-sm w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-[#E2E8F0] relative flex flex-col overflow-hidden modal-panel">
         <button onClick={onClose} className="absolute top-4 right-4 text-[#94A3B8] hover:text-[#0F172A] p-1 rounded-full hover:bg-[#F8FAFC]">
           <X size={18} />
         </button>
@@ -72,6 +74,12 @@ export function BillPrintModal({
               <span>Tạm tính:</span>
               <span>{formatVND(subtotal)}</span>
             </div>
+            {discount && discount > 0 ? (
+              <div className="flex justify-between text-amber-600 font-bold">
+                <span>Chiết khấu:</span>
+                <span>-{formatVND(discount)}</span>
+              </div>
+            ) : null}
             <div className="flex justify-between text-[#64748B]">
               <span>Thuế VAT:</span>
               <span>{formatVND(tax)}</span>

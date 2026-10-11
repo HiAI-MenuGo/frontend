@@ -13,7 +13,7 @@ import { formatVND } from '@/lib/format';
 import { BillPrintModal } from '@/components/payment/BillPrintModal';
 import { VietQRModal } from '@/components/payment/VietQRModal';
 import { ItemOptionsModal } from '@/components/orders/ItemOptionsModal';
-import { PaymentDetailModal } from './PaymentDetailModal';
+import { PaymentDetailModal, type PaymentDiscountInfo } from './PaymentDetailModal';
 
 interface CartItem {
   dishId: string;
@@ -40,6 +40,8 @@ export default function OrderLineView() {
   const [isQRopen, setIsQRopen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastSessionId, setLastSessionId] = useState<string | undefined>(undefined);
+  const [confirmedTotal, setConfirmedTotal] = useState<number | null>(null);
+  const [appliedDiscount, setAppliedDiscount] = useState<number>(0);
 
   const [customizingDish, setCustomizingDish] = useState<MenuItemDTO | null>(null);
 
@@ -72,17 +74,21 @@ export default function OrderLineView() {
 
   const categories = useMemo(() => {
     const map = new Map<string, number>();
-    for (const d of dishes) map.set(d.category, (map.get(d.category) ?? 0) + 1);
+    for (const d of dishes) {
+      const catName = typeof d.category === 'string' ? d.category : (d.category as any)?.name || 'Món khác';
+      map.set(catName, (map.get(catName) ?? 0) + 1);
+    }
     return [{ name: 'Tất cả món', count: dishes.length }, ...Array.from(map.entries()).map(([name, count]) => ({ name, count }))];
   }, [dishes]);
 
   const filtered = dishes.filter((d) => {
+    const catName = typeof d.category === 'string' ? d.category : (d.category as any)?.name || '';
     if (globalSearch.trim()) {
       const q = globalSearch.toLowerCase();
-      if (!d.name.toLowerCase().includes(q) && !d.category.toLowerCase().includes(q)) return false;
+      if (!d.name.toLowerCase().includes(q) && !catName.toLowerCase().includes(q)) return false;
     }
     if (activeCategory === 'Tất cả món') return true;
-    return d.category === activeCategory;
+    return catName === activeCategory;
   });
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -154,34 +160,58 @@ export default function OrderLineView() {
     setIsPaymentDetailOpen(true);
   };
 
-  const handleConfirmFromPaymentModal = async (method: 'cash' | 'scan', cashReceived: number) => {
+  const handleConfirmFromPaymentModal = async (
+    method: 'cash' | 'scan',
+    cashReceived: number,
+    discountInfo?: PaymentDiscountInfo
+  ) => {
     if (cart.length === 0 || !selectedTableId) return;
     setIsSubmitting(true);
     setPaymentMethod(method);
+    const payTotal = discountInfo?.finalTotal ?? total;
+    const discountAmount = discountInfo?.amount ?? 0;
+    setConfirmedTotal(payTotal);
+    setAppliedDiscount(discountAmount);
+
     try {
-      const result = (await createSessionOrder(
+      console.log('[OrderLineView] Creating session order...', { selectedTableId, cartItems: cart.length, payTotal, discountAmount });
+      const orderNote = `Đặt món - ${selectedTable?.tableName ?? ''}${
+        discountInfo?.reason ? ` (CK: ${discountInfo.reason})` : ''
+      }`;
+      const result = await createSessionOrder(
         selectedTableId,
         cart.map((c) => ({ menuItemId: c.dishId, quantity: c.quantity, note: c.note })),
-        `Đặt món - ${selectedTable?.tableName ?? ''}`
-      )) as { sessionId?: string; session?: { id?: string } } & Record<string, unknown>;
-      const sessionId = result?.sessionId ?? result?.session?.id ?? selectedTable?.currentSessionId;
+        orderNote
+      );
+      // Backend trả về { session: { id, ... }, order: { ... } }
+      const sessionId = result?.session?.id ?? selectedTable?.currentSessionId;
+      console.log('[OrderLineView] Session order created:', { sessionId, result });
+
+      const effectiveBranchId = selectedBranchId === 'ALL' ? selectedTable?.branchId : selectedBranchId;
 
       if (method === 'cash') {
         if (sessionId) {
           try {
+            console.log('[OrderLineView] Processing cash payment...', { sessionId, cashReceived, branchId: effectiveBranchId });
             await payCash(
               sessionId,
-              cashReceived > 0 ? cashReceived : total,
-              selectedBranchId === 'ALL' ? undefined : selectedBranchId,
-              'CASH'
+              cashReceived > 0 ? cashReceived : payTotal,
+              effectiveBranchId,
+              'CASH',
+              discountAmount,
+              discountInfo?.reason
             );
-          } catch {
-            // bỏ qua lỗi pay để vẫn tiếp tục hoàn tất đơn
+            console.log('[OrderLineView] Cash payment success');
+          } catch (payErr) {
+            console.error('[OrderLineView] Cash payment failed:', payErr);
+            alert(payErr instanceof Error ? payErr.message : 'Thanh toán tiền mặt thất bại. Vui lòng kiểm tra lại!');
+            return;
           }
         }
         setIsPaymentDetailOpen(false);
         setCart([]);
         setLastSessionId(sessionId);
+        console.log('[OrderLineView] Navigating to /order-management...');
         router.push('/order-management');
       } else {
         // Phương thức Quét VietQR
@@ -190,7 +220,9 @@ export default function OrderLineView() {
         setIsQRopen(true);
       }
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Lỗi đặt đơn món');
+      const msg = e instanceof Error ? e.message : 'Lỗi đặt đơn món';
+      console.error('[OrderLineView] Order creation failed:', e);
+      alert(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -210,7 +242,7 @@ export default function OrderLineView() {
   }
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-[#F8FAFC] h-full min-h-0">
+    <div className="flex-1 flex flex-col xl:flex-row overflow-hidden bg-[#F8FAFC] h-full min-h-0 min-w-0">
       <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-8 sm:py-6 space-y-5 sm:space-y-7">
         <div className="space-y-3">
           <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden no-scrollbar">
@@ -244,7 +276,7 @@ export default function OrderLineView() {
           {filtered.length === 0 ? (
             <p className="text-sm text-slate-400 py-10 text-center">Không có món nào. Kiểm tra backend /api/menu/items.</p>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 pt-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-4 pt-2 min-w-0">
               {filtered.map((dish) => {
                 const dishCartItems = cart.filter((i) => i.dishId === dish.id);
                 const qty = dishCartItems.reduce((s, i) => s + i.quantity, 0);
@@ -286,7 +318,7 @@ export default function OrderLineView() {
                         {dish.name}
                       </h4>
                       <p className="text-[11.5px] text-[#94A3B8] font-medium mt-0.5 mb-2.5 truncate">
-                        {dish.category}
+                        {typeof dish.category === 'string' ? dish.category : (dish.category as any)?.name || ''}
                       </p>
                     </div>
 
@@ -344,7 +376,7 @@ export default function OrderLineView() {
         </div>
       </div>
 
-      <div className="w-full lg:w-[350px] xl:w-[370px] shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-[#E2E8F0] flex flex-col h-full overflow-hidden">
+      <div className="w-full xl:w-[340px] 2xl:w-[370px] shrink-0 bg-white border-t xl:border-t-0 xl:border-l border-[#E2E8F0] flex flex-col h-full min-h-0 overflow-hidden">
         {/* Phần trên: Bàn phục vụ & Danh sách món đã chọn (Cuộn độc lập) */}
         <div className="flex-1 min-h-0 flex flex-col p-4 sm:p-5 overflow-hidden">
           <div className="pb-3 border-b border-[#F1F5F9] shrink-0">
@@ -453,17 +485,54 @@ export default function OrderLineView() {
         onConfirm={handleConfirmFromPaymentModal}
         isSubmitting={isSubmitting}
       />
-      <BillPrintModal isOpen={isPrintOpen} onClose={() => setIsPrintOpen(false)} tableNumber={selectedTable?.tableName ?? ''} orderNumber="Mới" items={cart} subtotal={subtotal} tax={tax} total={total} paymentMethod={paymentMethod} />
+      <BillPrintModal
+        isOpen={isPrintOpen}
+        onClose={() => setIsPrintOpen(false)}
+        tableNumber={selectedTable?.tableName ?? ''}
+        orderNumber="Mới"
+        items={cart}
+        subtotal={subtotal}
+        tax={tax}
+        total={confirmedTotal ?? total}
+        discount={appliedDiscount}
+        paymentMethod={paymentMethod}
+      />
       <VietQRModal
         isOpen={isQRopen}
-        onClose={() => setIsQRopen(false)}
-        onSuccess={() => {
+        onClose={() => {
           setIsQRopen(false);
+          setConfirmedTotal(null);
+          setAppliedDiscount(0);
+        }}
+        onSuccess={async () => {
+          const sessId = lastSessionId ?? selectedTable?.currentSessionId;
+          const effectiveBranchId = selectedBranchId === 'ALL' ? selectedTable?.branchId : selectedBranchId;
+          if (sessId) {
+            try {
+              console.log('[OrderLineView] Settle VietQR payment in backend...', { sessId, total: confirmedTotal ?? total });
+              await payCash(
+                sessId,
+                confirmedTotal ?? total,
+                effectiveBranchId,
+                'VIETQR',
+                appliedDiscount
+              );
+              console.log('[OrderLineView] VietQR payment settled successfully');
+            } catch (payErr) {
+              console.error('[OrderLineView] VietQR settlement failed:', payErr);
+              alert(payErr instanceof Error ? payErr.message : 'Lỗi cập nhật thanh toán VietQR');
+              return;
+            }
+          }
+          console.log('[OrderLineView] QR payment success, navigating to /order-management');
+          setIsQRopen(false);
+          setConfirmedTotal(null);
+          setAppliedDiscount(0);
           setCart([]);
           setPaymentMethod('cash');
           router.push('/order-management');
         }}
-        totalVnd={total}
+        totalVnd={confirmedTotal ?? total}
         orderNumber="Mới"
         tableNumber={selectedTable?.tableName ?? ''}
         sessionId={lastSessionId ?? selectedTable?.currentSessionId}

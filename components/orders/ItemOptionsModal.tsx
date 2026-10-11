@@ -39,26 +39,29 @@ export function ItemOptionsModal({
   if (!isOpen || !dish) return null;
 
   // Nhóm tuỳ chỉnh mặc định cho thức uống nếu món thuộc nhóm đồ uống/trà/cà phê
+  const catName = typeof dish.category === 'string' ? dish.category : (dish.category as any)?.name || '';
   const isBeverage =
-    dish.category?.toLowerCase().includes('uống') ||
-    dish.category?.toLowerCase().includes('trà') ||
-    dish.category?.toLowerCase().includes('cà phê') ||
-    dish.category?.toLowerCase().includes('nước') ||
-    dish.category?.toLowerCase().includes('latte');
+    catName.toLowerCase().includes('uống') ||
+    catName.toLowerCase().includes('trà') ||
+    catName.toLowerCase().includes('cà phê') ||
+    catName.toLowerCase().includes('nước') ||
+    catName.toLowerCase().includes('latte') ||
+    Boolean((dish as any)?.category?.isDrink) ||
+    Boolean(dish.categoryObj?.isDrink);
 
   const defaultModifierGroups = isBeverage
     ? [
-        {
-          id: 'sugar',
-          name: 'Độ ngọt',
-          options: ['100% đường (Chuẩn)', '70% đường', '50% đường', 'Không đường'],
-        },
-        {
-          id: 'ice',
-          name: 'Độ đá',
-          options: ['100% đá (Chuẩn)', '50% đá', 'Ít đá', 'Đá riêng', 'Không đá'],
-        },
-      ]
+      {
+        id: 'sugar',
+        name: 'Độ ngọt',
+        options: ['100% đường (Chuẩn)', '70% đường', '50% đường', 'Không đường'],
+      },
+      {
+        id: 'ice',
+        name: 'Độ đá',
+        options: ['100% đá (Chuẩn)', '50% đá', 'Ít đá', 'Đá riêng', 'Không đá'],
+      },
+    ]
     : [];
 
   const handleSelectModifier = (groupName: string, optionName: string) => {
@@ -91,8 +94,8 @@ export function ItemOptionsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-      <div className="bg-white rounded-[28px] sm:rounded-[32px] max-w-lg sm:max-w-xl w-full overflow-hidden shadow-2xl border border-[#E2E8F0] flex flex-col max-h-[92vh] relative">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150 overflow-y-auto">
+      <div className="bg-white rounded-[28px] sm:rounded-[32px] max-w-lg sm:max-w-xl w-full max-h-[92dvh] my-auto overflow-hidden shadow-2xl border border-[#E2E8F0] flex flex-col modal-panel relative">
         {/* Header Bar */}
         <div className="px-6 py-4.5 border-b border-[#F1F5F9] flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-3">
@@ -103,7 +106,7 @@ export function ItemOptionsModal({
             >
               <ArrowLeft size={19} />
             </button>
-            <h3 className="text-[20px] font-black text-[#0F172A] tracking-tight">Tuỳ Chọn Món Ăn</h3>
+            <h3 className="text-[20px] font-black text-[#0F172A] tracking-tight">Tuỳ Chọn</h3>
           </div>
           <button
             onClick={onClose}
@@ -137,7 +140,7 @@ export function ItemOptionsModal({
                 )}
               </div>
               <p className="text-[17px] sm:text-[18px] font-black text-[#00A389] mt-1">{formatVND(unitPrice)}</p>
-              <p className="text-[12.5px] text-[#64748B] mt-0.5">{dish.category}</p>
+              <p className="text-[12.5px] text-[#64748B] mt-0.5">{catName}</p>
             </div>
           </div>
 
@@ -160,11 +163,10 @@ export function ItemOptionsModal({
                         key={opt}
                         type="button"
                         onClick={() => handleSelectModifier(group.name, opt)}
-                        className={`px-3.5 py-2 rounded-xl text-[12.5px] font-bold border flex items-center gap-1.5 transition-all ${
-                          isSelected
-                            ? 'bg-[#E6F7F4] border-[#00A389] text-[#00A389]'
-                            : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#475569] hover:border-[#CBD5E1]'
-                        }`}
+                        className={`px-3.5 py-2 rounded-xl text-[12.5px] font-bold border flex items-center gap-1.5 transition-all ${isSelected
+                          ? 'bg-[#E6F7F4] border-[#00A389] text-[#00A389]'
+                          : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#475569] hover:border-[#CBD5E1]'
+                          }`}
                       >
                         {isSelected && <Check size={13} strokeWidth={3} />}
                         <span>{opt}</span>
@@ -181,7 +183,7 @@ export function ItemOptionsModal({
             <div className="flex items-center gap-2 mb-2.5">
               <Edit3 size={16} className="text-[#00A389]" />
               <label htmlFor="item-note" className="text-[14px] font-black text-[#0F172A]">
-                Ghi chú cho món này (Tuỳ chọn)
+                Ghi chú
               </label>
             </div>
             <textarea
@@ -189,7 +191,6 @@ export function ItemOptionsModal({
               rows={3}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="VD: Ít ngọt, đậm vị trà, cho đá riêng, mang đi..."
               className="w-full p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[13.5px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-hidden focus:border-[#00A389] focus:bg-white resize-none transition-all leading-relaxed"
             />
           </div>
@@ -197,7 +198,7 @@ export function ItemOptionsModal({
           {/* Bộ Chọn Số Lượng */}
           <div className="flex justify-between items-center bg-white rounded-2xl p-4 sm:p-5 border border-[#E2E8F0] shadow-2xs">
             <div>
-              <p className="text-[15px] font-black text-[#0F172A]">Số lượng món</p>
+              <p className="text-[15px] font-black text-[#0F172A]">Số lượng</p>
               <p className="text-[13px] text-[#64748B] mt-0.5">Đơn giá: {formatVND(unitPrice)}</p>
             </div>
 

@@ -11,6 +11,7 @@ export interface StaffUser {
   isActive: boolean;
   lastLoginAt: string | null;
   createdAt: string;
+  isOnline?: boolean;
 }
 
 export interface StaffRole {

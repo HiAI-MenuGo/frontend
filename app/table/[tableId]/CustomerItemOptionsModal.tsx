@@ -147,7 +147,7 @@ export function CustomerItemOptionsModal({
             </button>
             <div>
               <h3 className="text-[17px] font-extrabold text-[#0F172A] line-clamp-1">
-                Tuỳ chọn món ăn
+                Tuỳ chọn
               </h3>
               <p className="text-[11.5px] text-[#64748B] font-medium">
                 {catName || 'Món chính'}
@@ -254,13 +254,13 @@ export function CustomerItemOptionsModal({
           {/* Note Input */}
           <div className="space-y-1.5">
             <label className="text-[13px] font-extrabold text-[#0F172A]">
-              {t('menu.note', 'Ghi chú cho món')}
+              {t('menu.note', 'Ghi chú')}
             </label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
-              placeholder="VD: ít ngọt, nhiều đá, không lấy thìa nhựa..."
+              placeholder="Ghi chú"
               className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 text-[12.5px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-hidden focus:border-[#00A389] focus:bg-white resize-none"
             />
           </div>

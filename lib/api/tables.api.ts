@@ -8,10 +8,10 @@ export async function fetchTables(branchId = DEFAULT_BRANCH_ID): Promise<UiTable
   return (res.data ?? []).map(adaptTable);
 }
 
-export async function updateTableStatus(tableId: string, status: BackendTableStatus, branchId = DEFAULT_BRANCH_ID): Promise<UiTable> {
-  const res = await apiFetch<TableDTO>(`/tables/${tableId}/status`, {
+export async function updateTableStatus(tableId: string, status: BackendTableStatus, branchId?: string): Promise<UiTable> {
+  const res = await apiFetch<TableDTO>(`/tables/${encodeURIComponent(tableId)}/status`, {
     method: 'PATCH',
-    body: JSON.stringify({ status, branchId }),
+    body: JSON.stringify({ status, ...(branchId ? { branchId } : {}) }),
   });
   if (!res.success) throw new Error(res.message || 'Không cập nhật trạng thái bàn');
   return adaptTable(res.data!);
@@ -31,6 +31,18 @@ export async function createTable(data: {
     body: JSON.stringify(data),
   });
   if (!res.success) throw new Error(res.message || 'Không tạo được bàn');
+  return adaptTable(res.data!);
+}
+
+export async function updateTable(
+  tableId: string,
+  data: { branchId?: string; name?: string; capacity?: number }
+): Promise<UiTable> {
+  const res = await apiFetch<TableDTO>(`/tables/${encodeURIComponent(tableId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  if (!res.success) throw new Error(res.message || 'Không thể cập nhật bàn');
   return adaptTable(res.data!);
 }
 

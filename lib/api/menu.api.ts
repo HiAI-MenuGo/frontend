@@ -3,9 +3,25 @@ import type { MenuItemDTO } from './types';
 import { ALL_BRANCHES_ID, DEFAULT_BRANCH_ID } from './types';
 
 export async function fetchMenuItems(branchId = ALL_BRANCHES_ID): Promise<MenuItemDTO[]> {
-  const res = await apiFetch<MenuItemDTO[]>(`/menu/items?branchId=${encodeURIComponent(branchId)}`);
+  const res = await apiFetch<any[]>(`/menu/items?branchId=${encodeURIComponent(branchId)}`);
   if (!res.success) throw new Error(res.message || 'Không tải được thực đơn');
-  return res.data ?? [];
+  const rawList = res.data ?? [];
+  return rawList.map((raw): MenuItemDTO => {
+    let catName = 'Món chính';
+    let catObj: MenuItemDTO['categoryObj'] = undefined;
+    if (typeof raw.category === 'string') {
+      catName = raw.category;
+    } else if (raw.category && typeof raw.category === 'object') {
+      catName = raw.category.name || 'Món chính';
+      catObj = raw.category;
+    }
+    return {
+      ...raw,
+      category: catName,
+      categoryObj: catObj,
+      price: typeof raw.price === 'number' ? raw.price : (raw.basePrice ?? 0),
+    };
+  });
 }
 
 export async function toggleSoldOut(itemId: string, isSoldOut: boolean, branchId = DEFAULT_BRANCH_ID) {
@@ -36,9 +52,39 @@ export async function createMenuItem(payload: CreateMenuItemPayload): Promise<Me
   return res.data!;
 }
 
+export interface UpdateMenuItemPayload {
+  name?: string;
+  category?: string;
+  price?: number;
+  imageUrl?: string;
+  description?: string;
+  isPopular?: boolean;
+  isSoldOut?: boolean;
+  branchId?: string;
+}
+
+export async function updateMenuItem(id: string, payload: UpdateMenuItemPayload): Promise<MenuItemDTO> {
+  const res = await apiFetch<MenuItemDTO>(`/menu/items/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+  if (!res.success) throw new Error(res.message || 'Không cập nhật được món ăn');
+  return res.data!;
+}
+
+export async function deleteMenuItem(id: string): Promise<void> {
+  const res = await apiFetch<void>(`/menu/items/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!res.success) throw new Error(res.message || 'Không xoá được món ăn');
+}
+
 export function deriveCategories(items: MenuItemDTO[]): Array<{ id: string; name: string; count: number }> {
   const map = new Map<string, number>();
-  for (const it of items) map.set(it.category, (map.get(it.category) ?? 0) + 1);
+  for (const it of items) {
+    const catName = typeof it.category === 'string' ? it.category : (it.category as any)?.name || 'Món chính';
+    map.set(catName, (map.get(catName) ?? 0) + 1);
+  }
   const cats = Array.from(map.entries()).map(([name, count]) => ({
     id: name,
     name,

@@ -19,11 +19,39 @@
   --font-serif: var(--font-playfair-display), Georgia, serif;
 }
 
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
   overflow-x: hidden;
+}
+
+/* Đảm bảo toàn bộ form control, nút bấm, ô nhập kế thừa chuẩn font chữ Be Vietnam Pro */
+input,
+textarea,
+select,
+button,
+optgroup,
+option {
+  font-family: inherit;
+}
+
+/* Đồng bộ toàn bộ placeholder trên tất cả các trình duyệt và thiết bị */
+::placeholder,
+::-webkit-input-placeholder,
+::-moz-placeholder,
+:-ms-input-placeholder,
+input::placeholder,
+textarea::placeholder {
+  font-family: var(--font-be-vietnam-pro), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  font-style: normal;
+  letter-spacing: normal;
 }
 
 /* Custom Clean Scrollbar */
@@ -42,6 +70,47 @@ body {
   background: #94A3B8;
 }
 
+/* Landscape desktop/laptop (ngang 1024-1920, cao 600-900): chống tràn, co giãn mềm */
+:root {
+  --header-h: 74px;
+}
+
+@media (max-height: 750px) {
+  :root {
+    --header-h: 60px;
+  }
+}
+
+/* Vùng cuộn chuẩn cho mọi view con trong main layout */
+.view-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* Header customAction (date picker, search, nút xuất...) tự co + cuộn ngang khi hẹp */
+.header-actions {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  padding-block: 2px;
+}
+.header-actions::-webkit-scrollbar {
+  display: none;
+}
+.header-actions > * {
+  flex-shrink: 0;
+}
+
 /* Hide scrollbar helper */
 .no-scrollbar::-webkit-scrollbar,
 .scrollbar-none::-webkit-scrollbar {
@@ -51,6 +120,64 @@ body {
 .scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Bảng: bọc ngoài cuộn ngang + giữ layout ở 1024px */
+.table-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll table {
+  min-width: 760px;
+}
+@media (min-width: 1440px) {
+  .table-scroll table {
+    min-width: 100%;
+  }
+}
+
+/* Modal/Drawer chuẩn landscape: không cắt top-bottom khi cao 600px */
+.modal-panel {
+  max-height: min(92dvh, 860px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Card số liệu: số tiền dài không đẩy vỡ grid */
+.kpi-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lưới thẻ tự co theo chiều ngang thay vì fixed width */
+.auto-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+}
+
+/* Tránh input date bị ép quá nhỏ ở 1024px */
+input[type="date"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Màn hình ngắn: giảm padding dọc section để vừa 600-700px */
+@media (max-height: 750px) {
+  .compact-y {
+    row-gap: 0.75rem !important;
+  }
 }
 
 /* Print bill styling (80mm) */

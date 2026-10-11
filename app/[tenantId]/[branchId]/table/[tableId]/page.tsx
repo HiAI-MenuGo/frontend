@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import TableMenuClient from '@/app/table/[tableId]/TableMenuClient';
+import { SocketProvider } from '@/context/SocketContext';
 
 interface PageProps {
   params: Promise<{ tenantId: string; branchId: string; tableId: string }>;
@@ -22,5 +23,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function TenantBranchTableMenuPage({ params }: PageProps) {
   const { tenantId, branchId, tableId } = await params;
-  return <TableMenuClient tableId={tableId} tenantId={tenantId} branchId={branchId} initialView="home" />;
+  return (
+    <SocketProvider config={{ tableId }}>
+      <TableMenuClient tableId={tableId} tenantId={tenantId} branchId={branchId} initialView="home" />
+    </SocketProvider>
+  );
 }

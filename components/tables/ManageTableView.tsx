@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Users, X, Armchair, Clock, CheckCircle, QrCode, Building2, Layers } from 'lucide-react';
-import { fetchTables, updateTableStatus, toBackendStatus, createTable } from '@/lib/api/tables.api';
+import { Plus, Users, X, Armchair, Clock, CheckCircle, QrCode, Building2, Layers, MapPin, ArrowRightLeft } from 'lucide-react';
+import { fetchTables, updateTableStatus, toBackendStatus, createTable, updateTable } from '@/lib/api/tables.api';
 import type { UiTable } from '@/lib/api/types';
 import { useHeaderStore } from '@/stores/header.store';
 import { useAuthStore } from '@/stores/auth.store';
@@ -21,6 +21,10 @@ export default function ManageTableView() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<UiTable | null>(null);
   const [qrTable, setQrTable] = useState<UiTable | null>(null);
+
+  // Chuyển bàn sang chi nhánh khác
+  const [targetMoveBranchId, setTargetMoveBranchId] = useState<string>('');
+  const [movingBranch, setMovingBranch] = useState(false);
 
   // Modal Thêm bàn mới
   const [showAddTable, setShowAddTable] = useState(false);
@@ -57,7 +61,6 @@ export default function ManageTableView() {
   const setCustomAction = useHeaderStore((s) => s.setCustomAction);
   const availableCount = tables.filter((t) => t.status === 'AVAILABLE').length;
   const onDineCount = tables.filter((t) => t.status === 'ON_DINE').length;
-  const reservedCount = tables.filter((t) => t.status === 'RESERVED').length;
 
   // Đưa nút thêm bàn và bộ đếm trạng thái lên topbar
   useEffect(() => {
@@ -72,10 +75,6 @@ export default function ManageTableView() {
             <span className="w-2.5 h-2.5 rounded-full bg-[#FF7A59]" />
             <span>Đang dùng ({onDineCount})</span>
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#064E3B]" />
-            <span>Đã đặt ({reservedCount})</span>
-          </span>
         </div>
 
         <button
@@ -88,12 +87,12 @@ export default function ManageTableView() {
       </div>
     );
     return () => setCustomAction(null);
-  }, [setCustomAction, availableCount, onDineCount, reservedCount]);
+  }, [setCustomAction, availableCount, onDineCount]);
 
   const changeStatus = async (table: UiTable, status: UiTable['status']) => {
     setSaving(true);
     try {
-      const updated = await updateTableStatus(table.id, toBackendStatus(status));
+      const updated = await updateTableStatus(table.id, toBackendStatus(status), table.branchId);
       const isAvailable = status === 'AVAILABLE';
       setTables((prev) =>
         prev.map((t) =>
@@ -121,6 +120,29 @@ export default function ManageTableView() {
       alert(e instanceof Error ? e.message : 'Đổi trạng thái thất bại');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Chuyển bàn sang chi nhánh khác
+  const handleMoveBranch = async () => {
+    if (!selected || !targetMoveBranchId || targetMoveBranchId === selected.branchId) return;
+    setMovingBranch(true);
+    try {
+      const updated = await updateTable(selected.id, { branchId: targetMoveBranchId });
+      const targetBranchName = branches.find((b) => b.id === targetMoveBranchId)?.name || updated.branchName;
+      setTables((prev) =>
+        prev.map((t) =>
+          t.id === selected.id ? { ...t, branchId: targetMoveBranchId, branchName: targetBranchName } : t
+        )
+      );
+      setSelected((prev) =>
+        prev ? { ...prev, branchId: targetMoveBranchId, branchName: targetBranchName } : null
+      );
+      alert(`Đã chuyển bàn "${selected.tableName}" sang chi nhánh "${targetBranchName}" thành công!`);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Không thể chuyển chi nhánh cho bàn này');
+    } finally {
+      setMovingBranch(false);
     }
   };
 
@@ -186,12 +208,12 @@ export default function ManageTableView() {
       ];
     }
 
-    // Khi ở "Tổng chi nhánh": hiển thị từng div cho từng chi nhánh
+    // Khi ở "Tổng chi nhánh": hiển thị từng khối cho từng chi nhánh lấy từ Cài đặt chi nhánh
     if (branches.length === 0) {
       return [
         {
           id: 'all',
-          name: 'Tổng chi nhánh (Toàn công ty)',
+          name: 'Tổng chi nhánh (Toàn hệ thống)',
           code: 'ALL',
           address: '',
           tables,
@@ -199,24 +221,34 @@ export default function ManageTableView() {
       ];
     }
 
-    const groups = branches.map((b) => ({
-      id: b.id,
-      name: b.name,
-      code: b.code,
-      address: b.address || '',
-      tables: tables.filter((t) => t.branchId === b.id),
-    }));
+    const groups = branches.map((b) => {
+      const branchTables = tables.filter((t) => t.branchId === b.id);
+      return {
+        id: b.id,
+        name: b.name, // Tên chi nhánh chuẩn lấy từ Cài đặt chi nhánh
+        code: b.code || '',
+        address: b.address || '',
+        tables: branchTables,
+      };
+    });
 
-    // Các bàn chưa phân chi nhánh hoặc id không khớp
-    const unassigned = tables.filter((t) => !t.branchId || !branches.some((b) => b.id === t.branchId));
+    // Các bàn chưa gán branchId hoặc có branchId legacy ('default-branch'):
+    // Tự động phân bổ vào chi nhánh đầu tiên của hệ thống để đồng bộ hiển thị
+    const unassigned = tables.filter(
+      (t) => !t.branchId || t.branchId === 'default-branch' || !branches.some((b) => b.id === t.branchId)
+    );
     if (unassigned.length > 0) {
-      groups.push({
-        id: 'unassigned',
-        name: 'Khu vực bàn khác / Chưa phân chi nhánh',
-        code: 'OTHER',
-        address: '',
-        tables: unassigned,
-      });
+      if (groups.length > 0) {
+        groups[0].tables.push(...unassigned);
+      } else {
+        groups.push({
+          id: 'unassigned',
+          name: 'Chi nhánh chính',
+          code: 'CN-CHINH',
+          address: '',
+          tables: unassigned,
+        });
+      }
     }
 
     return groups;
@@ -225,13 +257,13 @@ export default function ManageTableView() {
   const statusLabels: Record<UiTable['status'], string> = {
     AVAILABLE: 'Trống',
     ON_DINE: 'Đang dùng',
-    RESERVED: 'Đã đặt',
+    RESERVED: 'Đang dùng',
   };
 
   const statusColors: Record<UiTable['status'], string> = {
     AVAILABLE: 'bg-[#E6F7F4] text-[#00A389]',
     ON_DINE: 'bg-[#FFEDD5] text-[#EA580C]',
-    RESERVED: 'bg-[#E2F0EC] text-[#064E3B]',
+    RESERVED: 'bg-[#FFEDD5] text-[#EA580C]',
   };
 
   if (loading) {
@@ -257,7 +289,7 @@ export default function ManageTableView() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 sm:px-7 py-5 space-y-5 max-w-7xl mx-auto w-full">
+    <div className="flex-1 overflow-y-auto min-h-0 px-3 sm:px-4 lg:px-6 py-4 lg:py-5 space-y-4 lg:space-y-5 max-w-[1720px] mx-auto w-full view-scroll">
       {tables.length === 0 ? (
         <div className="bg-white rounded-3xl border border-[#E2E8F0] p-12 text-center space-y-3">
           <p className="text-sm font-bold text-slate-400">Chưa có bàn nào trong sơ đồ phục vụ.</p>
@@ -270,18 +302,58 @@ export default function ManageTableView() {
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className={isAllBranches && branchGroups.length > 1 ? 'grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6 items-start min-w-0' : 'space-y-6 min-w-0'}>
           {branchGroups.map((group) => {
             return (
               <div
                 key={group.id}
-                className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xs overflow-hidden pt-6 pb-8 px-5 sm:px-8"
+                className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xs overflow-hidden pt-6 pb-7 px-5 sm:px-6 flex flex-col justify-between"
               >
-                {isAllBranches && branchGroups.length > 1 && (
-                  <div className="flex items-center gap-2 pb-4 mb-5 border-b border-slate-100">
-                    <Building2 size={16} className="text-[#00A389]" />
-                    <span className="font-black text-[14px] text-[#0F172A]">{group.name}</span>
-                    <span className="text-[12px] font-bold text-slate-400">({group.tables.length} bàn)</span>
+                {/* Khi chuyển qua Tổng chi nhánh: Div hiển thị thông tin & tổng số bàn của chi nhánh đó lấy từ Cài đặt */}
+                {isAllBranches && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 mb-6 border-b border-slate-100">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-10 h-10 rounded-2xl bg-[#E6F7F4] text-[#00A389] flex items-center justify-center font-bold shadow-2xs shrink-0">
+                        <Building2 size={20} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-black text-[16px] text-[#0F172A]">{group.name}</h3>
+                          {group.code && (
+                            <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-[#475569] text-[11px] font-extrabold uppercase">
+                              {group.code}
+                            </span>
+                          )}
+                        </div>
+                        {group.address ? (
+                          <p className="text-[12px] text-[#64748B] font-medium flex items-center gap-1 mt-0.5">
+                            <MapPin size={12} className="text-slate-400 shrink-0" />
+                            <span>{group.address}</span>
+                          </p>
+                        ) : (
+                          <p className="text-[11.5px] text-[#94A3B8] font-medium mt-0.5">
+                            Chi nhánh hệ thống trong Cài đặt
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Div thống kê tổng số bàn của chi nhánh đó */}
+                    <div className="flex items-center gap-2.5 px-3.5 py-2 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-[12px] font-bold">
+                      <span className="text-[#0F172A] font-black">
+                        Tổng: {group.tables.length} bàn
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-[#00A389] font-extrabold flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-[#00A389]" />
+                        {group.tables.filter((t) => t.status === 'AVAILABLE').length} trống
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-[#EA580C] font-extrabold flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-[#EA580C]" />
+                        {group.tables.filter((t) => t.status === 'ON_DINE').length} đang dùng
+                      </span>
+                    </div>
                   </div>
                 )}
 
@@ -305,7 +377,13 @@ export default function ManageTableView() {
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-y-7 gap-x-6 justify-items-center">
+                    <div
+                      className={
+                        isAllBranches
+                          ? 'grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-y-6 gap-x-3 lg:gap-x-4 justify-items-center min-w-0'
+                          : 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-y-6 lg:gap-y-7 gap-x-4 lg:gap-x-6 justify-items-center min-w-0'
+                      }
+                    >
                       {group.tables.map((table) => {
                         const bg =
                           table.status === 'AVAILABLE'
@@ -324,7 +402,9 @@ export default function ManageTableView() {
                           <div
                             key={table.id}
                             onClick={() => setSelected(table)}
-                            className="flex flex-col items-center cursor-pointer hover:scale-[1.03] transition-all w-[185px] sm:w-[205px]"
+                            className={`flex flex-col items-center cursor-pointer hover:scale-[1.03] transition-all ${
+                              isAllBranches ? 'w-[160px] sm:w-[180px]' : 'w-[185px] sm:w-[205px]'
+                            }`}
                           >
                             {/* Hàng ghế có chiều cao cố định để tất cả các bàn thẳng hàng */}
                             <div className="h-4.5 flex items-center justify-center gap-1.5 mb-1.5">
@@ -370,8 +450,8 @@ export default function ManageTableView() {
 
       {/* Modal Chi tiết bàn & Tác vụ */}
       {selected && (
-        <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-[28px] max-w-xl w-full p-6 sm:p-7 relative shadow-2xl border border-[#E2E8F0] animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-[28px] max-w-xl w-full max-h-[92dvh] my-auto p-4 sm:p-6 lg:p-7 relative shadow-2xl border border-[#E2E8F0] animate-in fade-in zoom-in-95 duration-150 flex flex-col overflow-hidden modal-panel">
             <button
               onClick={() => setSelected(null)}
               className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-[#64748B] hover:text-[#0F172A] transition-colors"
@@ -414,6 +494,16 @@ export default function ManageTableView() {
                   </div>
 
                   <div className="flex justify-between items-center text-[13px] pb-2 border-b border-[#E2E8F0]/70">
+                    <span className="text-[#64748B] font-medium">Chi nhánh</span>
+                    <span
+                      className="font-bold text-[#0F172A] text-right truncate max-w-[170px]"
+                      title={branches.find((b) => b.id === selected.branchId)?.name || selected.branchName || 'Chi nhánh hệ thống'}
+                    >
+                      {branches.find((b) => b.id === selected.branchId)?.name || selected.branchName || 'Chi nhánh hệ thống'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-[13px] pb-2 border-b border-[#E2E8F0]/70">
                     <span className="text-[#64748B] font-medium">Trạng thái</span>
                     <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black ${statusColors[selected.status]}`}>
                       {statusLabels[selected.status]}
@@ -446,25 +536,14 @@ export default function ManageTableView() {
 
                   <div className="space-y-3">
                     {selected.status === 'AVAILABLE' && (
-                      <>
-                        <button
-                          onClick={() => changeStatus(selected, 'ON_DINE')}
-                          disabled={saving}
-                          className="w-full h-11 rounded-2xl bg-[#00A389] hover:bg-[#008f77] text-white text-[13px] font-extrabold flex items-center justify-center gap-2 shadow-sm shadow-[#00A389]/20 transition-all active:scale-[0.98]"
-                        >
-                          <Clock size={15} />
-                          <span>Mở bàn (Đang dùng)</span>
-                        </button>
-
-                        <button
-                          onClick={() => changeStatus(selected, 'RESERVED')}
-                          disabled={saving}
-                          className="w-full h-11 rounded-2xl bg-[#E2F0EC] hover:bg-[#d0e8e2] text-[#064E3B] text-[13px] font-bold flex items-center justify-center gap-2 border border-[#A7D8CC] transition-all active:scale-[0.98]"
-                        >
-                          <Users size={15} />
-                          <span>Đặt trước bàn này</span>
-                        </button>
-                      </>
+                      <button
+                        onClick={() => changeStatus(selected, 'ON_DINE')}
+                        disabled={saving}
+                        className="w-full h-11 rounded-2xl bg-[#00A389] hover:bg-[#008f77] text-white text-[13px] font-extrabold flex items-center justify-center gap-2 shadow-sm shadow-[#00A389]/20 transition-all active:scale-[0.98]"
+                      >
+                        <Clock size={15} />
+                        <span>Mở bàn (Đang dùng)</span>
+                      </button>
                     )}
 
                     {selected.status === 'ON_DINE' && (
@@ -485,28 +564,6 @@ export default function ManageTableView() {
                       </>
                     )}
 
-                    {selected.status === 'RESERVED' && (
-                      <>
-                        <button
-                          onClick={() => changeStatus(selected, 'ON_DINE')}
-                          disabled={saving}
-                          className="w-full h-11 rounded-2xl bg-[#00A389] hover:bg-[#008f77] text-white text-[13px] font-extrabold flex items-center justify-center gap-2 shadow-sm shadow-[#00A389]/20 transition-all active:scale-[0.98]"
-                        >
-                          <CheckCircle size={16} strokeWidth={2.5} />
-                          <span>Khách nhận bàn</span>
-                        </button>
-
-                        <button
-                          onClick={() => changeStatus(selected, 'AVAILABLE')}
-                          disabled={saving}
-                          className="w-full h-11 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[13px] font-bold flex items-center justify-center gap-2 border border-slate-200 transition-all active:scale-[0.98]"
-                        >
-                          <X size={15} />
-                          <span>Huỷ giữ bàn</span>
-                        </button>
-                      </>
-                    )}
-
                     {/* Nút Xem / In Mã QR Gọi Món Cho Bàn */}
                     <button
                       onClick={() => setQrTable(selected)}
@@ -515,6 +572,42 @@ export default function ManageTableView() {
                       <QrCode size={16} />
                       <span>Mã QR Gọi Món (Order từ xa)</span>
                     </button>
+
+                    {/* Tác vụ Chuyển Bàn Sang Chi Nhánh Khác khi ở Tổng chi nhánh hoặc hệ thống có nhiều chi nhánh */}
+                    {branches.length > 1 && (
+                      <div className="pt-3 border-t border-slate-100 space-y-2">
+                        <label className="text-[12px] font-bold text-[#475569] flex items-center gap-1.5">
+                          <ArrowRightLeft size={13} className="text-[#00A389]" />
+                          <span>Chuyển bàn sang chi nhánh khác</span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={targetMoveBranchId || selected.branchId || branches[0]?.id || ''}
+                            onChange={(e) => setTargetMoveBranchId(e.target.value)}
+                            disabled={movingBranch}
+                            className="flex-1 h-9 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[12px] font-bold text-[#0F172A] focus:outline-hidden focus:border-[#00A389]"
+                          >
+                            {branches.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.name} ({b.code || 'CN'})
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={handleMoveBranch}
+                            disabled={
+                              movingBranch ||
+                              !targetMoveBranchId ||
+                              targetMoveBranchId === selected.branchId
+                            }
+                            className="h-9 px-3 rounded-xl bg-[#00A389] hover:bg-[#008f77] disabled:bg-slate-200 disabled:text-slate-400 text-white font-extrabold text-[12px] flex items-center gap-1 transition-all shrink-0 cursor-pointer active:scale-95"
+                            title="Xác nhận chuyển bàn sang chi nhánh đã chọn"
+                          >
+                            <span>{movingBranch ? 'Đang chuyển...' : 'Chuyển'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -534,8 +627,8 @@ export default function ManageTableView() {
 
       {/* Modal Thêm Bàn Mới */}
       {showAddTable && (
-        <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[28px] max-w-md w-full p-6 shadow-2xl border border-[#E2E8F0] space-y-4 animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-[28px] max-w-md w-full max-h-[92dvh] my-auto p-4 sm:p-6 shadow-2xl border border-[#E2E8F0] space-y-4 animate-in fade-in zoom-in-95 duration-150 flex flex-col overflow-hidden modal-panel">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-[#E6F7F4] text-[#00A389] flex items-center justify-center font-bold">
@@ -543,7 +636,6 @@ export default function ManageTableView() {
                 </div>
                 <div>
                   <h3 className="text-[17px] font-black text-[#0F172A]">Thêm bàn mới</h3>
-                  <p className="text-[12px] text-[#64748B]">Tạo thêm bàn trong sơ đồ phục vụ</p>
                 </div>
               </div>
               <button
@@ -565,7 +657,6 @@ export default function ManageTableView() {
                   value={tableForm.name}
                   onChange={(e) => setTableForm({ ...tableForm, name: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl font-bold text-[#0F172A] focus:bg-white focus:border-[#00A389] focus:outline-hidden"
-                  placeholder="Ví dụ: Bàn 09, VIP-01, Ngoài trời 02..."
                 />
               </div>
 
@@ -600,7 +691,7 @@ export default function ManageTableView() {
                     onChange={(e) =>
                       setTableForm({ ...tableForm, capacity: parseInt(e.target.value, 10) || 2 })
                     }
-                    className="w-full px-3.5 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl font-bold font-mono text-[#0F172A] focus:bg-white focus:border-[#00A389] focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl font-bold text-[#0F172A] focus:bg-white focus:border-[#00A389] focus:outline-hidden"
                   />
                 </div>
 
