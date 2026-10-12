@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Users, X, Armchair, Clock, CheckCircle, QrCode, Building2, Layers, MapPin, ArrowRightLeft } from 'lucide-react';
-import { fetchTables, updateTableStatus, toBackendStatus, createTable, updateTable } from '@/lib/api/tables.api';
+import { Plus, Users, X, Armchair, Clock, CheckCircle, QrCode, Building2, Layers, MapPin } from 'lucide-react';
+import { fetchTables, updateTableStatus, toBackendStatus, createTable } from '@/lib/api/tables.api';
 import type { UiTable } from '@/lib/api/types';
 import { useHeaderStore } from '@/stores/header.store';
 import { useAuthStore } from '@/stores/auth.store';
@@ -22,9 +22,6 @@ export default function ManageTableView() {
   const [selected, setSelected] = useState<UiTable | null>(null);
   const [qrTable, setQrTable] = useState<UiTable | null>(null);
 
-  // Chuyển bàn sang chi nhánh khác
-  const [targetMoveBranchId, setTargetMoveBranchId] = useState<string>('');
-  const [movingBranch, setMovingBranch] = useState(false);
 
   // Modal Thêm bàn mới
   const [showAddTable, setShowAddTable] = useState(false);
@@ -123,28 +120,6 @@ export default function ManageTableView() {
     }
   };
 
-  // Chuyển bàn sang chi nhánh khác
-  const handleMoveBranch = async () => {
-    if (!selected || !targetMoveBranchId || targetMoveBranchId === selected.branchId) return;
-    setMovingBranch(true);
-    try {
-      const updated = await updateTable(selected.id, { branchId: targetMoveBranchId });
-      const targetBranchName = branches.find((b) => b.id === targetMoveBranchId)?.name || updated.branchName;
-      setTables((prev) =>
-        prev.map((t) =>
-          t.id === selected.id ? { ...t, branchId: targetMoveBranchId, branchName: targetBranchName } : t
-        )
-      );
-      setSelected((prev) =>
-        prev ? { ...prev, branchId: targetMoveBranchId, branchName: targetBranchName } : null
-      );
-      alert(`Đã chuyển bàn "${selected.tableName}" sang chi nhánh "${targetBranchName}" thành công!`);
-    } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Không thể chuyển chi nhánh cho bàn này');
-    } finally {
-      setMovingBranch(false);
-    }
-  };
 
   // Tạo bàn mới
   const handleCreateTable = async (e: React.FormEvent) => {
@@ -309,53 +284,59 @@ export default function ManageTableView() {
                 key={group.id}
                 className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xs overflow-hidden pt-6 pb-7 px-5 sm:px-6 flex flex-col justify-between"
               >
-                {/* Khi chuyển qua Tổng chi nhánh: Div hiển thị thông tin & tổng số bàn của chi nhánh đó lấy từ Cài đặt */}
-                {isAllBranches && (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 mb-6 border-b border-slate-100">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-10 h-10 rounded-2xl bg-[#E6F7F4] text-[#00A389] flex items-center justify-center font-bold shadow-2xs shrink-0">
-                        <Building2 size={20} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-black text-[16px] text-[#0F172A]">{group.name}</h3>
-                          {group.code && (
-                            <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-[#475569] text-[11px] font-extrabold uppercase">
-                              {group.code}
-                            </span>
-                          )}
-                        </div>
-                        {group.address ? (
-                          <p className="text-[12px] text-[#64748B] font-medium flex items-center gap-1 mt-0.5">
-                            <MapPin size={12} className="text-slate-400 shrink-0" />
-                            <span>{group.address}</span>
-                          </p>
-                        ) : (
-                          <p className="text-[11.5px] text-[#94A3B8] font-medium mt-0.5">
-                            Chi nhánh hệ thống trong Cài đặt
-                          </p>
+                {/* Header hiển thị thông tin & tổng số bàn của chi nhánh - Tự động thích ứng trên mọi màn hình */}
+                <div
+                  className={`pb-5 mb-6 border-b border-slate-100 flex ${
+                    isAllBranches && branchGroups.length > 1
+                      ? 'flex-col gap-3.5'
+                      : 'flex-col sm:flex-row sm:items-center justify-between gap-3.5'
+                  }`}
+                >
+                  <div className="flex items-start sm:items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-2xl bg-[#E6F7F4] text-[#00A389] flex items-center justify-center font-bold shadow-2xs shrink-0 mt-0.5 sm:mt-0">
+                      <Building2 size={20} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-black text-[15.5px] sm:text-[16px] text-[#0F172A] leading-snug">
+                          {group.name}
+                        </h3>
+                        {group.code && (
+                          <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-[#475569] text-[10.5px] sm:text-[11px] font-extrabold uppercase shrink-0">
+                            {group.code}
+                          </span>
                         )}
                       </div>
-                    </div>
-
-                    {/* Div thống kê tổng số bàn của chi nhánh đó */}
-                    <div className="flex items-center gap-2.5 px-3.5 py-2 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-[12px] font-bold">
-                      <span className="text-[#0F172A] font-black">
-                        Tổng: {group.tables.length} bàn
-                      </span>
-                      <span className="text-slate-300">•</span>
-                      <span className="text-[#00A389] font-extrabold flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-[#00A389]" />
-                        {group.tables.filter((t) => t.status === 'AVAILABLE').length} trống
-                      </span>
-                      <span className="text-slate-300">•</span>
-                      <span className="text-[#EA580C] font-extrabold flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-[#EA580C]" />
-                        {group.tables.filter((t) => t.status === 'ON_DINE').length} đang dùng
-                      </span>
+                      {group.address ? (
+                        <p className="text-[12px] text-[#64748B] font-medium flex items-center gap-1 mt-0.5">
+                          <MapPin size={12} className="text-slate-400 shrink-0" />
+                          <span className="line-clamp-1 sm:line-clamp-2">{group.address}</span>
+                        </p>
+                      ) : (
+                        <p className="text-[11.5px] text-[#94A3B8] font-medium mt-0.5">
+                          Chi nhánh hệ thống trong Cài đặt
+                        </p>
+                      )}
                     </div>
                   </div>
-                )}
+
+                  {/* Div thống kê tổng số bàn của chi nhánh đó - Đảm bảo không bao giờ bị vỡ dòng chữ trên mọi kích thước màn hình */}
+                  <div className="flex items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 py-1.5 sm:py-2 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-[11.5px] sm:text-[12px] font-bold shrink-0 whitespace-nowrap self-start sm:self-auto max-w-full overflow-x-auto">
+                    <span className="text-[#0F172A] font-black whitespace-nowrap shrink-0">
+                      Tổng: {group.tables.length} bàn
+                    </span>
+                    <span className="text-slate-300 shrink-0">•</span>
+                    <span className="text-[#00A389] font-extrabold flex items-center gap-1 whitespace-nowrap shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-[#00A389] shrink-0" />
+                      {group.tables.filter((t) => t.status === 'AVAILABLE').length} trống
+                    </span>
+                    <span className="text-slate-300 shrink-0">•</span>
+                    <span className="text-[#EA580C] font-extrabold flex items-center gap-1 whitespace-nowrap shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-[#EA580C] shrink-0" />
+                      {group.tables.filter((t) => t.status === 'ON_DINE').length} đang dùng
+                    </span>
+                  </div>
+                </div>
 
                 {/* Grid danh sách bàn thuộc chi nhánh này */}
                 <div>
@@ -380,8 +361,8 @@ export default function ManageTableView() {
                     <div
                       className={
                         isAllBranches
-                          ? 'grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-y-6 gap-x-3 lg:gap-x-4 justify-items-center min-w-0'
-                          : 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-y-6 lg:gap-y-7 gap-x-4 lg:gap-x-6 justify-items-center min-w-0'
+                          ? 'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3 3xl:grid-cols-4 gap-y-6 gap-x-3 lg:gap-x-4 justify-items-center min-w-0'
+                          : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-y-6 lg:gap-y-7 gap-x-3 sm:gap-x-4 lg:gap-x-6 justify-items-center min-w-0'
                       }
                     >
                       {group.tables.map((table) => {
@@ -402,20 +383,23 @@ export default function ManageTableView() {
                           <div
                             key={table.id}
                             onClick={() => setSelected(table)}
-                            className={`flex flex-col items-center cursor-pointer hover:scale-[1.03] transition-all ${
-                              isAllBranches ? 'w-[160px] sm:w-[180px]' : 'w-[185px] sm:w-[205px]'
-                            }`}
+                            className="flex flex-col items-center cursor-pointer hover:scale-[1.03] transition-all w-full max-w-[170px] sm:max-w-[190px]"
                           >
                             {/* Hàng ghế có chiều cao cố định để tất cả các bàn thẳng hàng */}
                             <div className="h-4.5 flex items-center justify-center gap-1.5 mb-1.5">
-                              {Array.from({ length: Math.min(table.chairs || 2, 4) }).map((_, i) => (
+                              {Array.from({
+                                length:
+                                  table.status === 'AVAILABLE'
+                                    ? Math.min(table.capacity || table.chairs || 4, 4)
+                                    : Math.min(table.customerCount || 1, 4),
+                              }).map((_, i) => (
                                 <Armchair key={i} size={14} className={tc} />
                               ))}
                             </div>
 
                             {/* Thẻ bàn có kích thước đồng nhất */}
                             <div
-                              className={`w-full h-[86px] rounded-3xl border-2 ${bg} flex flex-col items-center justify-center px-4 py-2 text-center transition-all shadow-2xs`}
+                              className={`w-full h-[86px] rounded-3xl border-2 ${bg} flex flex-col items-center justify-center px-3 sm:px-4 py-2 text-center transition-all shadow-2xs`}
                             >
                               <h4
                                 className={`font-black text-[13.5px] ${tc} truncate w-full px-1`}
@@ -451,75 +435,76 @@ export default function ManageTableView() {
       {/* Modal Chi tiết bàn & Tác vụ */}
       {selected && (
         <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-[28px] max-w-xl w-full max-h-[92dvh] my-auto p-4 sm:p-6 lg:p-7 relative shadow-2xl border border-[#E2E8F0] animate-in fade-in zoom-in-95 duration-150 flex flex-col overflow-hidden modal-panel">
+          <div className="bg-white rounded-[28px] max-w-2xl sm:max-w-3xl w-full max-h-[92dvh] my-auto p-5 sm:p-7 lg:p-8 relative shadow-2xl border border-[#E2E8F0] animate-in fade-in zoom-in-95 duration-150 flex flex-col overflow-hidden modal-panel">
             <button
               onClick={() => setSelected(null)}
-              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-[#64748B] hover:text-[#0F172A] transition-colors"
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-[#64748B] hover:text-[#0F172A] transition-colors cursor-pointer"
               aria-label="Đóng"
             >
               <X size={16} />
             </button>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+            <div className="overflow-y-auto pr-1 flex-1 modal-body">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mb-6">
               {/* Cột 1: Thông tin bàn */}
               <div>
-                <h4 className="font-black text-[16px] text-[#0F172A] mb-3.5 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#00A389]" />
+                <h4 className="font-black text-[17px] text-[#0F172A] mb-4 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#00A389]" />
                   Thông tin bàn
                 </h4>
 
-                <div className="bg-[#F8FAFC] rounded-2xl p-4 border border-[#E2E8F0] space-y-2.5">
-                  <div className="flex justify-between items-center text-[13px] pb-2 border-b border-[#E2E8F0]/70">
+                <div className="bg-[#F8FAFC] rounded-2xl p-4 sm:p-5 border border-[#E2E8F0] space-y-3">
+                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
                     <span className="text-[#64748B] font-medium">Bàn</span>
-                    <span className="font-black text-[#0F172A] text-[13.5px]">{selected.tableName}</span>
+                    <span className="font-black text-[#0F172A] text-[14px]">{selected.tableName}</span>
                   </div>
 
-                  <div className="flex justify-between items-center text-[13px] pb-2 border-b border-[#E2E8F0]/70">
+                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
                     <span className="text-[#64748B] font-medium">Mã số bàn</span>
                     <span className="font-bold text-[#0F172A]">#{selected.tableNumber}</span>
                   </div>
 
-                  <div className="flex justify-between items-center text-[13px] pb-2 border-b border-[#E2E8F0]/70">
+                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
                     <span className="text-[#64748B] font-medium">Sức chứa</span>
                     <span className="font-bold text-[#0F172A]">
                       {selected.capacity} khách ({selected.chairs || selected.capacity} ghế)
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center text-[13px] pb-2 border-b border-[#E2E8F0]/70">
+                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
                     <span className="text-[#64748B] font-medium">Khu vực</span>
                     <span className="font-bold text-[#0F172A]">
                       {selected.area === 'TERRACE' ? 'Sân thượng' : selected.area === 'OUTDOOR' ? 'Ngoài trời' : 'Sảnh chính'}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center text-[13px] pb-2 border-b border-[#E2E8F0]/70">
-                    <span className="text-[#64748B] font-medium">Chi nhánh</span>
+                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70 gap-3">
+                    <span className="text-[#64748B] font-medium shrink-0">Chi nhánh</span>
                     <span
-                      className="font-bold text-[#0F172A] text-right truncate max-w-[170px]"
+                      className="font-bold text-[#0F172A] text-right"
                       title={branches.find((b) => b.id === selected.branchId)?.name || selected.branchName || 'Chi nhánh hệ thống'}
                     >
                       {branches.find((b) => b.id === selected.branchId)?.name || selected.branchName || 'Chi nhánh hệ thống'}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center text-[13px] pb-2 border-b border-[#E2E8F0]/70">
+                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
                     <span className="text-[#64748B] font-medium">Trạng thái</span>
                     <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black ${statusColors[selected.status]}`}>
                       {statusLabels[selected.status]}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center text-[13px] pb-2 border-b border-[#E2E8F0]/70">
+                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
                     <span className="text-[#64748B] font-medium">Doanh thu</span>
                     <span className="font-bold text-[#00A389]">
                       {selected.totalAmount ? formatVND(selected.totalAmount) : 'Chưa có'}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center text-[13px]">
-                    <span className="text-[#64748B] font-medium">Phiên hiện tại</span>
-                    <span className="font-mono text-[11px] text-[#64748B] truncate max-w-[120px]">
+                  <div className="flex justify-between items-center text-[13.5px]">
+                    <span className="text-[#64748B] font-medium shrink-0">Phiên hiện tại</span>
+                    <span className="font-mono text-[12px] text-[#64748B]">
                       {selected.currentSessionId || 'Chưa có'}
                     </span>
                   </div>
@@ -529,36 +514,36 @@ export default function ManageTableView() {
               {/* Cột 2: Tác vụ */}
               <div className="flex flex-col justify-between">
                 <div>
-                  <h4 className="font-black text-[16px] text-[#0F172A] mb-3.5 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#3B82F6]" />
+                  <h4 className="font-black text-[17px] text-[#0F172A] mb-4 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#3B82F6]" />
                     Tác vụ
                   </h4>
 
-                  <div className="space-y-3">
+                  <div className="space-y-3.5">
                     {selected.status === 'AVAILABLE' && (
                       <button
                         onClick={() => changeStatus(selected, 'ON_DINE')}
                         disabled={saving}
-                        className="w-full h-11 rounded-2xl bg-[#00A389] hover:bg-[#008f77] text-white text-[13px] font-extrabold flex items-center justify-center gap-2 shadow-sm shadow-[#00A389]/20 transition-all active:scale-[0.98]"
+                        className="w-full h-12 rounded-2xl bg-[#00A389] hover:bg-[#008f77] text-white text-[13.5px] font-extrabold flex items-center justify-center gap-2 shadow-sm shadow-[#00A389]/20 transition-all active:scale-[0.98] cursor-pointer"
                       >
-                        <Clock size={15} />
+                        <Clock size={16} />
                         <span>Mở bàn (Đang dùng)</span>
                       </button>
                     )}
 
                     {selected.status === 'ON_DINE' && (
                       <>
-                        <div className="w-full h-11 rounded-2xl bg-[#FFEDD5] border border-[#FED7AA] text-[#EA580C] text-[13px] font-extrabold flex items-center justify-center gap-2">
-                          <Clock size={16} strokeWidth={2.5} />
+                        <div className="w-full h-12 rounded-2xl bg-[#FFEDD5] border border-[#FED7AA] text-[#EA580C] text-[13.5px] font-extrabold flex items-center justify-center gap-2">
+                          <Clock size={17} strokeWidth={2.5} />
                           <span>Đang phục vụ thực khách</span>
                         </div>
 
                         <button
                           onClick={() => changeStatus(selected, 'AVAILABLE')}
                           disabled={saving}
-                          className="w-full h-11 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-[#00A389] text-[13px] font-bold flex items-center justify-center gap-2 border border-emerald-200 transition-all active:scale-[0.98]"
+                          className="w-full h-12 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-[#00A389] text-[13.5px] font-bold flex items-center justify-center gap-2 border border-emerald-200 transition-all active:scale-[0.98] cursor-pointer"
                         >
-                          <CheckCircle size={15} />
+                          <CheckCircle size={16} />
                           <span>Trả bàn về Trống</span>
                         </button>
                       </>
@@ -567,56 +552,21 @@ export default function ManageTableView() {
                     {/* Nút Xem / In Mã QR Gọi Món Cho Bàn */}
                     <button
                       onClick={() => setQrTable(selected)}
-                      className="w-full h-11 rounded-2xl bg-[#E6F7F4] hover:bg-[#D0F2EB] text-[#00A389] text-[13px] font-extrabold flex items-center justify-center gap-2 border border-[#B6EADF] shadow-xs transition-all active:scale-[0.98]"
+                      className="w-full h-12 rounded-2xl bg-[#E6F7F4] hover:bg-[#D0F2EB] text-[#00A389] text-[13.5px] font-extrabold flex items-center justify-center gap-2 border border-[#B6EADF] shadow-xs transition-all active:scale-[0.98] cursor-pointer"
                     >
-                      <QrCode size={16} />
+                      <QrCode size={17} />
                       <span>Mã QR Gọi Món (Order từ xa)</span>
                     </button>
-
-                    {/* Tác vụ Chuyển Bàn Sang Chi Nhánh Khác khi ở Tổng chi nhánh hoặc hệ thống có nhiều chi nhánh */}
-                    {branches.length > 1 && (
-                      <div className="pt-3 border-t border-slate-100 space-y-2">
-                        <label className="text-[12px] font-bold text-[#475569] flex items-center gap-1.5">
-                          <ArrowRightLeft size={13} className="text-[#00A389]" />
-                          <span>Chuyển bàn sang chi nhánh khác</span>
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={targetMoveBranchId || selected.branchId || branches[0]?.id || ''}
-                            onChange={(e) => setTargetMoveBranchId(e.target.value)}
-                            disabled={movingBranch}
-                            className="flex-1 h-9 px-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-[12px] font-bold text-[#0F172A] focus:outline-hidden focus:border-[#00A389]"
-                          >
-                            {branches.map((b) => (
-                              <option key={b.id} value={b.id}>
-                                {b.name} ({b.code || 'CN'})
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={handleMoveBranch}
-                            disabled={
-                              movingBranch ||
-                              !targetMoveBranchId ||
-                              targetMoveBranchId === selected.branchId
-                            }
-                            className="h-9 px-3 rounded-xl bg-[#00A389] hover:bg-[#008f77] disabled:bg-slate-200 disabled:text-slate-400 text-white font-extrabold text-[12px] flex items-center gap-1 transition-all shrink-0 cursor-pointer active:scale-95"
-                            title="Xác nhận chuyển bàn sang chi nhánh đã chọn"
-                          >
-                            <span>{movingBranch ? 'Đang chuyển...' : 'Chuyển'}</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="pt-4 border-t border-[#F1F5F9]">
+          <div className="pt-4 border-t border-[#F1F5F9]">
               <button
                 onClick={() => setSelected(null)}
-                className="w-full h-11 rounded-2xl bg-[#F8FAFC] hover:bg-slate-100 border border-[#E2E8F0] text-[13.5px] font-extrabold text-[#64748B] hover:text-[#0F172A] transition-all"
+                className="w-full h-11 rounded-2xl bg-[#F8FAFC] hover:bg-slate-100 border border-[#E2E8F0] text-[13.5px] font-extrabold text-[#64748B] hover:text-[#0F172A] transition-all cursor-pointer"
               >
                 Đóng
               </button>
@@ -646,7 +596,7 @@ export default function ManageTableView() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateTable} className="space-y-3.5 text-[13px]">
+            <form onSubmit={handleCreateTable} className="space-y-3.5 text-[13px] overflow-y-auto pr-1 flex-1 modal-body">
               <div>
                 <label className="block font-bold text-[#0F172A] mb-1">
                   Tên bàn <span className="text-rose-500">*</span>

@@ -185,7 +185,7 @@ export function MenuItemList({
                 {Boolean(item.isPopular) && !item.isSoldOut && (
                   <div className="absolute top-4.5 left-4.5 bg-[#EF4444] text-white flex items-center gap-1 px-1.5 py-0.5 rounded-[6px] z-10 shadow-xs">
                     <Sparkles size={10} color="#FFFFFF" />
-                    <span className="text-[9px] font-extrabold uppercase tracking-wide">Bán chạy</span>
+                    <span className="text-[9px] font-extrabold uppercase tracking-wide">Nổi bật</span>
                   </div>
                 )}
 

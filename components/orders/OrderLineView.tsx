@@ -301,7 +301,7 @@ export default function OrderLineView() {
                       {dish.isPopular && (
                         <div className="absolute top-2 left-2 bg-[#EF4444] text-white flex items-center gap-1 px-2 py-0.5 rounded-[6px] z-10 shadow-xs">
                           <Sparkles size={10} className="text-white" />
-                          <span className="text-white text-[9.5px] font-black tracking-wide">Bán chạy</span>
+                          <span className="text-white text-[9.5px] font-black tracking-wide">Nổi bật</span>
                         </div>
                       )}
                       {dish.isSoldOut && (

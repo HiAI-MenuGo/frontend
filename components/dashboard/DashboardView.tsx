@@ -41,9 +41,10 @@ import {
 import { fetchRevenueReport, downloadRevenueExcel } from '@/lib/api/analytics.api';
 import type { RevenueReportDTO } from '@/lib/api/types';
 import { formatVND } from '@/lib/format';
+import { displayToApiDate, formatDisplayDate } from '@/lib/date';
 import { useBranchStore } from '@/stores/branch.store';
 import { useHeaderStore } from '@/stores/header.store';
-import { formatDateInput, formatDisplayDate, parseDisplayDate, displayToApiDate, apiToDisplayDate, getDefaultReportRange } from '@/lib/date';
+import DateFilterPicker, { DateFilterRange, DateFilterTimeframe } from '@/components/common/DateFilterPicker';
 
 const PAYMENT_COLORS: Record<string, string> = {
   VIETQR: '#6366F1',
@@ -53,9 +54,10 @@ const PAYMENT_COLORS: Record<string, string> = {
 export default function DashboardView() {
   const selectedBranchId = useBranchStore((s) => s.selectedBranchId);
   const [mounted, setMounted] = useState(false);
-  const defaultRange = getDefaultReportRange();
-  const [startDate, setStartDate] = useState<string>(defaultRange.startDate); // DD-MM-YYYY
-  const [endDate, setEndDate] = useState<string>(defaultRange.endDate);       // DD-MM-YYYY
+  const todayDisplay = useMemo(() => formatDisplayDate(new Date()), []);
+  const [startDate, setStartDate] = useState<string>(todayDisplay); // DD-MM-YYYY
+  const [endDate, setEndDate] = useState<string>(todayDisplay);     // DD-MM-YYYY
+  const [timeframe, setTimeframe] = useState<DateFilterTimeframe>('day');
 
   const [data, setData] = useState<RevenueReportDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -127,38 +129,17 @@ export default function DashboardView() {
   useEffect(() => {
     setCustomAction(
       <div className="flex items-center gap-2 shrink-0 py-0.5">
-        {/* Date Pickers (Từ ngày - Đến ngày) */}
-        <div className="flex items-center gap-1.5 bg-[#F8FAFC] px-2.5 h-9 lg:h-10 rounded-2xl border border-[#E2E8F0] text-xs font-medium text-[#0F172A] shadow-2xs shrink-0">
-          <Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
-          <input
-            type="date"
-            value={displayToApiDate(startDate)}
-            onChange={(e) => setStartDate(e.target.value ? apiToDisplayDate(e.target.value) : '')}
-            className="w-[102px] bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
-            title="Từ ngày"
-          />
-          <span className="text-[#94A3B8] text-[11px]">➔</span>
-          <input
-            type="date"
-            value={displayToApiDate(endDate)}
-            onChange={(e) => setEndDate(e.target.value ? apiToDisplayDate(e.target.value) : '')}
-            className="w-[102px] bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
-            title="Đến ngày"
-          />
-          {(startDate || endDate) && (
-            <button
-              type="button"
-              onClick={() => {
-                setStartDate('');
-                setEndDate('');
-              }}
-              className="p-0.5 ml-0.5 text-[#94A3B8] hover:text-[#EF4444] rounded transition-colors cursor-pointer"
-              title="Đặt lại khoảng ngày"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+        {/* Bộ lọc Ngày / Tháng / Năm chuẩn Mobile */}
+        <DateFilterPicker
+          startDate={startDate}
+          endDate={endDate}
+          initialTimeframe={timeframe}
+          onChange={(range: DateFilterRange) => {
+            setTimeframe(range.timeframe);
+            setStartDate(range.startDate);
+            setEndDate(range.endDate);
+          }}
+        />
 
         {/* NÚT TẢI BÁO CÁO DOANH THU FILE EXCEL */}
         <button
@@ -169,33 +150,156 @@ export default function DashboardView() {
               ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
               : 'bg-[#00A389] hover:bg-[#008f77] text-white hover:shadow-md hover:shadow-emerald-500/20 active:scale-98'
           }`}
-          title={`Tải báo cáo doanh thu file Excel (.xlsx) từ ${startDate || 'tất cả'} đến ${endDate || 'nay'}`}
+          title={`Tải báo cáo doanh thu file Excel (.xlsx) cho kỳ ${startDate === endDate ? startDate : `${startDate} đến ${endDate}`}`}
         >
           {exporting ? (
             <RefreshCw className="w-3.5 h-3.5 animate-spin text-white shrink-0" />
           ) : (
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
           )}
-          <span>{exporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
+          <span className="hidden sm:inline">{exporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
         </button>
       </div>
     );
     return () => setCustomAction(null);
-  }, [setCustomAction, startDate, endDate, exporting, loading, handleExportExcel]);
+  }, [setCustomAction, startDate, endDate, timeframe, exporting, loading, handleExportExcel]);
 
-  // Format dữ liệu biểu đồ xu hướng
+  // Xác định chế độ biểu đồ: Giờ (theo ngày), Ngày (theo tháng), Tháng (theo năm)
+  const effectiveViewMode = useMemo<'hourly' | 'daily' | 'monthly'>(() => {
+    if (timeframe === 'day' || startDate === endDate) {
+      return 'hourly';
+    }
+    if (timeframe === 'year') {
+      return 'monthly';
+    }
+    const [sDay, sMonth, sYear] = startDate.split('-').map(Number);
+    const [eDay, eMonth, eYear] = endDate.split('-').map(Number);
+    const startObj = new Date(sYear, (sMonth || 1) - 1, sDay || 1);
+    const endObj = new Date(eYear, (eMonth || 1) - 1, eDay || 1);
+    const diffDays = Math.round((endObj.getTime() - startObj.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) return 'hourly';
+    if (diffDays > 60) return 'monthly';
+    return 'daily';
+  }, [timeframe, startDate, endDate]);
+
+  // Format dữ liệu biểu đồ xu hướng theo đúng chế độ: Giờ / Ngày / Tháng
   const chartData = useMemo(() => {
-    if (!data?.dailyTrend) return [];
+    if (!data) return [];
+
+    // 1. Chế độ THEO GIỜ (Khi chọn theo ngày)
+    if (effectiveViewMode === 'hourly') {
+      if (data.hourlyTrend && data.hourlyTrend.length > 0) {
+        return data.hourlyTrend.map((h) => ({
+          ...h,
+          shortDate: h.time,
+          displayDate: `Khung giờ ${h.time} - ${String(h.hour + 1).padStart(2, '0')}:00, ${startDate}`,
+        }));
+      }
+
+      // Fallback gom 24 giờ
+      const hourlyMap = new Map<number, { time: string; hour: number; revenue: number; orders: number; cash: number; vietqr: number }>();
+      for (let h = 0; h < 24; h++) {
+        hourlyMap.set(h, {
+          time: `${String(h).padStart(2, '0')}:00`,
+          hour: h,
+          revenue: 0,
+          orders: 0,
+          cash: 0,
+          vietqr: 0,
+        });
+      }
+      if (data.recentOrders) {
+        for (const ord of data.recentOrders) {
+          const ordDate = new Date(ord.createdAt);
+          const h = ordDate.getHours();
+          const item = hourlyMap.get(h);
+          if (item) {
+            item.revenue += ord.totalAmount;
+            item.orders += 1;
+            if (ord.paymentMethod === 'VIETQR') item.vietqr += ord.totalAmount;
+            else item.cash += ord.totalAmount;
+          }
+        }
+      }
+      return Array.from(hourlyMap.values()).map((h) => ({
+        ...h,
+        shortDate: h.time,
+        displayDate: `Khung giờ ${h.time} - ${String(h.hour + 1).padStart(2, '0')}:00, ${startDate}`,
+      }));
+    }
+
+    // 2. Chế độ THEO THÁNG (Khi chọn theo năm)
+    if (effectiveViewMode === 'monthly') {
+      if (data.monthlyTrend && data.monthlyTrend.length > 0) {
+        return data.monthlyTrend.map((m) => ({
+          ...m,
+          shortDate: m.shortLabel,
+          displayDate: m.label,
+        }));
+      }
+
+      // Fallback gom từ dailyTrend theo tháng
+      if (data.dailyTrend && data.dailyTrend.length > 0) {
+        const mMap = new Map<string, { shortDate: string; displayDate: string; revenue: number; orders: number; cash: number; vietqr: number }>();
+        for (const d of data.dailyTrend) {
+          const parts = d.date.split('-');
+          if (parts.length >= 2) {
+            const mNum = parseInt(parts[1], 10);
+            const mKey = `Tháng ${mNum}`;
+            const ex = mMap.get(mKey);
+            if (ex) {
+              ex.revenue += d.revenue;
+              ex.orders += d.orders;
+              ex.cash += d.cash;
+              ex.vietqr += d.vietqr;
+            } else {
+              mMap.set(mKey, {
+                shortDate: `T${mNum}`,
+                displayDate: `Tháng ${mNum}/${parts[0]}`,
+                revenue: d.revenue,
+                orders: d.orders,
+                cash: d.cash,
+                vietqr: d.vietqr,
+              });
+            }
+          }
+        }
+        return Array.from(mMap.values());
+      }
+      return [];
+    }
+
+    // 3. Chế độ THEO NGÀY (Khi chọn theo tháng hoặc khoảng ngày)
+    if (!data.dailyTrend) return [];
     return data.dailyTrend.map((d) => {
-      // Rút gọn ngày 'YYYY-MM-DD' thành 'DD/MM' cho trục hoành
       const parts = d.date.split('-');
       const shortLabel = parts.length === 3 ? `${parts[2]}/${parts[1]}` : d.date;
+      const fullLabel = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : d.date;
       return {
         ...d,
         shortDate: shortLabel,
+        displayDate: fullLabel,
       };
     });
-  }, [data?.dailyTrend]);
+  }, [data, effectiveViewMode, startDate]);
+
+  // Tiêu đề & mô tả động cho biểu đồ theo chế độ hiển thị
+  const chartTitle = useMemo(() => {
+    if (effectiveViewMode === 'hourly') return 'Xu Hướng Doanh Thu Theo Giờ';
+    if (effectiveViewMode === 'monthly') return 'Xu Hướng Doanh Thu Theo Tháng';
+    return 'Xu Hướng Doanh Thu Theo Ngày';
+  }, [effectiveViewMode]);
+
+  const chartSubtitle = useMemo(() => {
+    if (effectiveViewMode === 'hourly') {
+      return `Biến động doanh thu và lượng đơn đặt theo từng khung giờ trong ngày (${startDate})`;
+    }
+    if (effectiveViewMode === 'monthly') {
+      return 'Biến động doanh thu và lượng đơn đặt theo 12 tháng trong năm';
+    }
+    return `Biến động doanh thu và lượng đơn đặt theo từng ngày (${startDate} đến ${endDate})`;
+  }, [effectiveViewMode, startDate, endDate]);
 
   // Đơn hàng lọc theo ô tìm kiếm
   const filteredOrders = useMemo(() => {
@@ -327,8 +431,8 @@ export default function DashboardView() {
             <span className="text-xs text-[#94A3B8] font-medium">tỉ trọng thanh toán</span>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between text-xs text-[#64748B]">
-            <span>Tiền vào tài khoản quán:</span>
-            <strong className="text-indigo-600">Tự động đối soát</strong>
+            <span>Chuyển khoản:</span>
+            <strong className="text-indigo-600">Tự động</strong>
           </div>
         </div>
 
@@ -352,24 +456,24 @@ export default function DashboardView() {
             <span className="text-xs text-[#94A3B8] font-medium">tỉ trọng thanh toán</span>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between text-xs text-[#64748B]">
-            <span>Kênh thu ngân:</span>
-            <strong className="text-amber-700">Thu tiền mặt trực tiếp</strong>
+            <span>Tiền mặt:</span>
+            <strong className="text-amber-700">Tiền mặt trực tiếp</strong>
           </div>
         </div>
       </div>
 
       {/* CHARTS ROW (Biểu đồ xu hướng & Biểu đồ cơ cấu thanh toán) */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
-        {/* Biểu đồ xu hướng doanh thu theo ngày */}
+        {/* Biểu đồ xu hướng doanh thu theo mốc thời gian */}
         <div className="xl:col-span-2 bg-white rounded-3xl p-4 sm:p-5 lg:p-6 border border-slate-100 shadow-xs flex flex-col justify-between min-w-0 overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div>
               <h2 className="text-base font-extrabold text-[#0F172A] flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-[#00A389]" />
-                <span>Xu Hướng Doanh Thu Theo Ngày</span>
+                <span>{chartTitle}</span>
               </h2>
               <p className="text-xs text-[#64748B] mt-0.5">
-                Biến động doanh thu và lượng đơn đặt theo từng mốc thời gian
+                {chartSubtitle}
               </p>
             </div>
             <div className="flex items-center bg-[#F8FAFC] p-1 rounded-2xl border border-[#E2E8F0] shrink-0 self-start sm:self-auto">
@@ -416,6 +520,7 @@ export default function DashboardView() {
                     tickLine={false}
                     axisLine={{ stroke: '#E2E8F0' }}
                     tick={{ fill: '#94A3B8', fontSize: 11, fontWeight: 500 }}
+                    interval={effectiveViewMode === 'hourly' ? 1 : 'preserveStartEnd'}
                   />
                   <YAxis
                     tickLine={false}
@@ -437,7 +542,7 @@ export default function DashboardView() {
                         const d = payload[0].payload;
                         return (
                           <div className="bg-[#0F172A] text-white p-3 rounded-2xl shadow-xl text-xs space-y-1 border border-slate-700 min-w-[160px]">
-                            <p className="text-slate-400 font-semibold">{d.date}</p>
+                            <p className="text-slate-400 font-semibold">{d.displayDate || d.date || d.shortDate}</p>
                             <p className="text-emerald-400 font-bold text-sm">
                               {formatVND(d.revenue)}
                             </p>
@@ -669,7 +774,11 @@ export default function DashboardView() {
                     : 'text-[#64748B] hover:text-[#0F172A]'
                 }`}
               >
-                Bảng Kê Theo Ngày ({data?.dailyTrend.length || 0})
+                {effectiveViewMode === 'hourly'
+                  ? `Bảng Kê Theo Giờ (${chartData.length})`
+                  : effectiveViewMode === 'monthly'
+                  ? `Bảng Kê Theo Tháng (${chartData.length})`
+                  : `Bảng Kê Theo Ngày (${chartData.length})`}
               </button>
               <button
                 onClick={() => setActiveTableTab('orders')}
@@ -698,13 +807,19 @@ export default function DashboardView() {
           )}
         </div>
 
-        {/* Tab 1: Bảng kê theo ngày */}
+        {/* Tab 1: Bảng kê theo mốc thời gian (Giờ / Ngày / Tháng) */}
         {activeTableTab === 'daily' && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-100 text-[#64748B] font-bold uppercase text-[11px]">
-                  <th className="py-3 px-3">Ngày</th>
+                  <th className="py-3 px-3">
+                    {effectiveViewMode === 'hourly'
+                      ? 'Khung Giờ'
+                      : effectiveViewMode === 'monthly'
+                      ? 'Tháng'
+                      : 'Ngày'}
+                  </th>
                   <th className="py-3 px-3 text-center">Số Đơn</th>
                   <th className="py-3 px-3 text-right">Tiền Mặt</th>
                   <th className="py-3 px-3 text-right">VietQR</th>
@@ -712,10 +827,12 @@ export default function DashboardView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {data && data.dailyTrend.length > 0 ? (
-                  data.dailyTrend.map((row) => (
-                    <tr key={row.date} className="hover:bg-[#F8FAFC] transition">
-                      <td className="py-3 px-3 font-bold text-[#0F172A]">{row.date}</td>
+                {chartData.length > 0 ? (
+                  chartData.map((row, idx) => (
+                    <tr key={row.shortDate || idx} className="hover:bg-[#F8FAFC] transition">
+                      <td className="py-3 px-3 font-bold text-[#0F172A]">
+                        {row.displayDate || row.shortDate}
+                      </td>
                       <td className="py-3 px-3 text-center">
                         <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[#0F172A] font-bold text-[11px]">
                           {row.orders}
@@ -735,7 +852,7 @@ export default function DashboardView() {
                 ) : (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-slate-400">
-                      Chưa có dữ liệu theo ngày
+                      Chưa có dữ liệu thống kê
                     </td>
                   </tr>
                 )}

@@ -42,6 +42,7 @@ export interface UiTable {
   status: UiTableStatus;
   capacity: number;
   chairs: number;
+  customerCount?: number;
   area: 'MAIN_DINING' | 'TERRACE' | 'OUTDOOR';
   branchId?: string;
   branchName?: string;
@@ -58,15 +59,17 @@ export function adaptTable(t: TableDTO): UiTable {
   const tableNumber = numMatch ? parseInt(numMatch[1], 10) : 0;
   const status: UiTableStatus =
     t?.status === 'EMPTY' ? 'AVAILABLE' : t?.status === 'OCCUPIED' ? 'ON_DINE' : 'RESERVED';
-  const capacity = t?.customerCount && t?.customerCount > 0 ? t?.customerCount : 4;
+  const customerCount = t?.customerCount;
+  const defaultCapacity = 4;
   return {
     id: t?.id || '',
     backendId: t?.id || '',
     tableNumber,
     tableName: tableName || `Bàn ${tableNumber || t?.id || ''}`,
     status,
-    capacity,
-    chairs: capacity <= 10 ? capacity : 10,
+    capacity: defaultCapacity,
+    chairs: status === 'AVAILABLE' ? defaultCapacity : (customerCount || 1),
+    customerCount,
     area: 'MAIN_DINING',
     branchId: t?.branchId,
     branchName: t?.branchName,
@@ -132,6 +135,25 @@ export interface RevenueDailyItemDTO {
   discount: number;
 }
 
+export interface RevenueHourlyItemDTO {
+  time: string;
+  hour: number;
+  orders: number;
+  revenue: number;
+  cash: number;
+  vietqr: number;
+}
+
+export interface RevenueMonthlyItemDTO {
+  month: string;
+  label: string;
+  shortLabel: string;
+  orders: number;
+  revenue: number;
+  cash: number;
+  vietqr: number;
+}
+
 export interface PaymentBreakdownDTO {
   method: string;
   label: string;
@@ -164,6 +186,8 @@ export interface RevenueReportDTO {
     totalDiscount: number;
   };
   dailyTrend: RevenueDailyItemDTO[];
+  hourlyTrend?: RevenueHourlyItemDTO[];
+  monthlyTrend?: RevenueMonthlyItemDTO[];
   paymentBreakdown: PaymentBreakdownDTO[];
   topItems: Array<{ name: string; soldCount: number; revenue: number; category: string }>;
   categoryBreakdown: Array<{ category: string; revenue: number; count: number }>;

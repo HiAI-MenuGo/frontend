@@ -179,11 +179,6 @@ export function AddDishModal({ isOpen, onClose, categories, initialDish, onSave,
 
   const parsedPrice = parseInt(price.replace(/[^0-9]/g, '') || '0', 10);
 
-  const addQuickPrice = (amount: number) => {
-    const current = parseInt(price.replace(/[^0-9]/g, '') || '0', 10);
-    setPrice((current + amount).toString());
-  };
-
   const handleAddModifier = () => {
     if (!newModifier.trim()) return;
     setModifiers((prev) => [...prev, newModifier.trim()]);
@@ -310,20 +305,6 @@ export function AddDishModal({ isOpen, onClose, categories, initialDish, onSave,
                   onChange={(e) => setPrice(e.target.value)}
                   className="flex-1 text-[13.5px] text-slate-900 placeholder:text-slate-400 bg-transparent outline-none font-medium"
                 />
-              </div>
-
-              {/* Nút cộng nhanh */}
-              <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-                {[5000, 10000, 20000, 50000].map((amt) => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => addQuickPrice(amt)}
-                    className="px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-[#00A389] font-bold text-[11px] hover:bg-emerald-100 transition-colors"
-                  >
-                    +{amt.toLocaleString('vi-VN')}đ
-                  </button>
-                ))}
               </div>
             </div>
           </div>
@@ -710,12 +691,12 @@ export function AddDishModal({ isOpen, onClose, categories, initialDish, onSave,
             />
           </div>
 
-          {/* Món Bán Chạy (Nổi bật) */}
+          {/* Nổi bật */}
           <div className="flex items-center justify-between bg-orange-50/80 rounded-2xl p-4 border border-orange-200 shadow-2xs">
             <div className="flex items-center gap-2">
               <span className="text-orange-600"><Flame size={18} /></span>
               <span className="text-[13.5px] font-bold text-orange-800">
-                Món Bán Chạy (Nổi bật)
+                Nổi bật
               </span>
             </div>
 

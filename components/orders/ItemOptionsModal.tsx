@@ -135,7 +135,7 @@ export function ItemOptionsModal({
                 {dish.isPopular && (
                   <div className="inline-flex items-center gap-1 bg-[#FFEDD5] px-2.5 py-0.5 rounded-full">
                     <Sparkles size={11} className="text-[#C2410C]" />
-                    <span className="text-[11px] font-bold text-[#C2410C]">Bán chạy</span>
+                    <span className="text-[11px] font-bold text-[#C2410C]">Nổi bật</span>
                   </div>
                 )}
               </div>
