@@ -12,7 +12,6 @@ import {
   RefreshCw,
   CreditCard,
   UserCheck,
-  Check,
   X,
   Filter,
   Sparkles,
@@ -293,7 +292,7 @@ export default function CustomerRequestsView({
             }`}
           >
             <BellRing size={18} />
-            <span>Yêu cầu gọi bàn</span>
+            <span>Yêu cầu</span>
             {callsSummary.pending > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-[#EF4444] text-white text-[11px] font-black animate-bounce shadow-xs">
                 {callsSummary.pending} mới
@@ -314,7 +313,7 @@ export default function CustomerRequestsView({
             }`}
           >
             <Star size={18} className="fill-amber-400 text-amber-500" />
-            <span>Đánh giá & Rating</span>
+            <span>Đánh giá</span>
             <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-black">
               {reviewSummary.totalReviews} lượt
             </span>
@@ -541,9 +540,8 @@ export default function CustomerRequestsView({
                           type="button"
                           disabled={actionLoadingId === call.id}
                           onClick={() => handleUpdateStatus(call.id, 'PROCESSING')}
-                          className="flex-1 h-9.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[12.5px] flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                          className="flex-1 h-9.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[12.5px] flex items-center justify-center shadow-2xs transition-all cursor-pointer"
                         >
-                          <UserCheck size={15} />
                           <span>Tiếp nhận</span>
                         </button>
                       )}
@@ -553,10 +551,9 @@ export default function CustomerRequestsView({
                           type="button"
                           disabled={actionLoadingId === call.id}
                           onClick={() => handleUpdateStatus(call.id, 'COMPLETED')}
-                          className="flex-1 h-9.5 rounded-xl bg-[#00A389] hover:bg-[#008f77] text-white font-bold text-[12.5px] flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                          className="flex-1 h-9.5 rounded-xl bg-[#00A389] hover:bg-[#008f77] text-white font-bold text-[12.5px] flex items-center justify-center shadow-2xs transition-all cursor-pointer"
                         >
-                          <Check size={15} />
-                          <span>Đã phục vụ xong</span>
+                          <span>Xong</span>
                         </button>
                       )}
 

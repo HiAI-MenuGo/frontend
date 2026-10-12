@@ -627,7 +627,7 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
           }`}
         >
           <BellRing size={18} />
-          <span>Yêu cầu gọi bàn</span>
+          <span>Yêu cầu</span>
           {pendingCallsCount > 0 && (
             <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-[#EF4444] text-white animate-pulse shadow-xs">
               {pendingCallsCount} mới
@@ -648,7 +648,7 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
           }`}
         >
           <Star size={18} className="fill-amber-400 text-amber-500" />
-          <span>Đánh giá & Rating</span>
+          <span>Đánh giá</span>
           {activeTab === 'reviews' && (
             <span className="absolute bottom-0 left-0 right-0 h-0.75 bg-amber-500 rounded-full" />
           )}

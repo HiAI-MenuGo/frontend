@@ -49,10 +49,35 @@ const MAX_WIDTH = 340;
 export default function Sidebar({ orderBadgeCount = 0 }: { orderBadgeCount?: number }) {
   const pathname = usePathname();
   const logout = useAuthStore((s) => s.logout);
-  const [width, setWidth] = useState(DEFAULT_WIDTH);
-  const [collapsed, setCollapsed] = useState(false);
+  const [width, setWidth] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = Number(localStorage.getItem('sidebar-width'));
+        if (Number.isFinite(saved) && saved >= MIN_WIDTH && saved <= MAX_WIDTH) {
+          return saved;
+        }
+      } catch {}
+    }
+    return DEFAULT_WIDTH;
+  });
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('sidebar-collapsed');
+        if (saved !== null) {
+          return saved === '1';
+        }
+        if (window.innerWidth < 1280) {
+          return true;
+        }
+      } catch {}
+    }
+    return false;
+  });
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef({ x: 0, w: DEFAULT_WIDTH });
+  const isWidthMounted = useRef(false);
+  const isCollapsedMounted = useRef(false);
   const [pendingCallCount, setPendingCallCount] = useState(0);
 
   // Socket for realtime call staff notifications
@@ -91,19 +116,30 @@ export default function Sidebar({ orderBadgeCount = 0 }: { orderBadgeCount?: num
     };
   }, [isConnected, on, off]);
 
-  // Đọc kích thước đã lưu
+  // Đọc kích thước đã lưu sau khi mount (đảm bảo đồng bộ client)
   useEffect(() => {
     try {
       const w = Number(localStorage.getItem('sidebar-width'));
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (Number.isFinite(w) && w >= MIN_WIDTH && w <= MAX_WIDTH) setWidth(w);
-      setCollapsed(localStorage.getItem('sidebar-collapsed') === '1');
+      if (Number.isFinite(w) && w >= MIN_WIDTH && w <= MAX_WIDTH) {
+        setWidth(w);
+      }
+      const c = localStorage.getItem('sidebar-collapsed');
+      if (c !== null) {
+        setCollapsed(c === '1');
+      } else if (window.innerWidth < 1280) {
+        setCollapsed(true);
+      }
     } catch {
       // bỏ qua
     }
   }, []);
 
+  // Lưu kích thước vào localStorage khi width thay đổi (bỏ qua lần đầu mount để không ghi đè giá trị cũ)
   useEffect(() => {
+    if (!isWidthMounted.current) {
+      isWidthMounted.current = true;
+      return;
+    }
     try {
       localStorage.setItem('sidebar-width', String(width));
     } catch {
@@ -111,7 +147,12 @@ export default function Sidebar({ orderBadgeCount = 0 }: { orderBadgeCount?: num
     }
   }, [width]);
 
+  // Lưu trạng thái thu gọn vào localStorage khi collapsed thay đổi
   useEffect(() => {
+    if (!isCollapsedMounted.current) {
+      isCollapsedMounted.current = true;
+      return;
+    }
     try {
       localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
     } catch {
@@ -121,14 +162,41 @@ export default function Sidebar({ orderBadgeCount = 0 }: { orderBadgeCount?: num
 
   const onDragMove = useCallback((e: MouseEvent) => {
     const next = dragStart.current.w + (e.clientX - dragStart.current.x);
-    setWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(next))));
+    const clamped = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(next)));
+    setWidth(clamped);
+    try {
+      localStorage.setItem('sidebar-width', String(clamped));
+    } catch {}
   }, []);
 
   const onDragEnd = useCallback(() => {
     setDragging(false);
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
+    setWidth((current) => {
+      try {
+        localStorage.setItem('sidebar-width', String(current));
+      } catch {}
+      return current;
+    });
   }, []);
+
+  const handleResetWidth = () => {
+    setWidth(DEFAULT_WIDTH);
+    try {
+      localStorage.setItem('sidebar-width', String(DEFAULT_WIDTH));
+    } catch {}
+  };
+
+  const handleToggleCollapse = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('sidebar-collapsed', next ? '1' : '0');
+      } catch {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!dragging) return;
@@ -152,17 +220,6 @@ export default function Sidebar({ orderBadgeCount = 0 }: { orderBadgeCount?: num
   const effectiveWidth = collapsed ? COLLAPSED_WIDTH : width;
 
   const labelClass = 'truncate whitespace-nowrap overflow-hidden text-ellipsis min-w-0 flex-1';
-
-  // Tự thu gọn sidebar khi màn hình ngang hẹp (laptop 1024-1280) để dành chỗ cho nội dung
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const saved = localStorage.getItem('sidebar-collapsed');
-    if (saved !== null) return; // tôn trọng lựa chọn tay của user
-    if (window.innerWidth < 1280) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCollapsed(true);
-    }
-  }, []);
 
   return (
     <aside
@@ -280,7 +337,7 @@ export default function Sidebar({ orderBadgeCount = 0 }: { orderBadgeCount?: num
 
       {/* Nút đóng / mở */}
       <button
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={handleToggleCollapse}
         title={collapsed ? 'Mở sidebar' : 'Thu gọn sidebar'}
         className="absolute -right-3.5 top-24 z-40 w-7 h-7 rounded-full bg-white border border-[#E2E8F0] shadow-md flex items-center justify-center text-[#64748B] hover:text-[#00A389] hover:border-[#00A389]"
       >
@@ -291,7 +348,7 @@ export default function Sidebar({ orderBadgeCount = 0 }: { orderBadgeCount?: num
       {!collapsed && (
         <div
           onMouseDown={startDrag}
-          onDoubleClick={() => setWidth(DEFAULT_WIDTH)}
+          onDoubleClick={handleResetWidth}
           title="Kéo để thay đổi độ rộng (nhấp đúp để về mặc định)"
           className="absolute top-0 bottom-0 -right-1 w-2 cursor-col-resize group flex justify-center"
         >

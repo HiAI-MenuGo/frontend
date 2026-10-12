@@ -91,21 +91,13 @@ textarea::placeholder {
   scrollbar-gutter: stable;
 }
 
-/* Header customAction (date picker, search, nút xuất...) tự co + cuộn ngang khi hẹp */
+/* Header customAction (date picker, search, nút xuất...) */
 .header-actions {
-  flex: 1 1 auto;
-  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
   padding-block: 2px;
-}
-.header-actions::-webkit-scrollbar {
-  display: none;
 }
 .header-actions > * {
   flex-shrink: 0;

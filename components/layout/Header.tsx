@@ -71,7 +71,7 @@ export default function Header({ unreadCount = 0, onOpenSidebar }: HeaderProps) 
 
   return (
     <header className="h-16 lg:h-[74px] px-3 sm:px-4 lg:px-6 xl:px-8 bg-white border-b border-[#F1F5F9] flex items-center justify-between sticky top-0 z-20 gap-2 sm:gap-3 lg:gap-4 min-w-0">
-      <div className="flex items-center gap-2 sm:gap-3 lg:gap-5 min-w-0 flex-shrink-1 flex-1">
+      <div className="flex items-center gap-2 sm:gap-3 lg:gap-5 min-w-0 shrink-0">
         {onOpenSidebar && (
           <button
             onClick={onOpenSidebar}

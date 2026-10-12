@@ -1,123 +1,302 @@
-# HiAI-MenuGo — Mandatory Rules (RULES)
+# Frontend Rules — HiAI-MenuGo Web
 
-> Luật cấm và quy tắc bắt buộc. Vi phạm = bug bảo mật hoặc phá vỡ UX. Đọc kỹ trước khi viết bất kỳ dòng code nào.
->
-> - 📖 Nghiệp vụ: [BUSINESS.md](./BUSINESS.md) · 🏗️ Stack: [TECHS.md](./TECHS.md)
-> - 🎨 Design: [SKILLS.md](./SKILLS.md) · 🧭 Index: [AGENTS.md](./AGENTS.md)
+## 1. Architecture & Code Organization
 
----
-
-## 1. Multi-Tenant RBAC (CRITICAL — Quy Tắc Bảo Mật Số 1)
-
-SaaS Multi-Tenant — cô lập dữ liệu là yêu cầu an ninh bắt buộc:
-
-| Role | Phạm vi | Giới hạn |
-|---|---|---|
-| `PLATFORM_ADMIN` | SaaS Operator | Chỉ `/api/platform-admin/*` và `/platform-admin` web. **ZERO ACCESS** dữ liệu kinh doanh của quán. |
-| `ADMIN` | Chủ thương hiệu | Toàn bộ chi nhánh trong cùng `tenantId`. |
-| `MANAGER` | Quản lý chi nhánh | **LUÔN** append `branchId: req.user.branchId` vào query. |
-| `KITCHEN` | Bếp / pha chế | Chỉ KDS routes + toggle sold-out. Không chạm thanh toán. |
-| `CASHIER` | Thu ngân / phục vụ | Chỉ POS/Cashier routes + hoàn kho (inventory reverse). |
-
-```typescript
-// ĐÚNG — luôn có tenantId
-const items = await prisma.menuItem.findMany({
-  where: { tenantId: req.user.tenantId, branchId: req.user.branchId },
-});
-
-// SAI NGHIÊM TRỌNG — rò rỉ dữ liệu liên quán
-const items = await prisma.menuItem.findMany({
-  where: { branchId: req.user.branchId }
-});
+### App Router Structure
+```
+app/
+├── layout.tsx              # Root: fonts, metadata, providers
+├── page.tsx                # Redirect → /login
+├── login/page.tsx          # Public login
+├── table/[tableId]/page.tsx # QR Menu (public, no auth)
+├── [tenantId]/             # Tenant-scoped (future SaaS)
+└── (main)/                 # Authenticated area
+    ├── layout.tsx          # Sidebar + Header + SocketProvider
+    ├── dashboard/
+    ├── menu/
+    ├── orders/             # Đặt món (POS Order Line)
+    ├── order-management/   # Quản lý đơn hàng live
+    ├── cashier/            # Thu ngân & thanh toán
+    ├── tables/
+    ├── inventory/
+    ├── promotions/
+    ├── customers/
+    ├── staff/
+    ├── history/
+    ├── requests/
+    └── settings/
 ```
 
-Auth JWT thuần: `authMiddleware` + `requireRole([...])` — xem [TECHS.md](./TECHS.md#6-auth--jwt-thuần-bắt-buộc-không-dùng-auth-dịch-vụ). Cấm Supabase Auth / NextAuth / Clerk.
+### Component Organization
+- `components/layout/` — Sidebar, Header, Breadcrumb (shared shell)
+- `components/<feature>/` — Feature-specific UI (cashier, dashboard, floor, etc.)
+- **No** `components/ui/` generic library — build per feature, extract when reused 3+ times.
 
 ---
 
-## 2. Quy Chuẩn Backend & API
+## 2. State Management (Zustand)
 
-1. **Response:** LUÔN qua `ApiResponse` helper (`src/utils/response.ts`):
-   ```typescript
-   ApiResponse.success(res, data, 'Lấy danh sách món thành công');
-   ApiResponse.error(res, 'ITEM_NOT_FOUND', 'Món không tồn tại', 404);
-   ```
-2. **Auth middleware:** `router.get('/orders', authMiddleware, requireRole(['ADMIN','MANAGER','CASHIER']), controller)` — `req.user` có `userId, tenantId, branchId, role, permissions`.
-3. **Validation:** mọi body qua Zod `validateBody(schema)`:
-   ```typescript
-   const createItemSchema = z.object({
-     name: z.string().min(1, 'Tên món không được để trống'),
-     price: z.number().positive('Giá phải lớn hơn 0'),
-     categoryId: z.string().uuid(),
-   });
-   ```
-4. **Socket events:** chỉ dùng 11 events chuẩn trong [TECHS.md](./TECHS.md#7-socketio-events-chuẩn-srcsocketseventsts). Không tự đặt tên event mới khi chưa thống nhất.
-5. **Không query SQL thô** — chỉ Prisma. Sửa schema → `npx prisma format` + `npx prisma generate`.
+### Stores (Single Source of Truth)
+| Store | Path | Responsibility |
+|-------|------|----------------|
+| `auth.store.ts` | `stores/auth.store.ts` | User, token, login/logout, initialize from localStorage |
+| `branch.store.ts` | `stores/branch.store.ts` | Selected branch (`ALL` or ID), branch list |
+| `cart.store.ts` | `stores/cart.store.ts` | POS cart items, composite key |
+| `header.store.ts` | `stores/header.store.ts` | Dynamic page title/breadcrumb |
+| `search.store.ts` | `stores/search.store.ts` | Global search state |
+
+### Rules
+- **Never** use `localStorage` directly for access token — only `auth.store` (in-memory + persisted).
+- **Never** create new Context/Redux for global state — use existing stores.
+- Selectors: `useAuthStore(s => s.user)` not `useAuthStore()` (prevents re-renders).
+- Actions: `useAuthStore(s => s.login)` — stable references.
 
 ---
 
-## 3. Quy Chuẩn Mobile App (`mobile/`)
+## 3. API Client (`lib/api.ts`)
 
-1. **Cấm React Navigation / Expo Router.** Điều hướng qua `activeTab` (`TabType`) + `operationSubView` (`OperationSubView`) trong `App.tsx` và `OperationsScreen.tsx`. Màn hình mới → thêm giá trị vào `OperationSubView` (`types/index.ts`) + branch trong `OperationsScreen.tsx`.
-2. **Cart composite key (khóa cứng):**
-   ```ts
-   const cartItemId = `${item.id}__${JSON.stringify(modifiers)}__${note}`;
-   ```
-   Tăng/giảm/xóa **bắt buộc dùng `cartItemId`**, không dùng `item.id` thuần khi món có modifiers/note. (Bug đã biết: `OrderScreen.tsx` đang truyền `item.id` — phải sửa khi chạm logic cart.)
-3. **Safe Area:** mọi màn hình có header/dock phải dùng `useSafeAreaInsets()`. Không hardcode pixel, không dùng `Constants.statusBarHeight`.
-4. **Theme Tokens:** không hardcode hex trong component con — luôn `theme.colors.*`, `theme.radii.*`, `theme.shadows.*`.
-5. **Icons:** duy nhất `lucide-react-native`, `strokeWidth` 2~2.5.
-6. **Zustand:** `useMenuStore` là single source cho menu; `mockMenuItems` chỉ là seed. Không mutate mock trực tiếp — qua `addItem/updateItem/deleteItem/addCategory` (nhớ dedupe `categories`).
-7. **Mock vs API:** hiện tại data là mock. Khi nối API giữ nguyên interfaces trong `src/types`, chỉ thay implementation + thêm loading/error states.
-8. **Naming:** component PascalCase, store camelCase. Chưa có import alias — dùng relative `../theme`, `../types`, `../data/*`.
+### Usage
+```typescript
+import apiFetch from '@/lib/api';
+import { fetchBranches } from '@/lib/api/branches.api';
 
----
+// Direct (auto-injects token + x-branch-id)
+const res = await apiFetch<Branch[]>('/branches');
 
-## 4. Quy Chuẩn Web Frontend (`frontend/`)
+// Via typed API (preferred)
+const branches = await fetchBranches();
+```
 
-1. **i18n:** dùng `useI18n()` từ `@/context/i18nContext`; từ mới bổ sung vào `frontend/context/i18nContext.tsx`.
-2. **Food vs Drink an toàn** — `item.category` có thể là string hoặc `{ id, name }`, luôn type-check trước `.toLowerCase()`:
-   ```typescript
-   const catRaw = item.category || '';
-   const catName = typeof catRaw === 'string' ? catRaw : (catRaw as any)?.name || '';
-   const isDrink = ['coffee','tea','drink','juice','boba','smoothie'].some(k => catName.toLowerCase().includes(k));
-   ```
-3. **QR bàn tích hợp logo:** `QRCodeSVG` từ `qrcode.react`, bắt buộc `level="H"`.
-4. **Import:** không barrel `@/components/auth` — import trực tiếp file (`@/components/auth/RoleGate`).
+### Automatic Headers
+- `Authorization: Bearer <token>` from `auth.store`
+- `x-branch-id: <selectedBranchId>` from `branch.store` (`ALL` = no filter)
+
+### Error Handling
+- 401 → auto-clear token + redirect `/login?expired=1` (except `/login` page).
+- Network error → `{ success: false, errorCode: 'NETWORK_ERROR', message }`.
+- **Always** check `res.success` before using `res.data`.
 
 ---
 
-## 5. Critical UI Rules (đã thiết lập, không được phá)
+## 4. Socket.IO (`context/SocketContext.tsx`)
 
-- **A. Note món multi-line bắt buộc** (`CashierClient`, `kds/page`, `KitchenTicketTemplate`, `ReceiptPrintTemplate`, `OrdersScreen` mobile): chuỗi `item.note` nối bằng `•`/`|` phải tách thành từng dòng có bullet, không hiển thị nguyên chuỗi dài. POS/KDS dùng text cam/vàng; bill in nhiệt dùng `- xxx` chữ đen.
-- **B. Nút HỦY MÓN trong POS luôn canh phải** (`justify-end`, `text-rose-400 border-rose-500/20`) — tránh bấm nhầm.
-- **C. Nút Thanh Toán QR Menu chống giật:** thêm `!isInitializing` vào điều kiện render để không chớp khi Socket `PENDING` đang đồng bộ.
-- **D. Form tích điểm đồng bộ branding:** container SĐT + nút xác nhận dùng `primaryColor`/`secondaryColor` của quán; badge hạng + badge điểm cùng 1 hàng flex.
-- **E. Bản in nhiệt:** phiếu bếp và hóa đơn chữ đen trên trắng, đủ thông tin bill + VietQR chân bill, không icon màu/viền lòe loẹt (hỏng đầu kim 80mm/58mm).
+### Provider Setup
+```tsx
+<SocketProvider config={{ tableId: 'optional-for-qr' }}>
+  {children}
+</SocketProvider>
+```
+
+### Connection Logic
+- Auto-connect on mount (once).
+- Reconnects when: `token`, `tenantId`, `branchId`, `tableId` change.
+- Exponential backoff: 1s → 5s max, 10 attempts.
+- Joins room: `branch:{selectedBranchId}` (or `ALL` → tenant room).
+
+### Usage in Components
+```typescript
+const { on, off, emit, isConnected } = useSocket();
+
+useEffect(() => {
+  const cleanup = on('order:new', handleNewOrder);
+  return cleanup;
+}, [on]);
+```
+
+### Events (match backend `SOCKET_EVENTS`)
+- `order:new`, `order:updated`, `order:item:status` — Quản lý đơn hàng live
+- `payment:completed` — Cashier auto-close
+- `table:status-changed` — Floor plan
+- `sold_out:updated` — Menu availability
+- `session:closed` — Table session end
+- `call_staff:request`, `review:new` — Guest requests
 
 ---
 
-## 6. Quy Tắc Hành Vi Của Agent
+## 5. Authentication Flow
 
-1. **Git Push:** TUYỆT ĐỐI KHÔNG tự ý `git push`. Chỉ commit local, chờ user xác nhận mới push.
-2. **Atomic Commits:** mỗi tính năng/fix là 1 commit riêng, Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
-3. **Bảo toàn mã nguồn:** không xóa tính năng/chú thích hiện có trừ khi user yêu cầu rõ.
-4. **Cổng:** Backend `5000`/`5001`, Web `3000`, Metro `8081` — không tự đổi.
-5. **Không commit** `.expo`, `node_modules`, `package-lock.json` thay đổi không cần thiết.
-6. **Code xong phải cập nhật Workflow (luật dùng chung — áp dụng mọi agent/thành viên):**
-   - Agent code/vibe xong tính năng nào → **trong cùng phiên làm việc**, trước khi báo xong, PHẢI tự cập nhật file workflow tương ứng, không đợi user nhắc:
-     - Thành viên A → `docs/A_Work_Flow.md` · B → `docs/B_Work_Flow.md` · C → `docs/C_Work_Flow.md`.
-   - Nội dung cập nhật: đổi trạng thái task/file liên quan (🟡 → 🟢 khi đạt "Định nghĩa hoàn thành", giữ 🟡 + ghi chú nếu mới xong một phần), ghi ngày hoàn thành + hash commit + file đã chạm.
-   - Task chưa có trong workflow → tự bổ sung vào đúng Giai đoạn/Phase tương ứng, không tự ý xóa task của người khác.
-   - Ví dụ: người C vibe xong QR Menu → agent cập nhật `docs/C_Work_Flow.md` (đánh dấu task QR Menu hoàn thành, file `app/table/[tableId]/page.tsx` → 🟢) rồi mới báo cáo.
+### Login
+1. `POST /api/auth/login` → `{ user, accessToken, refreshToken }`
+2. `auth.store.setAuth(user, accessToken)` → persists to localStorage.
+3. `SocketProvider` auto-reconnects with new token.
+
+### Token Refresh
+- `apiFetch` catches 401 → calls `/api/auth/refresh` (HttpOnly cookie) → retries original request.
+- If refresh fails → logout + redirect.
+
+### Logout
+- `POST /api/auth/logout` (revokes refresh token).
+- Clear localStorage + Zustand state.
+
+### Role-Based Access
+```typescript
+const { user } = useAuthStore();
+const isAdmin = user?.role === 'ADMIN' || user?.role === 'PLATFORM_ADMIN';
+const isCashier = user?.role === 'CASHIER';
+// Render conditionally or redirect
+```
 
 ---
 
-## 7. Checklist Khi Thêm Tính Năng Mới
+## 6. Branch & Tenant Context
 
-- [ ] Type mới → `src/types/index.ts`; màu/radii/shadow mới → `src/theme/index.ts` (không hardcode).
-- [ ] Màn hình thao tác mobile → thêm `OperationSubView` + branch trong `OperationsScreen.tsx`.
-- [ ] State toàn cục → mở rộng `useMenuStore` hoặc store mới `src/data/*.ts`.
-- [ ] Query DB nào cũng có `tenantId` (+ `branchId` nếu cấp chi nhánh).
-- [ ] Dùng `theme.colors.*`, `lucide-react-native`, `StyleSheet.create`, Safe Area insets.
-- [ ] Test iOS notch 44pt + Android status bar — kiểm tra dock không bị Home Indicator che; `BottomNav` ẩn đúng ở sub-view (`App.tsx`).
+### Branch Selection
+- `branch.store.selectedBranchId`: `'ALL'` (default) or branch UUID.
+- Persisted in `localStorage.selected-branch-id`.
+- Header `x-branch-id` sent with **every** API request.
+- Socket room: `branch:{selectedBranchId}` (or `tenant:{tenantId}` if `ALL`).
+
+### Changing Branch
+```typescript
+const { setBranchId } = useBranchStore();
+setBranchId(branchId); // Triggers Socket reconnect + API refetch
+```
+
+---
+
+## 7. Styling (TailwindCSS 4)
+
+### Theme
+- Dark mode default: `bg-zinc-950` / `text-zinc-50`.
+- Primary: `#00A389` (teal), configured in `globals.css` / Tailwind config.
+- **No** arbitrary hex colors — use Tailwind classes or CSS variables.
+
+### Patterns
+```tsx
+// Layout
+<div className="flex h-screen bg-zinc-950">
+  <aside className="w-64 bg-zinc-900 border-r border-zinc-800" />
+  <main className="flex-1 overflow-auto p-6" />
+</div>
+
+// Card
+<div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6" />
+
+// Button Primary
+<button className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg font-medium transition" />
+
+// Input
+<input className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white placeholder-zinc-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+```
+
+### Responsive
+- Mobile-first: base classes + `md:`, `lg:`, `xl:` prefixes.
+- Sidebar: collapsed on `< lg` (hamburger menu in Header).
+
+---
+
+## 8. i18n (Internationalization)
+
+### Usage
+```tsx
+import { useI18n } from '@/context/i18nContext';
+
+const { t } = useI18n();
+return <span>{t('common.save')}</span>;
+```
+
+### Rules
+- Keys: `feature.action` (e.g., `menu.create`, `order.payment.success`).
+- JSON files: `lib/i18n/locales/{vi,en}.json`.
+- Check coverage: `npm run check:i18n`.
+- **No** hardcoded Vietnamese strings in components.
+
+---
+
+## 9. QR Menu (Public Pages)
+
+### Route: `/table/[tableId]`
+- No auth required.
+- `SocketProvider config={{ tableId }}` → joins `table:{tableId}` room.
+- Guest role: read-only menu, create session/order, call staff, submit review.
+
+---
+
+## 10. Common Patterns
+
+### Data Fetching (Client Components)
+```tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { fetchBranches } from '@/lib/api/branches.api';
+
+export function BranchSelector() {
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchBranches().then(data => { setBranches(data); setLoading(false); });
+  }, []);
+
+  if (loading) return <Skeleton />;
+  return <select>{branches.map(b => <option key={b.id}>{b.name}</option>)}</select>;
+}
+```
+
+### Server Components (Default)
+- Use `async` components + `fetch` (or Prisma directly if needed) for SEO/initial load.
+- No `use client` unless interactivity needed.
+
+### Form Handling
+- `react-hook-form` + Zod resolver (when forms complex).
+- Simple forms: controlled inputs + `onSubmit` handler.
+
+---
+
+## 11. Environment Variables
+
+`.env.local`:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NEXT_PUBLIC_SOCKET_URL=http://localhost:5000
+PORT=3000
+```
+
+### Multi-Device (LAN)
+- Backend host IP: `192.168.x.x`
+- Client `.env.local`:
+```env
+NEXT_PUBLIC_API_URL=http://192.168.x.x:5000/api
+NEXT_PUBLIC_SOCKET_URL=http://192.168.x.x:5000
+```
+
+---
+
+## 12. Quality & Build
+
+```bash
+npm run dev          # Dev server (Turbopack)
+npm run build        # Production build (checks types)
+npm run lint         # ESLint
+npm run check:i18n   # i18n key coverage
+```
+
+### Pre-commit Checks
+- `npm run build` passes (no TypeScript errors).
+- `npm run lint` passes.
+- No `console.log` in production (use `logger` or remove).
+- No `any` — proper types from `lib/api/types.ts`.
+
+---
+
+## 13. Forbidden Patterns
+
+| ❌ Forbidden | ✅ Use Instead |
+|-------------|----------------|
+| `localStorage.setItem('token', ...)` | `auth.store.setAuth()` |
+| `fetch('/api/...')` raw | `apiFetch()` or typed `*.api.ts` |
+| `io('http://localhost:5000')` raw | `useSocket()` from `SocketContext` |
+| Hardcoded colors (`#FF5733`) | Tailwind classes / CSS variables |
+| Hardcoded strings (`"Lưu"`) | `t('common.save')` |
+| New Zustand store for feature | Existing stores (`auth`, `branch`, `cart`) |
+| React Navigation / Expo Router | Next.js App Router (file-based) |
+
+---
+
+## 14. Debugging Tips
+
+- **Socket not connecting**: Check `NEXT_PUBLIC_SOCKET_URL`, backend logs `⚡ [Socket.IO] Client connected`.
+- **Branch filter not working**: DevTools → Application → LocalStorage → `selected-branch-id`.
+- **401 after login**: Check `auth.store` token, cookie `refreshToken` in DevTools.
+- **Build fails `@/*` import**: Restart dev server, check `tsconfig.json` paths.
+- **Styles not applying**: Tailwind content paths in `postcss.config.mjs` / `next.config.ts`.

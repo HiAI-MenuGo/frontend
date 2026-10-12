@@ -132,7 +132,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="nhap@email.com"
+                placeholder="email"
                 className="w-full h-11 pl-10 pr-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-[13px] font-medium focus:outline-hidden focus:border-[#00A389] focus:bg-white transition-colors"
               />
             </div>
@@ -149,7 +149,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••"
+                placeholder="password"
                 className="w-full h-11 pl-10 pr-10 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl text-[13px] font-medium focus:outline-hidden focus:border-[#00A389] focus:bg-white transition-colors"
               />
               <button
