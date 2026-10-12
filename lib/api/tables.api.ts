@@ -36,7 +36,7 @@ export async function createTable(data: {
 
 export async function updateTable(
   tableId: string,
-  data: { branchId?: string; name?: string; capacity?: number }
+  data: { name?: string; capacity?: number }
 ): Promise<UiTable> {
   const res = await apiFetch<TableDTO>(`/tables/${encodeURIComponent(tableId)}`, {
     method: 'PATCH',

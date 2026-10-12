@@ -493,7 +493,7 @@ export default function ManageDishesView() {
               }`}
             >
               <Flame size={13} className={statusFilter === 'POPULAR' ? 'text-white' : 'text-amber-500'} />
-              <span>Bán chạy ({stats.popular})</span>
+              <span>Nổi bật ({stats.popular})</span>
             </button>
           </div>
 
@@ -594,7 +594,7 @@ export default function ManageDishesView() {
                           {dish.isPopular && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/60 text-[9.5px] font-black shrink-0">
                               <Flame size={10} className="fill-amber-400 text-amber-500" />
-                              <span>Bán chạy</span>
+                              <span>Nổi bật</span>
                             </span>
                           )}
                         </div>
@@ -715,7 +715,7 @@ export default function ManageDishesView() {
                     {dish.isPopular && (
                       <div className="absolute top-2.5 left-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white flex items-center gap-1 px-2 py-0.5 rounded-lg z-10 shadow-xs">
                         <Flame size={11} className="fill-white" />
-                        <span className="text-[10px] font-black tracking-wide uppercase">Bán chạy</span>
+                        <span className="text-[10px] font-black tracking-wide uppercase">Nổi bật</span>
                       </div>
                     )}
 

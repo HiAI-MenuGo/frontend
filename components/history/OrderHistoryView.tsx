@@ -26,7 +26,8 @@ import { useSocket } from '@/context/SocketContext';
 import { BillPrintModal } from '@/components/payment/BillPrintModal';
 import { useBranchStore } from '@/stores/branch.store';
 import { useHeaderStore } from '@/stores/header.store';
-import { displayToApiDate, apiToDisplayDate, getDefaultReportRange } from '@/lib/date';
+import { displayToApiDate, apiToDisplayDate, formatDisplayDate } from '@/lib/date';
+import DateFilterPicker, { DateFilterRange } from '@/components/common/DateFilterPicker';
 
 export interface HistoryOrderItem {
   id: string;
@@ -59,9 +60,9 @@ export default function OrderHistoryView() {
   const [methodFilter, setMethodFilter] = useState<'ALL' | 'CASH' | 'VIETQR'>('ALL');
 
   // Khoảng ngày lọc & xuất Excel
-  const defaultRange = getDefaultReportRange();
-  const [startDate, setStartDate] = useState<string>(defaultRange.startDate); // DD-MM-YYYY
-  const [endDate, setEndDate] = useState<string>(defaultRange.endDate);       // DD-MM-YYYY
+  const todayDisplay = useMemo(() => formatDisplayDate(new Date()), []);
+  const [startDate, setStartDate] = useState<string>(todayDisplay); // DD-MM-YYYY
+  const [endDate, setEndDate] = useState<string>(todayDisplay);       // DD-MM-YYYY
   const [exporting, setExporting] = useState(false);
 
   // Modal Chi Tiết Hoá Đơn
@@ -173,7 +174,7 @@ export default function OrderHistoryView() {
         ) : (
           <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
         )}
-        <span>{exporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
+        <span className="hidden sm:inline">{exporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
       </button>
     );
     return () => setCustomAction(null);
@@ -392,38 +393,17 @@ export default function OrderHistoryView() {
               <option value="VIETQR">VietQR</option>
             </select>
 
-            {/* Lọc khoảng ngày trực tiếp */}
-            <div className="flex items-center gap-1.5 bg-white px-2.5 h-9 rounded-xl border border-[#E2E8F0] text-[12px] font-medium text-[#0F172A]">
-              <Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
-              <input
-                type="date"
-                value={displayToApiDate(startDate)}
-                onChange={(e) => setStartDate(e.target.value ? apiToDisplayDate(e.target.value) : '')}
-                className="bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
-                title="Từ ngày"
-              />
-              <span className="text-[#94A3B8]">➔</span>
-              <input
-                type="date"
-                value={displayToApiDate(endDate)}
-                onChange={(e) => setEndDate(e.target.value ? apiToDisplayDate(e.target.value) : '')}
-                className="bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
-                title="Đến ngày"
-              />
-              {(startDate || endDate) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStartDate('');
-                    setEndDate('');
-                  }}
-                  className="p-0.5 ml-0.5 text-[#94A3B8] hover:text-[#EF4444] rounded transition-colors"
-                  title="Đặt lại khoảng ngày"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
+            {/* Lọc Ngày / Tháng / Năm chuẩn Mobile */}
+            <DateFilterPicker
+              startDate={startDate}
+              endDate={endDate}
+              allowAll={true}
+              buttonClassName="bg-white border-[#E2E8F0] h-9 rounded-xl text-[12px]"
+              onChange={(range: DateFilterRange) => {
+                setStartDate(range.startDate);
+                setEndDate(range.endDate);
+              }}
+            />
 
             </div>
           </div>
