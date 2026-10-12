@@ -915,8 +915,8 @@ export default function TableMenuClient({
           className={`fixed z-40 w-13 h-13 rounded-full bg-white hover:bg-slate-50 border-2 border-[#00A389] text-[#00A389] shadow-xl flex items-center justify-center active:scale-95 transition-all duration-300 ease-in-out right-4 ${
             totalCartCount > 0 ? 'bottom-22' : 'bottom-6'
           }`}
-          title="Lịch sử các món đã gọi"
-          aria-label="Lịch sử món đã gọi"
+          title="Lịch sử"
+          aria-label="Lịch sử"
         >
           <History size={23} strokeWidth={2.4} />
           {historyItemsCount > 0 && (

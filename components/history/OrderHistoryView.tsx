@@ -25,6 +25,7 @@ import type { LiveOrderDTO } from '@/lib/api/types';
 import { useSocket } from '@/context/SocketContext';
 import { BillPrintModal } from '@/components/payment/BillPrintModal';
 import { useBranchStore } from '@/stores/branch.store';
+import { useHeaderStore } from '@/stores/header.store';
 import { displayToApiDate, apiToDisplayDate, getDefaultReportRange } from '@/lib/date';
 
 export interface HistoryOrderItem {
@@ -85,6 +86,7 @@ export default function OrderHistoryView() {
   }, []);
 
   const selectedBranchId = useBranchStore((s) => s.selectedBranchId);
+  const setCustomAction = useHeaderStore((s) => s.setCustomAction);
 
   // Tải dữ liệu lịch sử đơn từ API CSDL thật
   const loadHistory = useCallback(async (silent = false) => {
@@ -132,7 +134,7 @@ export default function OrderHistoryView() {
     }
   }, [searchQuery, startDate, endDate, selectedBranchId]);
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = useCallback(async () => {
     if (exporting) return;
     setExporting(true);
     try {
@@ -150,7 +152,32 @@ export default function OrderHistoryView() {
     } finally {
       setExporting(false);
     }
-  };
+  }, [exporting, selectedBranchId, startDate, endDate, searchQuery, statusFilter, showToast]);
+
+  // Đưa nút xuất Excel lên Topbar
+  useEffect(() => {
+    setCustomAction(
+      <button
+        type="button"
+        onClick={handleExportExcel}
+        disabled={exporting || loading}
+        className={`h-9 lg:h-10 px-3.5 lg:px-4 rounded-2xl font-bold text-xs flex items-center gap-2 transition-all shadow-xs shrink-0 cursor-pointer whitespace-nowrap ${
+          exporting || loading
+            ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+            : 'bg-[#00A389] hover:bg-[#008f77] text-white hover:shadow-md hover:shadow-emerald-500/20 active:scale-98'
+        }`}
+        title="Tải báo cáo danh sách đơn hàng file Excel (.xlsx)"
+      >
+        {exporting ? (
+          <RefreshCw className="w-3.5 h-3.5 animate-spin text-white shrink-0" />
+        ) : (
+          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
+        )}
+        <span>{exporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
+      </button>
+    );
+    return () => setCustomAction(null);
+  }, [setCustomAction, handleExportExcel, exporting, loading]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -397,25 +424,6 @@ export default function OrderHistoryView() {
                 </button>
               )}
             </div>
-
-            {/* NÚT TẢI BÁO CÁO EXCEL DANH SÁCH ĐƠN HÀNG */}
-            <button
-              onClick={handleExportExcel}
-              disabled={exporting || loading}
-              className={`h-9 px-3.5 rounded-xl text-[12px] font-bold flex items-center gap-1.5 transition-all shadow-2xs ${
-                exporting || loading
-                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-[#00A389] hover:bg-[#008f77] text-white hover:shadow-xs active:scale-98'
-              }`}
-              title="Tải báo cáo danh sách đơn hàng file Excel (.xlsx) theo khoảng ngày"
-            >
-              {exporting ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-100" />
-              )}
-              <span>{exporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
-            </button>
 
             </div>
           </div>

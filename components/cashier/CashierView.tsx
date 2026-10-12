@@ -22,8 +22,8 @@ import { formatVND } from '@/lib/format';
 import { fetchPendingPayments, payCash, createVietQR, type VietQRResult } from '@/lib/api/sessions.api';
 import type { PendingSessionDTO } from '@/lib/api/types';
 import { BillPrintModal } from '@/components/payment/BillPrintModal';
-import { useHeaderStore } from '@/stores/header.store';
 import { useBranchStore } from '@/stores/branch.store';
+import { useHeaderStore } from '@/stores/header.store';
 import { useSocket } from '@/context/SocketContext';
 import { formatDisplayDateTime } from '@/lib/date';
 
@@ -48,90 +48,7 @@ export interface PendingBill {
   }>;
 }
 
-interface CashierTopBarActionsProps {
-  searchQuery: string;
-  setSearchQuery: (val: string) => void;
-  filterType: 'ALL' | 'LONG_WAIT';
-  setFilterType: (val: 'ALL' | 'LONG_WAIT') => void;
-  soundEnabled: boolean;
-  setSoundEnabled: React.Dispatch<React.SetStateAction<boolean>>;
-  totalCount: number;
-  urgentCount: number;
-}
 
-function CashierTopBarActions({
-  searchQuery,
-  setSearchQuery,
-  filterType,
-  setFilterType,
-  soundEnabled,
-  setSoundEnabled,
-  totalCount,
-  urgentCount,
-}: CashierTopBarActionsProps) {
-  return (
-    <div className="flex items-center gap-2 sm:gap-2.5">
-      {/* Search Input */}
-      <div className="relative w-36 sm:w-52 md:w-64">
-        <Search className="w-4 h-4 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="tìm kiếm..."
-          className="w-full h-10 pl-9 pr-7 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-[12.5px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-hidden focus:border-[#00A389] focus:bg-white transition-all font-medium"
-        />
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery('')}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#0F172A]"
-            aria-label="Xoá tìm kiếm"
-          >
-            <X size={13} />
-          </button>
-        )}
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-1.5">
-        <button
-          onClick={() => setFilterType('ALL')}
-          className={`h-10 px-3 sm:px-3.5 rounded-2xl text-[12px] font-bold transition-all whitespace-nowrap ${
-            filterType === 'ALL'
-              ? 'bg-[#7C3AED] text-white shadow-xs shadow-purple-600/20'
-              : 'bg-white border border-[#E2E8F0] text-[#64748B] hover:text-[#0F172A]'
-          }`}
-        >
-          Tất cả ({totalCount})
-        </button>
-        <button
-          onClick={() => setFilterType('LONG_WAIT')}
-          className={`h-10 px-3 sm:px-3.5 rounded-2xl text-[12px] font-bold transition-all whitespace-nowrap ${
-            filterType === 'LONG_WAIT'
-              ? 'bg-amber-500 text-white shadow-xs shadow-amber-500/20'
-              : 'bg-white border border-[#E2E8F0] text-[#64748B] hover:text-[#0F172A]'
-          }`}
-        >
-          Chờ lâu (&gt;20p){urgentCount > 0 ? ` (${urgentCount})` : ''}
-        </button>
-      </div>
-
-      {/* Sound Bell Toggle */}
-      <button
-        onClick={() => setSoundEnabled((prev) => !prev)}
-        className={`h-10 px-3 rounded-2xl border flex items-center gap-1.5 text-[12px] font-bold transition-all shrink-0 ${
-          soundEnabled
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-            : 'bg-white border-[#E2E8F0] text-[#94A3B8] hover:text-[#0F172A]'
-        }`}
-        title={soundEnabled ? 'Tắt âm thanh chuông báo' : 'Bật âm thanh chuông báo'}
-      >
-        {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-        <span className="hidden md:inline">{soundEnabled ? 'Chuông: Bật' : 'Chuông: Tắt'}</span>
-      </button>
-    </div>
-  );
-}
 
 export default function CashierView() {
   const [bills, setBills] = useState<PendingBill[]>([]);
@@ -151,6 +68,27 @@ export default function CashierView() {
 
   // Âm thanh thông báo
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const setCustomAction = useHeaderStore((s) => s.setCustomAction);
+
+  // Đưa nút bật/tắt âm thanh chuông báo lên Topbar
+  useEffect(() => {
+    setCustomAction(
+      <button
+        type="button"
+        onClick={() => setSoundEnabled((prev) => !prev)}
+        className={`h-9 lg:h-10 px-3.5 lg:px-4 rounded-2xl border flex items-center gap-1.5 text-xs font-bold transition-all shrink-0 cursor-pointer shadow-2xs whitespace-nowrap ${
+          soundEnabled
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:shadow-xs'
+            : 'bg-white border-[#E2E8F0] text-[#94A3B8] hover:text-[#0F172A] hover:border-slate-300'
+        }`}
+        title={soundEnabled ? 'Tắt âm thanh chuông báo' : 'Bật âm thanh chuông báo'}
+      >
+        {soundEnabled ? <Volume2 size={16} className="text-emerald-600" /> : <VolumeX size={16} className="text-slate-400" />}
+        <span>{soundEnabled ? 'Chuông: Bật' : 'Chuông: Tắt'}</span>
+      </button>
+    );
+    return () => setCustomAction(null);
+  }, [setCustomAction, soundEnabled]);
 
   // Toast thông báo
   const [toast, setToast] = useState<{ type: 'success' | 'info' | 'error'; text: string; details?: string } | null>(null);
@@ -467,24 +405,7 @@ export default function CashierView() {
 
   const totalPendingAmount = useMemo(() => bills.reduce((sum, b) => sum + b.total, 0), [bills]);
 
-  // Đưa thanh tìm kiếm, bộ lọc và nút chuông lên Topbar
-  const setCustomAction = useHeaderStore((s) => s.setCustomAction);
 
-  useEffect(() => {
-    setCustomAction(
-      <CashierTopBarActions
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        filterType={filterType}
-        setFilterType={setFilterType}
-        soundEnabled={soundEnabled}
-        setSoundEnabled={setSoundEnabled}
-        totalCount={bills.length}
-        urgentCount={urgentCount}
-      />
-    );
-    return () => setCustomAction(null);
-  }, [setCustomAction, searchQuery, filterType, soundEnabled, bills.length, urgentCount]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -528,8 +449,8 @@ export default function CashierView() {
         </div>
       )}
 
-      {/* Thanh Thống Kê 3 Thẻ Metric (3 Divs) */}
-      <div className="bg-white border-b border-[#E2E8F0] px-6 py-4 shrink-0 shadow-2xs">
+      {/* Thanh Thống Kê 3 Thẻ Metric & Toolbar Tìm kiếm, Bộ lọc */}
+      <div className="bg-white border-b border-[#E2E8F0] px-6 py-4 shrink-0 shadow-2xs space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4 w-full items-stretch min-w-0">
           {/* Div 1: Tổng tiền chờ thu */}
           <div className="bg-purple-50/80 border border-purple-200/80 rounded-2xl p-4 flex items-center justify-between transition-all hover:shadow-xs">
@@ -569,6 +490,53 @@ export default function CashierView() {
             <div className="w-11 h-11 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
               <TrendingUp size={22} />
             </div>
+          </div>
+        </div>
+
+        {/* Toolbar: Tìm kiếm, 2 bộ lọc Tất cả / Chờ lâu, và Bật/Tắt chuông */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-[#F1F5F9]">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="tìm kiếm theo tên bàn, mã hoá đơn..."
+              className="w-full h-10 pl-10 pr-8 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-[13px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-hidden focus:border-[#00A389] focus:bg-white transition-all font-medium"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#0F172A] cursor-pointer"
+                aria-label="Xoá tìm kiếm"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Filter Tabs */}
+            <button
+              onClick={() => setFilterType('ALL')}
+              className={`h-10 px-4 rounded-2xl text-[12.5px] font-bold transition-all whitespace-nowrap cursor-pointer ${
+                filterType === 'ALL'
+                  ? 'bg-[#7C3AED] text-white shadow-xs shadow-purple-600/20'
+                  : 'bg-white border border-[#E2E8F0] text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]'
+              }`}
+            >
+              Tất cả ({bills.length})
+            </button>
+            <button
+              onClick={() => setFilterType('LONG_WAIT')}
+              className={`h-10 px-4 rounded-2xl text-[12.5px] font-bold transition-all whitespace-nowrap cursor-pointer ${
+                filterType === 'LONG_WAIT'
+                  ? 'bg-amber-500 text-white shadow-xs shadow-amber-500/20'
+                  : 'bg-white border border-[#E2E8F0] text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]'
+              }`}
+            >
+              Chờ lâu (&gt;20p){urgentCount > 0 ? ` (${urgentCount})` : ''}
+            </button>
           </div>
         </div>
       </div>

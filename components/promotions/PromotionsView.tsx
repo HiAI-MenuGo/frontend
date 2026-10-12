@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Sparkles,
   Copy,
   Check,
   Calendar,
@@ -145,14 +144,6 @@ export default function PromotionsView() {
     setCopiedCode(code);
     showToast(`Đã sao chép mã ${code} vào bộ nhớ tạm!`, 'success');
     setTimeout(() => setCopiedCode(null), 2000);
-  };
-
-  // Tạo mã ngẫu nhiên gợi ý
-  const generateRandomCode = () => {
-    const prefixes = ['SALE', 'HIAI', 'DISCOUNT', 'VIP', 'CHAO', 'HE', 'COMBO'];
-    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-    const randomNum = Math.floor(10 + Math.random() * 90);
-    setForm((prev) => ({ ...prev, code: `${prefix}${randomNum}` }));
   };
 
   // Mở modal chỉnh sửa
@@ -858,20 +849,10 @@ export default function PromotionsView() {
 
             {/* Modal Form */}
             <form onSubmit={handleSubmitForm} className="p-6 space-y-5">
-              {/* Mã Voucher & Nút sinh mã ngẫu nhiên */}
+              {/* Mã Voucher */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-                  <span>MÃ KHUYẾN MÃI (CODE) <span className="text-rose-500">*</span></span>
-                  {!editingVoucher && (
-                    <button
-                      type="button"
-                      onClick={generateRandomCode}
-                      className="text-xs text-emerald-600 hover:text-emerald-700 font-medium inline-flex items-center gap-1 hover:underline"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Gợi ý mã ngẫu nhiên
-                    </button>
-                  )}
+                <label className="text-xs font-semibold text-slate-700 block">
+                  MÃ KHUYẾN MÃI (CODE) <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"

@@ -19,6 +19,7 @@ import {
   Trash2,
   BellRing,
   Star,
+  RefreshCw,
 } from 'lucide-react';
 import CustomerRequestsView from '@/components/requests/CustomerRequestsView';
 import { fetchCustomerCalls } from '@/lib/api/customerRequests.api';
@@ -71,80 +72,14 @@ const defaultTiers: TierItem[] = [
   { id: 'tier-bronze', name: 'Đồng', label: 'Đồng', minPoints: 0, discountRate: 0, color: '#B45309' },
 ];
 
-const initialCustomers: Customer[] = [
-  {
-    id: 'KH-001',
-    phone: '0912345678',
-    tier: 'Kim Cương',
-    totalSpend: 12450000,
-    ordersCount: 38,
-    points: 1245,
-    lastVisit: 'Hôm nay, 12:30',
-  },
-  {
-    id: 'KH-002',
-    phone: '0987654321',
-    tier: 'Vàng',
-    totalSpend: 7800000,
-    ordersCount: 21,
-    points: 780,
-    lastVisit: 'Hôm nay, 11:15',
-  },
-  {
-    id: 'KH-003',
-    phone: '0905112233',
-    tier: 'Vàng',
-    totalSpend: 6200000,
-    ordersCount: 17,
-    points: 620,
-    lastVisit: 'Hôm qua, 19:40',
-  },
-  {
-    id: 'KH-004',
-    phone: '0938123456',
-    tier: 'Bạc',
-    totalSpend: 3400000,
-    ordersCount: 9,
-    points: 340,
-    lastVisit: '07/10/2026, 18:20',
-  },
-  {
-    id: 'KH-005',
-    phone: '0888563554',
-    tier: 'Bạc',
-    totalSpend: 2950000,
-    ordersCount: 8,
-    points: 295,
-    lastVisit: '05/10/2026, 20:15',
-  },
-  {
-    id: 'KH-006',
-    phone: '0779881202',
-    tier: 'Đồng',
-    totalSpend: 1100000,
-    ordersCount: 3,
-    points: 110,
-    lastVisit: '02/10/2026, 12:45',
-  },
-  {
-    id: 'KH-007',
-    phone: '0909876543',
-    tier: 'Kim Cương',
-    totalSpend: 15600000,
-    ordersCount: 42,
-    points: 1560,
-    lastVisit: '28/09/2026, 19:00',
-  },
-  {
-    id: 'KH-008',
-    phone: '0945678901',
-    tier: 'Vàng',
-    totalSpend: 8900000,
-    ordersCount: 24,
-    points: 890,
-    lastVisit: '25/09/2026, 20:30',
-  },
-];
+export function formatPhoneDisplay(phone?: string | null): string {
+  if (!phone) return '';
+  const digits = phone.trim().replace(/^\+84\s*/, '0').replace(/^84\s*/, '0').replace(/\s+/g, '').replace(/\D/g, '');
+  if (digits.length === 10) {
+    return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+  }
+  return digits || phone;
+}
 
 const TIER_COLOR_PRESETS = [
   { name: 'Kim Cương', hex: '#4F46E5' },
@@ -161,7 +96,8 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
   const [activeTab, setActiveTab] = useState<CustomersTabType>(initialTab);
   const [pendingCallsCount, setPendingCallsCount] = useState(0);
 
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [tierList, setTierList] = useState<TierItem[]>(defaultTiers);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTier, setSelectedTier] = useState<string>('All');
@@ -224,14 +160,15 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
   const [remoteMessage, setRemoteMessage] = useState<string | null>(null);
 
   const loadCustomersData = React.useCallback(async () => {
+    setLoadingCustomers(true);
     try {
       const list = await fetchCustomersList();
-      if (Array.isArray(list) && list.length > 0) {
+      if (Array.isArray(list)) {
         setCustomers(
           list.map((c: any, idx: number) => ({
             id: c.id || `KH-${String(idx + 1).padStart(3, '0')}`,
-            code: `KH-${String(idx + 1).padStart(3, '0')}`,
-            phone: c.phone,
+            code: c.code || `KH-${String(idx + 1).padStart(3, '0')}`,
+            phone: formatPhoneDisplay(c.phone),
             tier: c.tier || 'Đồng',
             totalSpend: c.totalSpend ?? c.totalSpent ?? 0,
             ordersCount: c.ordersCount ?? 0,
@@ -242,6 +179,8 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
       }
     } catch (err) {
       console.warn('Could not load customers list from API:', err);
+    } finally {
+      setLoadingCustomers(false);
     }
   }, []);
 
@@ -821,7 +760,16 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F1F5F9]">
-              {filteredCustomers.length === 0 ? (
+              {loadingCustomers ? (
+                <tr>
+                  <td colSpan={7} className="py-14 text-center text-[#64748B]">
+                    <div className="flex flex-col items-center justify-center gap-2.5">
+                      <RefreshCw className="w-6 h-6 text-[#00A389] animate-spin" />
+                      <p className="font-bold text-[13px] text-slate-700">Đang tải danh sách khách hàng...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredCustomers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-[#94A3B8] space-y-2">
                     <p className="font-bold text-[14px]">Không tìm thấy số điện thoại phù hợp</p>

@@ -440,100 +440,14 @@ export default function ManageDishesView() {
             <p className="text-center text-xs text-slate-400 py-6">Không tìm thấy nhóm món</p>
           )}
         </div>
-
-        {/* Nút thêm món nhanh ở footer sidebar */}
-        <div className="p-3 border-t border-[#F1F5F9] bg-[#F8FAFC] shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowAdd(true)}
-            className="w-full py-2.5 px-3 rounded-xl border border-dashed border-[#00A389]/60 text-[#00A389] hover:bg-[#E6F7F4] text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-          >
-            <Plus size={14} strokeWidth={2.5} />
-            <span>Thêm món vào thực đơn</span>
-          </button>
-        </div>
       </div>
 
       {/* ======================================================== */}
-      {/* CỘT PHẢI: KHU VỰC CHÍNH (STATS + BỘ LỌC + DANH SÁCH MÓN) */}
+      {/* CỘT PHẢI: KHU VỰC CHÍNH (BỘ LỌC + DANH SÁCH MÓN)        */}
       {/* ======================================================== */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-7 space-y-5">
         {/* ======================================================== */}
-        {/* 1. THẺ THỐNG KÊ TỔNG QUAN THỰC ĐƠN (KPI SUMMARY)          */}
-        {/* ======================================================== */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 lg:gap-4 min-w-0">
-          {/* Card: Tổng số món */}
-          <div className="bg-white rounded-2xl p-4 border border-[#E2E8F0] shadow-2xs flex items-center justify-between">
-            <div>
-              <p className="text-[11.5px] font-bold text-[#64748B] uppercase tracking-wider">Tổng thực đơn</p>
-              <h4 className="text-[22px] font-black text-[#0F172A] mt-0.5">{stats.total}</h4>
-              <span className="text-[11px] text-[#94A3B8]">món trong thực đơn</span>
-            </div>
-            <div className="w-11 h-11 rounded-2xl bg-slate-50 border border-slate-100 text-slate-700 flex items-center justify-center">
-              <UtensilsCrossed size={20} />
-            </div>
-          </div>
-
-          {/* Card: Đang phục vụ */}
-          <div
-            onClick={() => setStatusFilter((p) => (p === 'ACTIVE' ? 'ALL' : 'ACTIVE'))}
-            className={`bg-white rounded-2xl p-4 border transition-all cursor-pointer shadow-2xs flex items-center justify-between ${
-              statusFilter === 'ACTIVE'
-                ? 'border-[#00A389] ring-2 ring-[#00A389]/20'
-                : 'border-[#E2E8F0] hover:border-slate-300'
-            }`}
-          >
-            <div>
-              <p className="text-[11.5px] font-bold text-[#00A389] uppercase tracking-wider">Đang phục vụ</p>
-              <h4 className="text-[22px] font-black text-[#0F172A] mt-0.5">{stats.active}</h4>
-              <span className="text-[11px] text-emerald-600 font-semibold">Sẵn sàng gọi món</span>
-            </div>
-            <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center">
-              <CheckCircle2 size={20} />
-            </div>
-          </div>
-
-          {/* Card: Tạm hết hàng */}
-          <div
-            onClick={() => setStatusFilter((p) => (p === 'SOLD_OUT' ? 'ALL' : 'SOLD_OUT'))}
-            className={`bg-white rounded-2xl p-4 border transition-all cursor-pointer shadow-2xs flex items-center justify-between ${
-              statusFilter === 'SOLD_OUT'
-                ? 'border-rose-500 ring-2 ring-rose-500/20'
-                : 'border-[#E2E8F0] hover:border-slate-300'
-            }`}
-          >
-            <div>
-              <p className="text-[11.5px] font-bold text-rose-600 uppercase tracking-wider">Tạm hết món</p>
-              <h4 className="text-[22px] font-black text-[#0F172A] mt-0.5">{stats.soldOut}</h4>
-              <span className="text-[11px] text-rose-500 font-semibold">Cần bổ sung kho</span>
-            </div>
-            <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center">
-              <Ban size={20} />
-            </div>
-          </div>
-
-          {/* Card: Món bán chạy */}
-          <div
-            onClick={() => setStatusFilter((p) => (p === 'POPULAR' ? 'ALL' : 'POPULAR'))}
-            className={`bg-white rounded-2xl p-4 border transition-all cursor-pointer shadow-2xs flex items-center justify-between ${
-              statusFilter === 'POPULAR'
-                ? 'border-amber-500 ring-2 ring-amber-500/20'
-                : 'border-[#E2E8F0] hover:border-slate-300'
-            }`}
-          >
-            <div>
-              <p className="text-[11.5px] font-bold text-amber-600 uppercase tracking-wider">Món bán chạy</p>
-              <h4 className="text-[22px] font-black text-[#0F172A] mt-0.5">{stats.popular}</h4>
-              <span className="text-[11px] text-amber-600 font-semibold">Món Hot yêu thích</span>
-            </div>
-            <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-100 text-amber-500 flex items-center justify-center">
-              <Flame size={20} />
-            </div>
-          </div>
-        </div>
-
-        {/* ======================================================== */}
-        {/* 2. THANH CÔNG CỤ: TABS LỌC TRẠNG THÁI & SẮP XẾP            */}
+        {/* THANH CÔNG CỤ: TABS LỌC TRẠNG THÁI & SẮP XẾP               */}
         {/* ======================================================== */}
         <div className="bg-white rounded-2xl p-3 border border-[#E2E8F0] shadow-2xs flex flex-wrap items-center justify-between gap-3">
           {/* Tabs lọc trạng thái */}
@@ -583,7 +497,7 @@ export default function ManageDishesView() {
             </button>
           </div>
 
-          {/* Sắp xếp & Làm mới */}
+          {/* Sắp xếp */}
           <div className="flex items-center gap-2 ml-auto">
             <div className="flex items-center gap-1.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-2.5 h-9 text-[12px]">
               <ArrowUpDown size={13} className="text-[#64748B]" />
@@ -598,16 +512,6 @@ export default function ManageDishesView() {
                 <option value="PRICE_DESC">Giá: Cao → Thấp</option>
               </select>
             </div>
-
-            <button
-              type="button"
-              onClick={() => load(true)}
-              disabled={refreshing}
-              className="h-9 w-9 rounded-xl border border-[#E2E8F0] bg-white text-slate-600 hover:text-[#00A389] hover:border-[#00A389] flex items-center justify-center transition-all cursor-pointer disabled:opacity-50"
-              title="Làm mới thực đơn"
-            >
-              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-            </button>
           </div>
         </div>
 
