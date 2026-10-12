@@ -1,61 +1,177 @@
-# HiAI-MenuGo — Agent Entry Point (AGENTS)
+# HiAI-MenuGo Frontend — Agent Entry Point
 
-> **File điều phối duy nhất cho AI Agent.** Đọc file này trước, sau đó đi tới file chuyên trách tương ứng. Không nhồi mọi chi tiết vào đây — chi tiết nằm ở 4 file còn lại.
+> **Repo này là `frontend/`** — Next.js 16 App Router + React 19 + TailwindCSS 4.  
+> Web Admin Dashboard, POS Đặt món, Quản lý đơn hàng và QR Menu dành cho ADMIN / MANAGER / CASHIER.
 
 ---
 
-## 1. Bản Đồ 5 Files (đọc theo thứ tự)
+## 1. Bản Đồ Files (đọc theo thứ tự)
 
-| # | File | Nội dung | Khi nào đọc |
+| # | File | Nội dung chính | Khi nào đọc |
 |---|---|---|---|
-| 1 | [BUSINESS.md](./BUSINESS.md) | Nghiệp vụ F&B: Multi-tenant, RBAC nghiệp vụ, lifecycle QR→KDS→POS→thanh toán, Menu/Modifiers, kho BOM, Loyalty/Voucher, Z-Report, Branding | Trước khi thiết kế tính năng, kiểm tra logic đúng nghiệp vụ |
-| 2 | [TECHS.md](./TECHS.md) | Stack chốt: Next.js 16, Express 5, React Native/Expo 57, Supabase/PostgreSQL, Prisma 6.4, **JWT thuần**, Socket.IO, ports, cấu trúc repo | Trước khi chọn lib, tạo project, viết API/schema/auth |
-| 3 | [RULES.md](./RULES.md) | Luật cấm: tenant isolation, ApiResponse/Zod, cart composite key, cấm React Navigation, critical UI rules, git policy, checklist | Trước khi viết/sửa bất kỳ code nào |
-| 4 | [SKILLS.md](./SKILLS.md) | Design System: màu F&B, typography, geometry 4 cấp, thumb zone, journey 5 chặng, component mẫu, theme tokens | Trước khi làm UI/component mới |
-| 5 | `AGENTS.md` (file này) | Index + trạng thái repo + feature map + workflow | Luôn đọc đầu tiên |
+| 1 | `AGENTS.md` (file này) | Index repo · cấu trúc thư mục · sơ đồ trang · workflow frontend | Luôn đọc đầu tiên |
+| 2 | [BUSINESS.md](./BUSINESS.md) | Nghiệp vụ F&B: lifecycle gọi món, RBAC, Dashboard KPIs, Z-Report, Loyalty | Trước khi xây tính năng liên quan nghiệp vụ |
+| 3 | [TECHS.md](./TECHS.md) | Stack: Next.js 16, TailwindCSS 4, Zustand 5, Socket.IO Client, Recharts, i18n | Trước khi chọn thư viện, tạo page/component mới |
+| 4 | [RULES.md](./RULES.md) | Luật bắt buộc: không localStorage token, Zustand stores, dark mode, icon rules | Trước khi viết/sửa bất kỳ code nào |
+| 5 | [SKILLS.md](./SKILLS.md) | Design System: màu sắc, typography, layout chuẩn, component mẫu, Tailwind patterns | Trước khi làm UI/component mới |
+| 6 | [SYSTEM.md](./SYSTEM.md) | System: auth flow, Socket.IO integration, i18n, multi-tenant routing | Khi làm tính năng auth, realtime hoặc routing phức tạp |
 
 ---
 
-## 2. Trạng Thái Repo Thực Tế (29/09/2026)
+## 2. Thông Tin Repo Này
 
-- Root hiện có: `mobile/` ✅ · `frontend/` ✅ · `backend/` ✅ · `docs/` · `.agents/` · `README.md`.
-- Dự án quản lý trên **3 repositories độc lập**:
-  - `backend.git` (A + B + C code chung): Express 5 + TypeScript 5.8 + Socket.IO + Prisma 6.
-  - `mobile.git` (A: iOS & Foundation + B: Android & Operations): Expo ~57 + RN 0.86.
-  - `frontend.git` (C: Web Platform): Next.js 16 (App Router) + React 19 + TailwindCSS.
-- **Quy chuẩn nhánh:** Mỗi repo có `main` (production), `dev` (tích hợp), thành viên tạo nhánh `feat/...` và mở Pull Request vào `dev`.
-- **Nguyên tắc dùng chung API:** Cả Mobile và Web đều kết nối vào **cùng 1 Backend API duy nhất** (port 5000/5001), dùng chung Socket.IO events, data schemas, JWT auth và các endpoint nghiệp vụ.
-- Cổng: Backend `5000`/`5001` · Web `3000` · Metro `8081` — không tự đổi.
-
+- **Repo:** `frontend.git` — Web platform (Admin, POS, Quản lý đơn, QR Menu)
+- **Framework:** Next.js 16 App Router · React 19 · TypeScript 5
+- **Port:** `3000` — **không tự đổi**
+- **Nhánh hiện tại:** `dev` → PR vào `dev`, merge `main` khi release
+- **API backend:** `NEXT_PUBLIC_API_URL` trong `.env.local` (mặc định `http://localhost:5000/api`)
+- **Auth:** JWT access token lưu trong Zustand (`auth.store.ts`) — **không localStorage**
 
 ---
 
-## 3. Feature Map Gọn
+## 3. Cấu Trúc Thư Mục Frontend
 
 ```
-HiAI-MenuGo/
-├── .agents/
-│   ├── AGENTS.md    # Index (file này)
-│   ├── BUSINESS.md  # Nghiệp vụ F&B & vận hành
-│   ├── TECHS.md     # Stack: Next.js, Express, RN, Supabase, Prisma, PG, JWT thuần
-│   ├── RULES.md     # Luật bắt buộc + checklist
-│   └── SKILLS.md    # Design System & component mẫu
-├── mobile/          # Expo 57 + RN 0.86 (đã có & verified)
-│   ├── App.tsx      # Root shell: SafeArea + Custom Tab routing + Cart state
-│   ├── index.ts     # Expo entry
-│   └── src/         # types · theme · data (mockData, menuStore) · components · screens
-├── frontend/        # Next.js 16 App Router (khung đã khởi tạo ✅)
-└── backend/         # Express 5 + TypeScript + Socket.IO (khung đã khởi tạo ✅)
+frontend/
+├── app/
+│   ├── layout.tsx                    # Root layout: fonts (Be Vietnam Pro, Geist Mono), metadata
+│   ├── page.tsx                      # Redirect → /login
+│   ├── globals.css                   # TailwindCSS 4 + global styles
+│   ├── favicon.ico
+│   ├── login/                        # Trang đăng nhập (public)
+│   ├── table/[tableId]/              # QR Menu khách hàng (public, không cần auth)
+│   ├── [tenantId]/                   # Layout theo tenant slug
+│   └── (main)/                       # Khu vực quản trị (yêu cầu auth)
+│       ├── layout.tsx                # Sidebar + Header + SocketContext provider
+│       ├── dashboard/                # Tổng quan doanh thu, stat cards, Recharts
+│       ├── menu/                     # CRUD thực đơn, modifier group, danh mục
+│       ├── orders/                   # POS Đặt món tại quầy (OrderLineView)
+│       ├── order-management/         # Quản lý đơn hàng live (OrderManagementView)
+│       ├── cashier/                  # POS thu ngân (tiền mặt + VietQR)
+│       ├── tables/                   # Sơ đồ bàn + sinh QR code bàn
+│       ├── inventory/                # Kho nguyên liệu + BOM
+│       ├── promotions/               # Voucher, khuyến mãi, loyalty tier
+│       ├── customers/                # Khách hàng thân thiết
+│       ├── staff/                    # Nhân viên + phân quyền RBAC
+│       ├── history/                  # Lịch sử giao dịch + xuất Z-Report
+│       ├── requests/                 # Yêu cầu từ bàn (gọi phục vụ, đánh giá)
+│       └── settings/                 # Branding, chi nhánh, cài đặt tenant
+├── components/
+│   ├── layout/                       # Sidebar, Header, Breadcrumb
+│   ├── dashboard/                    # StatCard, RevenueChart, TopItems
+│   ├── menu/                         # MenuItemCard, ModifierForm, CategoryList
+│   ├── orders/                       # POS OrderLineView, ItemOptionsModal
+│   ├── cashier/                      # POS CartPanel, PaymentModal, QRDisplay
+│   ├── tables/                       # FloorMap, TableCard, QRGenerator
+│   ├── inventory/                    # IngredientTable, StockAdjustForm
+│   ├── promotions/                   # VoucherForm, LoyaltyTierCard
+│   ├── customers/                    # CustomerSearch, LoyaltyBadge
+│   ├── staff/                        # StaffForm, RoleSelector
+│   ├── history/                      # OrderHistory, ZReportExport
+│   ├── requests/                     # RequestFeed, RatingCard
+│   ├── floor/                        # Floor map components
+│   ├── order-management/             # OrderFilter, OrderTable
+│   ├── payment/                      # PaymentFlow, VietQRModal
+│   └── settings/                     # BrandingForm, BranchForm
+├── context/
+│   ├── SocketContext.tsx             # Socket.IO provider: kết nối, join room, emit/listen
+│   └── i18nContext.tsx               # i18n provider + useI18n() hook
+├── stores/                           # Zustand stores
+│   ├── auth.store.ts                 # user, accessToken, login(), logout(), refresh()
+│   ├── cart.store.ts                 # Giỏ hàng POS (items, addItem, removeItem, clear)
+│   ├── branch.store.ts               # Chi nhánh đang chọn (branchId, branchName)
+│   ├── header.store.ts               # Tiêu đề trang động (setTitle)
+│   └── search.store.ts               # Tìm kiếm global (query, setQuery)
+├── lib/
+│   ├── api.ts                        # Axios instance với interceptor (auto attach token, refresh 401)
+│   └── utils.ts                      # Helper functions (cn, formatCurrency, formatDate...)
+├── scripts/
+│   └── check-i18n.mjs                # Kiểm tra i18n key coverage
+├── public/                           # Static assets (logo, images)
+├── .env.local / .env.example
+├── next.config.ts
+└── tsconfig.json
 ```
 
 ---
 
-## 4. Workflow Bắt Buộc Của Agent
+## 4. Sơ Đồ Trang & RBAC
 
-1. Đọc `AGENTS.md` (file này) → xác định task thuộc file nào → đọc file đó (+ file liên quan nếu cần).
-2. Mọi Prisma query phải có `tenantId` (RULES §1). Mọi response qua `ApiResponse`, body qua Zod (RULES §2).
-3. Auth chỉ JWT thuần (`jsonwebtoken`, access 15p + refresh 7d HttpOnly, rotation + reuse detection) — cấm Supabase Auth/NextAuth/Clerk (TECHS §6).
-4. Mobile: cấm React Navigation/Expo Router; cart dùng `cartItemId` composite; màu từ `theme` (RULES §3).
-5. **TUYỆT ĐỐI KHÔNG `git push`** khi chưa được user xác nhận. Commit atomic theo Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
-6. Sửa `schema.prisma` → `npx prisma format` + `npx prisma generate` trước khi test/build.
-7. Code xong tính năng nào → trong cùng phiên phải tự cập nhật `docs/A|B|C_Work_Flow.md` tương ứng (đổi trạng thái task, ghi ngày + commit) — chi tiết RULES §6 rule 6.
+| Route | Roles được phép | Mô tả |
+|---|---|---|
+| `/login` | Public | Đăng nhập |
+| `/table/[tableId]` | Public (khách hàng) | QR Menu tự gọi món |
+| `/(main)/dashboard` | ADMIN, MANAGER | Tổng quan KPIs, biểu đồ doanh thu |
+| `/(main)/menu` | ADMIN, MANAGER | Quản lý thực đơn, modifier, danh mục |
+| `/(main)/orders` | CASHIER, MANAGER | POS Đặt món tại quầy / tại bàn |
+| `/(main)/order-management` | ADMIN, MANAGER, CASHIER | Quản lý đơn hàng live (PENDING, CONFIRMED, DONE) |
+| `/(main)/cashier` | CASHIER | POS thanh toán tiền mặt / VietQR |
+| `/(main)/tables` | CASHIER, MANAGER | Sơ đồ bàn + QR code |
+| `/(main)/inventory` | MANAGER | Kho nguyên liệu, BOM, kiểm kê |
+| `/(main)/promotions` | ADMIN | Voucher, khuyến mãi, loyalty tier |
+| `/(main)/customers` | ADMIN, MANAGER | Khách hàng thân thiết |
+| `/(main)/staff` | ADMIN, MANAGER | Nhân viên và phân quyền |
+| `/(main)/history` | ADMIN, MANAGER | Lịch sử giao dịch, xuất Z-Report PDF/Excel |
+| `/(main)/requests` | CASHIER, MANAGER | Yêu cầu từ bàn (gọi phục vụ, đánh giá) |
+| `/(main)/settings` | ADMIN | Branding, chi nhánh, cài đặt hệ thống |
+
+---
+
+## 5. Pattern Chuẩn — API Call
+
+```typescript
+// lib/api.ts tự động:
+// - Attach header Authorization: Bearer <token> từ auth.store
+// - Intercept 401 → tự gọi POST /auth/refresh → retry request
+// - Nếu refresh fail → logout()
+
+import api from '@/lib/api';
+
+// Ví dụ trong component/page:
+const { data } = await api.get('/menu/items', { params: { branchId } });
+```
+
+---
+
+## 6. Pattern Chuẩn — Zustand Store
+
+```typescript
+// Đọc state:
+const { user, accessToken } = useAuthStore();
+const { branchId } = useBranchStore();
+
+// Không tạo thêm Context/Redux — dùng Zustand stores đã có
+// Nếu cần store mới: tạo file mới trong stores/ + export hook useXxxStore()
+```
+
+---
+
+## 7. Pattern Chuẩn — Socket.IO (Realtime)
+
+```typescript
+// Trong component cần realtime:
+const { socket } = useSocket(); // từ SocketContext
+
+useEffect(() => {
+  if (!socket) return;
+  socket.on('order:new', (order) => { /* cập nhật UI */ });
+  return () => { socket.off('order:new'); };
+}, [socket]);
+```
+
+SocketContext tự động:
+- Kết nối khi có `accessToken`
+- Join room `branch:{branchId}` sau khi connect
+- Disconnect khi logout
+
+---
+
+## 8. Workflow Bắt Buộc Của Agent
+
+1. Đọc file này → xác định task thuộc page/component nào → đọc SKILLS.md nếu làm UI.
+2. **Không dùng `localStorage`** để lưu token — chỉ Zustand `auth.store`.
+3. **API calls** luôn qua `lib/api.ts` — không `fetch()` trực tiếp.
+4. **Icons:** Chỉ dùng `lucide-react` — không import từ thư viện khác.
+5. **Styling:** TailwindCSS 4 — dark mode default `bg-zinc-950`. Không viết CSS thô ngoài `globals.css`.
+6. **TUYỆT ĐỐI KHÔNG `git push`** khi chưa có xác nhận của user.
+7. Commit theo Conventional Commits: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`.

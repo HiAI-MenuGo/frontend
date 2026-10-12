@@ -126,23 +126,23 @@ export default function DashboardView() {
   // Đưa toàn bộ bộ lọc khoảng ngày & nút xuất Excel lên Topbar
   useEffect(() => {
     setCustomAction(
-      <div className="flex items-center gap-2 max-w-full overflow-x-auto no-scrollbar py-0.5">
+      <div className="flex items-center gap-2 shrink-0 py-0.5">
         {/* Date Pickers (Từ ngày - Đến ngày) */}
-        <div className="flex items-center gap-1.5 bg-[#F8FAFC] px-2 lg:px-3 h-9 lg:h-10 rounded-2xl border border-[#E2E8F0] text-xs font-medium text-[#0F172A] shadow-2xs shrink-0">
+        <div className="flex items-center gap-1.5 bg-[#F8FAFC] px-2.5 h-9 lg:h-10 rounded-2xl border border-[#E2E8F0] text-xs font-medium text-[#0F172A] shadow-2xs shrink-0">
           <Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
           <input
             type="date"
             value={displayToApiDate(startDate)}
             onChange={(e) => setStartDate(e.target.value ? apiToDisplayDate(e.target.value) : '')}
-            className="bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
+            className="w-[102px] bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
             title="Từ ngày"
           />
-          <span className="text-[#94A3B8]">➔</span>
+          <span className="text-[#94A3B8] text-[11px]">➔</span>
           <input
             type="date"
             value={displayToApiDate(endDate)}
             onChange={(e) => setEndDate(e.target.value ? apiToDisplayDate(e.target.value) : '')}
-            className="bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
+            className="w-[102px] bg-transparent outline-none text-[#0F172A] font-semibold text-[11.5px] cursor-pointer"
             title="Đến ngày"
           />
           {(startDate || endDate) && (
@@ -164,7 +164,7 @@ export default function DashboardView() {
         <button
           onClick={handleExportExcel}
           disabled={exporting || loading}
-          className={`h-9 lg:h-10 px-3 lg:px-4 rounded-2xl font-bold text-xs flex items-center gap-2 transition-all shadow-xs shrink-0 cursor-pointer whitespace-nowrap ${
+          className={`h-9 lg:h-10 px-3.5 lg:px-4 rounded-2xl font-bold text-xs flex items-center gap-2 transition-all shadow-xs shrink-0 cursor-pointer whitespace-nowrap ${
             exporting || loading
               ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
               : 'bg-[#00A389] hover:bg-[#008f77] text-white hover:shadow-md hover:shadow-emerald-500/20 active:scale-98'
@@ -176,8 +176,7 @@ export default function DashboardView() {
           ) : (
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-100 shrink-0" />
           )}
-          <span className="hidden xl:inline">{exporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
-          <span className="xl:hidden">{exporting ? '...' : 'Xuất'}</span>
+          <span>{exporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
         </button>
       </div>
     );
