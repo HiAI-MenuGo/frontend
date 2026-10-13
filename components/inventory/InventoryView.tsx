@@ -34,7 +34,6 @@ export default function InventoryView() {
   // Tìm kiếm & Lọc
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'WARNING' | 'OK'>('ALL');
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   // Thông báo Toast
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
@@ -58,7 +57,6 @@ export default function InventoryView() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newForm, setNewForm] = useState({
     name: '',
-    category: 'Cà phê',
     quantity: '',
     unit: 'kg',
     lowStockThreshold: '',
@@ -142,15 +140,6 @@ export default function InventoryView() {
     };
   }, [isConnected, on, off, showToast]);
 
-  // Danh mục duy nhất
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    ingredients.forEach((i) => {
-      if (i.category) set.add(i.category);
-    });
-    return Array.from(set);
-  }, [ingredients]);
-
   // Thống kê
   const warningCount = useMemo(() => ingredients.filter((i) => i.quantity <= i.lowStockThreshold).length, [ingredients]);
   const safeCount = useMemo(() => ingredients.filter((i) => i.quantity > i.lowStockThreshold).length, [ingredients]);
@@ -161,18 +150,16 @@ export default function InventoryView() {
       const isWarning = item.quantity <= item.lowStockThreshold;
       if (statusFilter === 'WARNING' && !isWarning) return false;
       if (statusFilter === 'OK' && isWarning) return false;
-      if (selectedCategory !== 'ALL' && item.category !== selectedCategory) return false;
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchName = item.name.toLowerCase().includes(q);
-        const matchCat = item.category?.toLowerCase().includes(q);
         const matchUnit = item.unit.toLowerCase().includes(q);
-        if (!matchName && !matchCat && !matchUnit) return false;
+        if (!matchName && !matchUnit) return false;
       }
       return true;
     });
-  }, [ingredients, statusFilter, selectedCategory, searchQuery]);
+  }, [ingredients, statusFilter, searchQuery]);
 
   // Mở modal điều chỉnh
   const handleOpenAdjust = (item: IngredientDTO) => {
@@ -233,7 +220,6 @@ export default function InventoryView() {
       setAddLoading(true);
       const created = await createIngredient({
         name: newForm.name.trim(),
-        category: newForm.category.trim() || 'Khác',
         quantity: qty,
         unit: newForm.unit.trim(),
         lowStockThreshold: isNaN(threshold) ? 5 : threshold,
@@ -242,7 +228,7 @@ export default function InventoryView() {
       setIngredients((prev) => [created, ...prev]);
       showToast('success', `Đã thêm nguyên liệu "${created.name}" thành công!`);
       setIsAddModalOpen(false);
-      setNewForm({ name: '', category: 'Cà phê', quantity: '', unit: 'kg', lowStockThreshold: '' });
+      setNewForm({ name: '', quantity: '', unit: 'kg', lowStockThreshold: '' });
     } catch (err: unknown) {
       showToast('error', err instanceof Error ? err.message : 'Không thể tạo nguyên liệu');
     } finally {
@@ -392,24 +378,6 @@ export default function InventoryView() {
               An toàn ({safeCount})
             </button>
 
-            {/* Phân loại danh mục */}
-            {categories.length > 0 && (
-              <div className="relative">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="h-9 pl-3 pr-8 rounded-xl bg-white border border-[#E2E8F0] text-[12px] font-bold text-[#334155] focus:outline-hidden focus:border-[#00A389] appearance-none cursor-pointer"
-                >
-                  <option value="ALL">Tất cả danh mục</option>
-                  {categories.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="text-[#64748B] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -452,7 +420,6 @@ export default function InventoryView() {
                 <thead>
                   <tr className="border-b border-[#F1F5F9] bg-[#F8FAFC] text-[11px] font-extrabold uppercase tracking-wider text-[#64748B]">
                     <th className="py-3.5 px-5">Nguyên Vật Liệu</th>
-                    <th className="py-3.5 px-4">Danh Mục</th>
                     <th className="py-3.5 px-4">Tồn Kho Hiện Tại</th>
                     <th className="py-3.5 px-4">Mức Tối Thiểu</th>
                     <th className="py-3.5 px-4">Trạng Thái</th>
@@ -489,13 +456,6 @@ export default function InventoryView() {
                               </div>
                             </div>
                           </div>
-                        </td>
-
-                        {/* Danh mục */}
-                        <td className="py-4 px-4">
-                          <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F1F5F9] text-[#475569]">
-                            {item.category || 'Khác'}
-                          </span>
                         </td>
 
                         {/* Tồn kho hiện tại & thanh biểu đồ */}
@@ -601,13 +561,6 @@ export default function InventoryView() {
 
             {/* Grid thông tin chi tiết */}
             <div className="bg-[#F8FAFC] rounded-2xl p-4 border border-[#E2E8F0] space-y-3 mb-4 text-[13px]">
-              <div className="flex justify-between items-center pb-2.5 border-b border-[#E2E8F0]/70">
-                <span className="text-[#64748B] font-medium">Danh mục:</span>
-                <span className="font-bold px-2.5 py-0.5 rounded-lg bg-white border border-[#E2E8F0] text-[#0F172A]">
-                  {activeDetailItem.category || 'Khác'}
-                </span>
-              </div>
-
               <div className="flex justify-between items-center pb-2.5 border-b border-[#E2E8F0]/70">
                 <span className="text-[#64748B] font-medium">Tồn kho hiện tại:</span>
                 <span
@@ -893,13 +846,8 @@ export default function InventoryView() {
               <X size={18} />
             </button>
 
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                <Plus size={20} />
-              </div>
-              <div>
-                <h3 className="text-[17px] font-black text-[#0F172A]">Thêm Nguyên Vật Liệu Mới</h3>
-              </div>
+            <div className="mb-4">
+              <h3 className="text-[17px] font-black text-[#0F172A]">Thêm Nguyên Vật Liệu Mới</h3>
             </div>
 
             <form onSubmit={handleCreateIngredient} className="space-y-3.5">
@@ -916,38 +864,18 @@ export default function InventoryView() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[12px] font-extrabold text-[#334155] mb-1">Danh mục</label>
-                  <div className="relative">
-                    <select
-                      value={newForm.category}
-                      onChange={(e) => setNewForm({ ...newForm, category: e.target.value })}
-                      className="w-full h-11 pl-4 pr-10 rounded-2xl bg-[#F8FAFC] border border-[#CBD5E1] text-[13px] text-[#0F172A] font-bold focus:outline-hidden focus:border-[#00A389] focus:bg-white appearance-none cursor-pointer transition-all"
-                    >
-                      <option value="Cà phê">Cà phê</option>
-                      <option value="Trà khô">Trà khô</option>
-                      <option value="Sữa & Bơ">Sữa & Bơ</option>
-                      <option value="Topping">Topping</option>
-                      <option value="Gia vị & Đường">Gia vị & Đường</option>
-                      <option value="Khác">Khác</option>
-                    </select>
-                    <ChevronDown size={16} className="text-[#64748B] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[12px] font-extrabold text-[#334155] mb-1">
-                    Đơn vị tính <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newForm.unit}
-                    onChange={(e) => setNewForm({ ...newForm, unit: e.target.value })}
-                    className="w-full h-11 px-3.5 rounded-2xl bg-[#F8FAFC] border border-[#CBD5E1] text-[13px] text-[#0F172A] font-bold focus:outline-hidden focus:border-[#00A389] focus:bg-white"
-                  />
-                </div>
+              <div>
+                <label className="block text-[12px] font-extrabold text-[#334155] mb-1">
+                  Đơn vị tính <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: kg, lít, hộp, gói..."
+                  value={newForm.unit}
+                  onChange={(e) => setNewForm({ ...newForm, unit: e.target.value })}
+                  className="w-full h-11 px-3.5 rounded-2xl bg-[#F8FAFC] border border-[#CBD5E1] text-[13px] text-[#0F172A] font-bold focus:outline-hidden focus:border-[#00A389] focus:bg-white"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -990,7 +918,7 @@ export default function InventoryView() {
                   disabled={addLoading}
                   className="flex-2 h-11 rounded-2xl bg-[#00A389] hover:bg-[#008f77] text-white font-extrabold text-[13.5px] flex items-center justify-center gap-2 shadow-md shadow-[#00A389]/20"
                 >
-                  {addLoading ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
+                  {addLoading && <RefreshCw size={16} className="animate-spin" />}
                   <span>Tạo Nguyên Liệu</span>
                 </button>
               </div>

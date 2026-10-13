@@ -134,15 +134,11 @@ export default function TableQRModal({
               {restaurantName}
             </p>
             <h2 className="text-[22px] font-black text-[#0F172A] tracking-tight">
-              {table.tableName}
+              {table.tableName.replace(/\s*\([^)]*\)/g, '').trim()}
             </h2>
             <div className="flex items-center justify-center gap-2 text-[12px] font-semibold text-[#64748B]">
               <span className="inline-flex items-center gap-1">
                 <Users size={13} /> Sức chứa: {table.capacity} khách
-              </span>
-              <span>•</span>
-              <span className="text-[#00A389] font-bold">
-                {table.area === 'TERRACE' ? 'Sân thượng' : table.area === 'OUTDOOR' ? 'Ngoài trời' : 'Sảnh chính'}
               </span>
             </div>
           </div>

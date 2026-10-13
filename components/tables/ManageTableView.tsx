@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Users, X, Armchair, Clock, CheckCircle, QrCode, Building2, Layers, MapPin } from 'lucide-react';
+import { Plus, Users, X, Armchair, Clock, CheckCircle, Building2, Layers, MapPin } from 'lucide-react';
 import { fetchTables, updateTableStatus, toBackendStatus, createTable } from '@/lib/api/tables.api';
 import type { UiTable } from '@/lib/api/types';
 import { useHeaderStore } from '@/stores/header.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useBranchStore } from '@/stores/branch.store';
-import { formatVND } from '@/lib/format';
+import { useSocket } from '@/context/SocketContext';
 import TableQRModal from './TableQRModal';
 
 export default function ManageTableView() {
@@ -28,7 +28,6 @@ export default function ManageTableView() {
   const [tableForm, setTableForm] = useState({
     name: '',
     capacity: 4,
-    area: 'MAIN_DINING' as 'MAIN_DINING' | 'TERRACE' | 'OUTDOOR',
     branchId: '',
   });
   const [savingTable, setSavingTable] = useState(false);
@@ -54,6 +53,48 @@ export default function ManageTableView() {
   useEffect(() => {
     void load();
   }, [selectedBranchId]);
+
+  const { on, off, isConnected } = useSocket();
+
+  // Đồng bộ realtime trạng thái bàn khi khách đặt món hoặc khi nhân viên đổi trạng thái
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const handleStatusChanged = (payload: { tableId?: string; status?: 'EMPTY' | 'OCCUPIED' | 'RESERVED' }) => {
+      if (!payload?.tableId) return;
+      const targetId = payload.tableId;
+      const newStatus = payload.status;
+      const newUiStatus: UiTable['status'] =
+        newStatus === 'EMPTY' ? 'AVAILABLE' : newStatus === 'OCCUPIED' ? 'ON_DINE' : 'RESERVED';
+
+      setTables((prev) =>
+        prev.map((t) =>
+          t.id === targetId || t.backendId === targetId
+            ? {
+                ...t,
+                status: newUiStatus,
+                ...(newStatus === 'EMPTY' ? { currentCustomer: undefined } : {}),
+              }
+            : t
+        )
+      );
+
+      setSelected((prev) =>
+        prev && (prev.id === targetId || prev.backendId === targetId)
+          ? {
+              ...prev,
+              status: newUiStatus,
+              ...(newStatus === 'EMPTY' ? { currentCustomer: undefined } : {}),
+            }
+          : prev
+      );
+    };
+
+    on('table:status-changed', handleStatusChanged);
+    return () => {
+      off('table:status-changed', handleStatusChanged);
+    };
+  }, [isConnected, on, off]);
 
   const setCustomAction = useHeaderStore((s) => s.setCustomAction);
   const availableCount = tables.filter((t) => t.status === 'AVAILABLE').length;
@@ -98,7 +139,7 @@ export default function ManageTableView() {
                 ...t,
                 ...updated,
                 status,
-                ...(isAvailable ? { currentSessionId: undefined, currentCustomer: undefined, totalAmount: 0 } : {}),
+                ...(isAvailable ? { currentCustomer: undefined } : {}),
               }
             : t
         )
@@ -109,7 +150,7 @@ export default function ManageTableView() {
               ...prev,
               ...updated,
               status,
-              ...(isAvailable ? { currentSessionId: undefined, currentCustomer: undefined, totalAmount: 0 } : {}),
+              ...(isAvailable ? { currentCustomer: undefined } : {}),
             }
           : prev
       );
@@ -151,13 +192,12 @@ export default function ManageTableView() {
         status: 'AVAILABLE',
         capacity: tableForm.capacity,
         chairs: tableForm.capacity,
-        area: tableForm.area,
         branchId: targetBranch,
       };
 
       setTables((prev) => [...prev, newTableEntry]);
       setShowAddTable(false);
-      setTableForm({ name: '', capacity: 4, area: 'MAIN_DINING', branchId: '' });
+      setTableForm({ name: '', capacity: 4, branchId: '' });
     } catch {
       alert('Không thể tạo bàn mới');
     } finally {
@@ -410,14 +450,6 @@ export default function ManageTableView() {
                               <div className="flex items-center justify-center gap-1.5 text-[11px] font-extrabold text-[#64748B] mt-1">
                                 <Users size={12} />
                                 <span>{table.capacity}</span>
-                                {table.totalAmount ? (
-                                  <>
-                                    <span className="text-[#CBD5E1]">•</span>
-                                    <span className={`text-[10.5px] font-bold ${tc}`}>
-                                      {table.totalAmount.toLocaleString('vi-VN')}đ
-                                    </span>
-                                  </>
-                                ) : null}
                               </div>
                             </div>
                           </div>
@@ -434,8 +466,8 @@ export default function ManageTableView() {
 
       {/* Modal Chi tiết bàn & Tác vụ */}
       {selected && (
-        <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-[28px] max-w-2xl sm:max-w-3xl w-full max-h-[92dvh] my-auto p-5 sm:p-7 lg:p-8 relative shadow-2xl border border-[#E2E8F0] animate-in fade-in zoom-in-95 duration-150 flex flex-col overflow-hidden modal-panel">
+        <div className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 md:p-6 overflow-y-auto">
+          <div className="bg-white rounded-[28px] w-full max-w-lg sm:max-w-2xl md:max-w-3xl lg:max-w-4xl max-h-[92dvh] my-auto p-5 sm:p-7 lg:p-8 relative shadow-2xl border border-[#E2E8F0] animate-in fade-in zoom-in-95 duration-150 flex flex-col overflow-hidden modal-panel">
             <button
               onClick={() => setSelected(null)}
               className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-[#64748B] hover:text-[#0F172A] transition-colors cursor-pointer"
@@ -445,123 +477,103 @@ export default function ManageTableView() {
             </button>
 
             <div className="overflow-y-auto pr-1 flex-1 modal-body">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mb-6">
-              {/* Cột 1: Thông tin bàn */}
-              <div>
-                <h4 className="font-black text-[17px] text-[#0F172A] mb-4 flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#00A389]" />
-                  Thông tin bàn
-                </h4>
-
-                <div className="bg-[#F8FAFC] rounded-2xl p-4 sm:p-5 border border-[#E2E8F0] space-y-3">
-                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
-                    <span className="text-[#64748B] font-medium">Bàn</span>
-                    <span className="font-black text-[#0F172A] text-[14px]">{selected.tableName}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
-                    <span className="text-[#64748B] font-medium">Mã số bàn</span>
-                    <span className="font-bold text-[#0F172A]">#{selected.tableNumber}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
-                    <span className="text-[#64748B] font-medium">Sức chứa</span>
-                    <span className="font-bold text-[#0F172A]">
-                      {selected.capacity} khách ({selected.chairs || selected.capacity} ghế)
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
-                    <span className="text-[#64748B] font-medium">Khu vực</span>
-                    <span className="font-bold text-[#0F172A]">
-                      {selected.area === 'TERRACE' ? 'Sân thượng' : selected.area === 'OUTDOOR' ? 'Ngoài trời' : 'Sảnh chính'}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70 gap-3">
-                    <span className="text-[#64748B] font-medium shrink-0">Chi nhánh</span>
-                    <span
-                      className="font-bold text-[#0F172A] text-right"
-                      title={branches.find((b) => b.id === selected.branchId)?.name || selected.branchName || 'Chi nhánh hệ thống'}
-                    >
-                      {branches.find((b) => b.id === selected.branchId)?.name || selected.branchName || 'Chi nhánh hệ thống'}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
-                    <span className="text-[#64748B] font-medium">Trạng thái</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black ${statusColors[selected.status]}`}>
-                      {statusLabels[selected.status]}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
-                    <span className="text-[#64748B] font-medium">Doanh thu</span>
-                    <span className="font-bold text-[#00A389]">
-                      {selected.totalAmount ? formatVND(selected.totalAmount) : 'Chưa có'}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[13.5px]">
-                    <span className="text-[#64748B] font-medium shrink-0">Phiên hiện tại</span>
-                    <span className="font-mono text-[12px] text-[#64748B]">
-                      {selected.currentSessionId || 'Chưa có'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Cột 2: Tác vụ */}
-              <div className="flex flex-col justify-between">
-                <div>
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-7 lg:gap-8 mb-6">
+                {/* Cột 1: Thông tin bàn */}
+                <div className="md:col-span-7">
                   <h4 className="font-black text-[17px] text-[#0F172A] mb-4 flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#3B82F6]" />
-                    Tác vụ
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#00A389]" />
+                    Thông tin bàn
                   </h4>
 
-                  <div className="space-y-3.5">
-                    {selected.status === 'AVAILABLE' && (
-                      <button
-                        onClick={() => changeStatus(selected, 'ON_DINE')}
-                        disabled={saving}
-                        className="w-full h-12 rounded-2xl bg-[#00A389] hover:bg-[#008f77] text-white text-[13.5px] font-extrabold flex items-center justify-center gap-2 shadow-sm shadow-[#00A389]/20 transition-all active:scale-[0.98] cursor-pointer"
+                  <div className="bg-[#F8FAFC] rounded-2xl p-4 sm:p-5 border border-[#E2E8F0] space-y-3">
+                    <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
+                      <span className="text-[#64748B] font-medium">Bàn</span>
+                      <span className="font-black text-[#0F172A] text-[14px]">
+                        {selected.tableName.replace(/\s*\([^)]*\)/g, '').trim()}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
+                      <span className="text-[#64748B] font-medium">Mã số bàn</span>
+                      <span className="font-bold text-[#0F172A]">#{selected.tableNumber}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70">
+                      <span className="text-[#64748B] font-medium">Sức chứa</span>
+                      <span className="font-bold text-[#0F172A]">
+                        {selected.capacity} khách
+                      </span>
+                    </div>
+
+
+                    <div className="flex justify-between items-center text-[13.5px] pb-2.5 border-b border-[#E2E8F0]/70 gap-3 min-w-0">
+                      <span className="text-[#64748B] font-medium shrink-0">Chi nhánh</span>
+                      <span
+                        className="font-bold text-[#0F172A] text-right sm:whitespace-nowrap truncate sm:overflow-visible"
+                        title={branches.find((b) => b.id === selected.branchId)?.name || selected.branchName || 'Chi nhánh hệ thống'}
                       >
-                        <Clock size={16} />
-                        <span>Mở bàn (Đang dùng)</span>
-                      </button>
-                    )}
+                        {branches.find((b) => b.id === selected.branchId)?.name || selected.branchName || 'Chi nhánh hệ thống'}
+                      </span>
+                    </div>
 
-                    {selected.status === 'ON_DINE' && (
-                      <>
-                        <div className="w-full h-12 rounded-2xl bg-[#FFEDD5] border border-[#FED7AA] text-[#EA580C] text-[13.5px] font-extrabold flex items-center justify-center gap-2">
-                          <Clock size={17} strokeWidth={2.5} />
-                          <span>Đang phục vụ thực khách</span>
-                        </div>
+                    <div className="flex justify-between items-center text-[13.5px]">
+                      <span className="text-[#64748B] font-medium">Trạng thái</span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black ${statusColors[selected.status]}`}>
+                        {statusLabels[selected.status]}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
+                {/* Cột 2: Tác vụ */}
+                <div className="md:col-span-5 flex flex-col justify-between">
+                  <div>
+                    <h4 className="font-black text-[17px] text-[#0F172A] mb-4 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#3B82F6]" />
+                      Tác vụ
+                    </h4>
+
+                    <div className="space-y-3.5">
+                      {selected.status === 'AVAILABLE' && (
                         <button
-                          onClick={() => changeStatus(selected, 'AVAILABLE')}
+                          onClick={() => changeStatus(selected, 'ON_DINE')}
                           disabled={saving}
-                          className="w-full h-12 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-[#00A389] text-[13.5px] font-bold flex items-center justify-center gap-2 border border-emerald-200 transition-all active:scale-[0.98] cursor-pointer"
+                          className="w-full h-12 rounded-2xl bg-[#00A389] hover:bg-[#008f77] text-white text-[13.5px] font-extrabold flex items-center justify-center shadow-sm shadow-[#00A389]/20 transition-all active:scale-[0.98] cursor-pointer"
                         >
-                          <CheckCircle size={16} />
-                          <span>Trả bàn về Trống</span>
+                          <span>Mở bàn</span>
                         </button>
-                      </>
-                    )}
+                      )}
 
-                    {/* Nút Xem / In Mã QR Gọi Món Cho Bàn */}
-                    <button
-                      onClick={() => setQrTable(selected)}
-                      className="w-full h-12 rounded-2xl bg-[#E6F7F4] hover:bg-[#D0F2EB] text-[#00A389] text-[13.5px] font-extrabold flex items-center justify-center gap-2 border border-[#B6EADF] shadow-xs transition-all active:scale-[0.98] cursor-pointer"
-                    >
-                      <QrCode size={17} />
-                      <span>Mã QR Gọi Món (Order từ xa)</span>
-                    </button>
+                      {selected.status === 'ON_DINE' && (
+                        <>
+                          <div className="w-full h-12 rounded-2xl bg-[#FFEDD5] border border-[#FED7AA] text-[#EA580C] text-[13.5px] font-extrabold flex items-center justify-center gap-2">
+                            <Clock size={17} strokeWidth={2.5} />
+                            <span>Đang phục vụ</span>
+                          </div>
+
+                          <button
+                            onClick={() => changeStatus(selected, 'AVAILABLE')}
+                            disabled={saving}
+                            className="w-full h-12 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-[#00A389] text-[13.5px] font-bold flex items-center justify-center gap-2 border border-emerald-200 transition-all active:scale-[0.98] cursor-pointer"
+                          >
+                            <CheckCircle size={16} />
+                            <span>Trả bàn về Trống</span>
+                          </button>
+                        </>
+                      )}
+
+                      {/* Nút Xem / In Mã QR Gọi Món Cho Bàn */}
+                      <button
+                        onClick={() => setQrTable(selected)}
+                        className="w-full h-12 rounded-2xl bg-[#E6F7F4] hover:bg-[#D0F2EB] text-[#00A389] text-[13.5px] font-extrabold flex items-center justify-center border border-[#B6EADF] shadow-xs transition-all active:scale-[0.98] cursor-pointer"
+                      >
+                        <span>Mã QR</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
           <div className="pt-4 border-t border-[#F1F5F9]">
               <button
@@ -627,41 +639,21 @@ export default function ManageTableView() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-[#0F172A] mb-1">
-                    Số khách / Ghế <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={30}
-                    required
-                    value={tableForm.capacity}
-                    onChange={(e) =>
-                      setTableForm({ ...tableForm, capacity: parseInt(e.target.value, 10) || 2 })
-                    }
-                    className="w-full px-3.5 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl font-bold text-[#0F172A] focus:bg-white focus:border-[#00A389] focus:outline-hidden"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-[#0F172A] mb-1">Khu vực</label>
-                  <select
-                    value={tableForm.area}
-                    onChange={(e) =>
-                      setTableForm({
-                        ...tableForm,
-                        area: e.target.value as 'MAIN_DINING' | 'TERRACE' | 'OUTDOOR',
-                      })
-                    }
-                    className="w-full px-3 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl font-bold text-[#0F172A] focus:bg-white focus:border-[#00A389] focus:outline-hidden"
-                  >
-                    <option value="MAIN_DINING">Sảnh chính</option>
-                    <option value="OUTDOOR">Ngoài trời</option>
-                    <option value="TERRACE">Sân thượng</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block font-bold text-[#0F172A] mb-1">
+                  Số khách / Ghế <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  required
+                  value={tableForm.capacity}
+                  onChange={(e) =>
+                    setTableForm({ ...tableForm, capacity: parseInt(e.target.value, 10) || 2 })
+                  }
+                  className="w-full px-3.5 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl font-bold text-[#0F172A] focus:bg-white focus:border-[#00A389] focus:outline-hidden"
+                />
               </div>
 
               <div className="flex justify-end gap-2.5 pt-2">

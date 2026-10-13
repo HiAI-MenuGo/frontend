@@ -203,7 +203,6 @@ export function CartDrawer({
             <div className="py-14 flex flex-col items-center justify-center text-[#94A3B8]">
               <ShoppingBag size={40} className="mb-2 opacity-30 text-[#94A3B8]" />
               <p className="text-[13.5px] font-bold text-[#0F172A]">{t('cart.empty', 'Giỏ hàng của bạn đang trống')}</p>
-              <p className="text-xs text-[#94A3B8] mt-1">Hãy chọn món ngon từ thực đơn để tiếp tục</p>
             </div>
           ) : (
             items.map((item) => (

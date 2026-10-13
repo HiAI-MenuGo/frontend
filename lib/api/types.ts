@@ -25,9 +25,8 @@ export interface TableDTO {
   branchId: string;
   branchName?: string;
   branchCode?: string;
-  currentSessionId?: string;
   customerCount?: number;
-  totalAmount?: number;
+  capacity?: number;
   updatedAt: string;
 }
 
@@ -43,24 +42,22 @@ export interface UiTable {
   capacity: number;
   chairs: number;
   customerCount?: number;
-  area: 'MAIN_DINING' | 'TERRACE' | 'OUTDOOR';
   branchId?: string;
   branchName?: string;
   branchCode?: string;
   tenantId?: string;
   currentCustomer?: string;
-  currentSessionId?: string;
-  totalAmount?: number;
 }
 
 export function adaptTable(t: TableDTO): UiTable {
-  const tableName = t?.name || '';
+  const rawName = t?.name || '';
+  const tableName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
   const numMatch = tableName ? tableName.match(/(\d+)/) : null;
   const tableNumber = numMatch ? parseInt(numMatch[1], 10) : 0;
   const status: UiTableStatus =
     t?.status === 'EMPTY' ? 'AVAILABLE' : t?.status === 'OCCUPIED' ? 'ON_DINE' : 'RESERVED';
   const customerCount = t?.customerCount;
-  const defaultCapacity = 4;
+  const defaultCapacity = (t as unknown as { capacity?: number })?.capacity || 4;
   return {
     id: t?.id || '',
     backendId: t?.id || '',
@@ -70,13 +67,10 @@ export function adaptTable(t: TableDTO): UiTable {
     capacity: defaultCapacity,
     chairs: status === 'AVAILABLE' ? defaultCapacity : (customerCount || 1),
     customerCount,
-    area: 'MAIN_DINING',
     branchId: t?.branchId,
     branchName: t?.branchName,
     branchCode: t?.branchCode,
     currentCustomer: undefined,
-    currentSessionId: t?.currentSessionId,
-    totalAmount: t?.totalAmount,
   };
 }
 
@@ -226,6 +220,8 @@ export interface BrandingDTO {
   wifiSsid?: string | null;
   wifiPassword?: string | null;
   footerText?: string | null;
+  enablePaymentCall?: boolean;
+  enableStaffCall?: boolean;
   tenant?: { name: string; code: string; slug: string; status: string };
 }
 

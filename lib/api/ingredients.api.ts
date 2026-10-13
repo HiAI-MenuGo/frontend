@@ -7,7 +7,6 @@ export interface IngredientDTO {
   quantity: number;
   unit: string;
   lowStockThreshold: number;
-  category: string;
   branchId: string;
   branchName?: string;
   branchCode?: string;
@@ -34,7 +33,7 @@ export async function adjustIngredientStock(
 }
 
 export async function createIngredient(
-  data: { name: string; quantity: number; unit: string; lowStockThreshold: number; category?: string },
+  data: { name: string; quantity: number; unit: string; lowStockThreshold: number },
   branchId = DEFAULT_BRANCH_ID
 ): Promise<IngredientDTO> {
   const res = await apiFetch<IngredientDTO>('/ingredients', {

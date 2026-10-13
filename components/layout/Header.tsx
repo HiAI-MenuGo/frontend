@@ -86,23 +86,23 @@ export default function Header({ unreadCount = 0, onOpenSidebar }: HeaderProps) 
         </h1>
 
         {/* Global Branch Selector on Header */}
-        <div className="relative hidden md:block" ref={branchMenuRef}>
+        <div className="relative" ref={branchMenuRef}>
           <button
             onClick={() => setShowBranchMenu(!showBranchMenu)}
-            className={`h-9.5 px-3.5 rounded-2xl border text-[12.5px] font-extrabold flex items-center gap-2 transition-all cursor-pointer select-none ${
+            className={`h-9.5 px-2.5 sm:px-3.5 rounded-2xl border text-[12.5px] font-extrabold flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer select-none min-w-0 ${
               isAllBranches
                 ? 'bg-[#E6F7F4] border-[#00A389]/30 text-[#00A389] hover:bg-[#d6f2ec]'
                 : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#0F172A] hover:bg-[#F1F5F9]'
             }`}
           >
-            {isAllBranches ? <Layers size={15} /> : <Building2 size={15} />}
-            <span className="max-w-[170px] truncate">{currentBranchName}</span>
-            <ChevronDown size={14} className={`transition-transform duration-200 ${showBranchMenu ? 'rotate-180' : ''}`} />
+            {isAllBranches ? <Layers size={15} className="shrink-0" /> : <Building2 size={15} className="shrink-0" />}
+            <span className="max-w-[28vw] sm:max-w-[200px] lg:max-w-[280px] truncate">{currentBranchName}</span>
+            <ChevronDown size={14} className={`transition-transform duration-200 shrink-0 ${showBranchMenu ? 'rotate-180' : ''}`} />
           </button>
 
           {showBranchMenu && (
-            <div className="absolute left-0 top-11.5 w-76 bg-white rounded-3xl border border-[#E2E8F0] shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-              <div className="px-3 py-2 text-[10.5px] font-extrabold text-[#94A3B8] uppercase tracking-wider">
+            <div className="fixed sm:absolute left-3 right-3 sm:left-0 sm:right-auto top-[68px] lg:top-11.5 sm:w-80 lg:w-96 bg-white rounded-3xl border border-[#E2E8F0] shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 max-h-[70vh] flex flex-col">
+              <div className="px-3 py-2 text-[10.5px] font-extrabold text-[#94A3B8] uppercase tracking-wider shrink-0">
                 Chi nhánh hoạt động
               </div>
 
@@ -138,7 +138,7 @@ export default function Header({ unreadCount = 0, onOpenSidebar }: HeaderProps) 
               <div className="my-1 border-t border-[#F1F5F9]" />
 
               {/* Danh sách các chi nhánh con */}
-              <div className="max-h-52 overflow-y-auto space-y-1">
+              <div className="overflow-y-auto space-y-1 min-h-0">
                 {branches.length === 0 ? (
                   <div className="px-3 py-2 text-[12px] text-slate-400 font-medium">Chưa có chi nhánh phụ</div>
                 ) : (
@@ -151,29 +151,29 @@ export default function Header({ unreadCount = 0, onOpenSidebar }: HeaderProps) 
                           setBranchId(b.id);
                           setShowBranchMenu(false);
                         }}
-                        className={`w-full flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer text-left ${
+                        className={`w-full flex items-center justify-between gap-2 p-2.5 rounded-2xl transition-all cursor-pointer text-left ${
                           isSelected
                             ? 'bg-[#E6F7F4] text-[#00A389] font-black'
                             : 'text-[#0F172A] hover:bg-[#F8FAFC] font-bold'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
                           <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? 'bg-[#00A389] text-white' : 'bg-blue-50 text-blue-600'}`}>
                             <Building2 size={15} />
                           </div>
-                          <div className="min-w-0">
-                            <div className="text-[12.5px] leading-tight truncate flex items-center gap-1.5">
-                              <span className="truncate">{b.name}</span>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[12.5px] leading-snug flex items-start gap-1.5">
+                              <span className="break-words flex-1">{b.name}</span>
                               {b.code && (
-                                <span className="text-[9.5px] font-extrabold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 shrink-0">
+                                <span className="text-[9.5px] font-extrabold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 shrink-0 mt-0.5">
                                   {b.code}
                                 </span>
                               )}
                             </div>
-                            {b.address && <div className="text-[11px] text-[#94A3B8] truncate mt-0.5">{b.address}</div>}
+                            {b.address && <div className="text-[11px] text-[#94A3B8] break-words mt-0.5 leading-snug">{b.address}</div>}
                           </div>
                         </div>
-                        {isSelected && <Check size={16} className="text-[#00A389] shrink-0" />}
+                        {isSelected && <Check size={16} className="text-[#00A389] shrink-0 mt-1" />}
                       </button>
                     );
                   })
