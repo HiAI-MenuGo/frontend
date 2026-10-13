@@ -40,6 +40,14 @@ export interface ActiveSessionDTO {
     price: number;
     note?: string;
   }>;
+  orders?: Array<{
+    id: string;
+    orderCode: string;
+    status: string;
+    totalAmount: number;
+    createdAt: string;
+    items?: any[];
+  }>;
   openedAt: string;
 }
 

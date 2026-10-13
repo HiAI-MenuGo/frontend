@@ -56,6 +56,8 @@ export default function SettingsView() {
   const [bankCode, setBankCode] = useState('');
   const [bankAccountNo, setBankAccountNo] = useState('');
   const [bankAccountName, setBankAccountName] = useState('');
+  const [enablePaymentCall, setEnablePaymentCall] = useState(true);
+  const [enableStaffCall, setEnableStaffCall] = useState(true);
   const [footerText, setFooterText] = useState('');
   const [taxRate, setTaxRate] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -101,6 +103,8 @@ export default function SettingsView() {
           setBankAccountNo(b.bankAccountNo ?? '');
           setBankAccountName(b.bankAccountName ?? '');
           setFooterText(b.footerText ?? '');
+          setEnablePaymentCall(b.enablePaymentCall ?? true);
+          setEnableStaffCall(b.enableStaffCall ?? true);
         }
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Không tải branding'))
@@ -275,6 +279,8 @@ export default function SettingsView() {
         bankAccountNo,
         bankAccountName,
         footerText,
+        enablePaymentCall,
+        enableStaffCall,
       });
       setData(updated);
       setSaved(true);
@@ -298,6 +304,8 @@ export default function SettingsView() {
         bankAccountNo,
         bankAccountName,
         footerText,
+        enablePaymentCall,
+        enableStaffCall,
       });
       setData(updated);
       setSaved(true);
@@ -321,6 +329,8 @@ export default function SettingsView() {
         bankAccountNo,
         bankAccountName,
         footerText,
+        enablePaymentCall,
+        enableStaffCall,
       });
       setData(updated);
       if (updated.tenant?.name) {
@@ -339,7 +349,7 @@ export default function SettingsView() {
     } finally {
       setSaving(false);
     }
-  }, [restaurantName, logoUrl, bankCode, bankAccountNo, bankAccountName, footerText, taxRate, billPrintMode]);
+  }, [restaurantName, logoUrl, bankCode, bankAccountNo, bankAccountName, footerText, taxRate, billPrintMode, enablePaymentCall, enableStaffCall]);
 
   const setCustomAction = useHeaderStore((s) => s.setCustomAction);
 
@@ -797,6 +807,57 @@ export default function SettingsView() {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Card 6: Bật/tắt tính năng gọi trên QR khách */}
+          <div className="bg-white rounded-[26px] p-5 sm:p-6 border border-[#E2E8F0] shadow-2xs space-y-4">
+            <div className="flex items-center gap-3 pb-4 border-b border-[#F1F5F9]">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <Smartphone className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-[15px] font-black text-[#0F172A]">Tính năng QR khách</h2>
+                <p className="text-[12px] text-[#64748B]">Bật/tắt nút gọi trên màn hình quét QR tại bàn</p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              {/* Gọi thanh toán */}
+              <div className="p-3.5 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="font-extrabold text-[13.5px] text-[#0F172A] block">Gọi thanh toán</span>
+                  <span className="text-[12px] text-[#64748B] block mt-0.5">Nút &quot;Gọi thanh toán&quot; trên QR + nút Thanh toán trong Lịch sử</span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={enablePaymentCall}
+                  onClick={() => setEnablePaymentCall((v) => !v)}
+                  className={`w-12 h-7 rounded-full p-1 transition-colors shrink-0 cursor-pointer ${enablePaymentCall ? 'bg-[#00A389]' : 'bg-slate-300'}`}
+                >
+                  <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${enablePaymentCall ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {/* Gọi nhân viên */}
+              <div className="p-3.5 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="font-extrabold text-[13.5px] text-[#0F172A] block">Gọi nhân viên</span>
+                  <span className="text-[12px] text-[#64748B] block mt-0.5">Nút &quot;Gọi nhân viên&quot; trên màn hình QR tại bàn</span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={enableStaffCall}
+                  onClick={() => setEnableStaffCall((v) => !v)}
+                  className={`w-12 h-7 rounded-full p-1 transition-colors shrink-0 cursor-pointer ${enableStaffCall ? 'bg-[#00A389]' : 'bg-slate-300'}`}
+                >
+                  <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${enableStaffCall ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            </div>
+
+            <p className="text-[11.5px] text-[#94A3B8]">Thay đổi có hiệu lực sau khi bấm &quot;Lưu cấu hình&quot; và khách tải lại trang QR.</p>
           </div>
         </div>
       </form>

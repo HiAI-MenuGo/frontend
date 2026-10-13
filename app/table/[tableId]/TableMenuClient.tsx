@@ -16,7 +16,6 @@ const CustomerOrderHistoryModal = dynamic(() => import('./CustomerOrderHistoryMo
   ssr: false,
 });
 import {
-  ShoppingBag,
   MapPin,
   Menu as MenuIcon,
   Pencil,
@@ -40,7 +39,9 @@ import {
   getOrderHistoryFromCookie,
   getAggregatedItemsFromHistory,
   updateOrderStatusInCookie,
+  clearOrderHistoryCookie,
 } from '@/lib/orderHistoryCookie';
+import { fetchActiveTableSession } from '@/lib/api/sessions.api';
 import { useI18n } from '../../../context/i18nContext';
 import apiFetch from '../../../lib/api';
 import Image from 'next/image';
@@ -54,7 +55,7 @@ import { getSocket } from '@/lib/socket';
 // Memory cache module để chống chớp giật layout khi chuyển trang/lướt lại menu
 const menuCache = new Map<string, MenuItemView[]>();
 const categoriesCache = new Map<string, Array<{ id: string; name: string }>>();
-const brandingCache = new Map<string, Record<string, string>>();
+const brandingCache = new Map<string, Record<string, any>>();
 
 interface TableMenuClientProps {
   tableId: string;
@@ -113,6 +114,8 @@ export default function TableMenuClient({
       logoUrl: '',
       wifiSsid: '',
       wifiPassword: '',
+      enablePaymentCall: true,
+      enableStaffCall: true,
     }
   );
 
@@ -165,7 +168,27 @@ export default function TableMenuClient({
       const total = agg.reduce((s, it) => s + it.totalQuantity, 0);
       setHistoryItemsCount(total);
     };
-    updateCount();
+
+    // Kiểm tra phiên hoạt động của bàn: Nếu không có phiên active nào (bàn trống), dọn sạch cache cũ
+    fetchActiveTableSession(tableId)
+      .then((sess) => {
+        if (!sess) {
+          clearOrderHistoryCookie(tableId);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem(`menugo_order_${tableId}`);
+          }
+          useCartStore.getState().clearCart();
+          setHistoryItemsCount(0);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('menugo:order_history_changed'));
+          }
+        } else {
+          updateCount();
+        }
+      })
+      .catch(() => {
+        updateCount();
+      });
 
     const handleOpenHistory = () => {
       setShowOrderHistoryModal(true);
@@ -218,9 +241,44 @@ export default function TableMenuClient({
     on('order:updated', handleOrderUpdated);
     on('order:item-status', handleItemStatusUpdated);
 
+    // Xử lý khi bàn được chuyển về trống từ nhân viên / quản lý
+    const handleTableReset = (payload?: { tableId?: string; status?: string }) => {
+      console.log('[TableMenuClient] Received table:reset', payload);
+      if (!payload?.tableId || payload.tableId === tableId) {
+        clearCustomerData();
+      }
+    };
+
+    const handleTableStatusChanged = (payload: { tableId?: string; status?: string }) => {
+      console.log('[TableMenuClient] Received table:status-changed', payload);
+      if (payload.status === 'EMPTY' && (!payload.tableId || payload.tableId === tableId)) {
+        clearCustomerData();
+      }
+    };
+
+    const clearCustomerData = () => {
+      clearOrderHistoryCookie(tableId);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`menugo_order_${tableId}`);
+      }
+      useCartStore.getState().clearCart();
+      setHistoryItemsCount(0);
+      setShowOrderHistoryModal(false);
+      setIsCartOpen(false);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('menugo:order_history_changed'));
+      }
+      showToast('Bàn đã được chuyển về trống. Bộ nhớ tạm đã được làm mới!');
+    };
+
+    on('table:status-changed', handleTableStatusChanged);
+    on('table:reset', handleTableReset);
+
     return () => {
       off('order:updated', handleOrderUpdated);
       off('order:item-status', handleItemStatusUpdated);
+      off('table:status-changed', handleTableStatusChanged);
+      off('table:reset', handleTableReset);
     };
   }, [isConnected, tableId, on, off]);
 
@@ -303,21 +361,7 @@ export default function TableMenuClient({
     };
     resolveTableToken();
 
-    // Khi khách truy cập từ mã QR -> tự động chuyển trạng thái bàn thành OCCUPIED (Đang có khách)
-    const occupyTable = async () => {
-      try {
-        await apiFetch('/tables/occupy', {
-          method: 'POST',
-          body: JSON.stringify({
-            tableId,
-            branchId: branchId || initialBranchId,
-          }),
-        });
-      } catch (err) {
-        console.warn('Could not mark table occupied:', err);
-      }
-    };
-    occupyTable();
+    // Bàn chỉ chuyển sang có khách (OCCUPIED) khi khách thực sự đặt món qua giỏ hàng
 
     useCartStore.getState().setTableContext(
       tenantId || initialTenantId || 'default-tenant',
@@ -328,11 +372,19 @@ export default function TableMenuClient({
 
     const fetchMenu = async () => {
       try {
+        setIsMenuLoading(true);
         // Scope menu theo đúng bàn QR (chặn leak menu cross-tenant)
         const res = await apiFetch<Array<Record<string, unknown>>>(
           `/menu/items?tableId=${encodeURIComponent(tableId)}`
         );
-        const list = res?.data || res;
+        let list = res?.data || (Array.isArray(res) ? res : []);
+
+        // Fallback: nếu gọi theo tableId không có món, gọi không tham số tableId
+        if (!Array.isArray(list) || list.length === 0) {
+          const fallbackRes = await apiFetch<Array<Record<string, unknown>>>('/menu/items');
+          list = fallbackRes?.data || (Array.isArray(fallbackRes) ? fallbackRes : []);
+        }
+
         if (Array.isArray(list) && list.length > 0) {
           const normalized: MenuItemView[] = list.map((item: Record<string, unknown>, idx: number) => {
             const catObj =
@@ -408,6 +460,8 @@ export default function TableMenuClient({
             logoUrl: bData.logoUrl || '',
             wifiSsid: bData.wifiSsid || '',
             wifiPassword: bData.wifiPassword || '',
+            enablePaymentCall: bData.enablePaymentCall ?? true,
+            enableStaffCall: bData.enableStaffCall ?? true,
           };
           brandingCache.set(tableId, brandObj);
           setBranding((prev) => ({
@@ -436,6 +490,8 @@ export default function TableMenuClient({
         logoUrl: updated.logoUrl || '',
         wifiSsid: updated.wifiSsid || '',
         wifiPassword: updated.wifiPassword || '',
+        enablePaymentCall: updated.enablePaymentCall ?? branding.enablePaymentCall ?? true,
+        enableStaffCall: updated.enableStaffCall ?? branding.enableStaffCall ?? true,
       };
       brandingCache.set(tableId, brandObj);
       setBranding((prev) => ({
@@ -613,7 +669,7 @@ export default function TableMenuClient({
       )}
 
       {/* Wrapper canh giữa theo khung điện thoại di động */}
-      <div className="w-full max-w-md mx-auto bg-white min-h-screen flex flex-col shadow-sm relative pb-28">
+      <div className="w-full max-w-md mx-auto bg-white min-h-screen flex flex-col shadow-sm relative pb-16">
         {currentView === 'home' ? (
           <>
               {/* ========================================================= */}
@@ -779,10 +835,11 @@ export default function TableMenuClient({
               </div>
 
               {/* ========================================================= */}
-              {/* 4. BA NÚT CHỨC NĂNG: Gọi thanh toán, Gọi nhân viên, Đánh giá */}
+              {/* NÚT CHỨC NĂNG: Gọi thanh toán, Gọi nhân viên, Đánh giá (ẩn/hiện theo Cài đặt) */}
               {/* ========================================================= */}
-              <div className="grid grid-cols-3 gap-2.5">
+              <div className={`grid gap-2.5 ${branding.enablePaymentCall === false && branding.enableStaffCall === false ? 'grid-cols-1' : branding.enablePaymentCall === false || branding.enableStaffCall === false ? 'grid-cols-2' : 'grid-cols-3'}`}>
                 {/* Gọi thanh toán */}
+                {branding.enablePaymentCall !== false && (
                 <button
                   onClick={() => setShowCallPaymentModal(true)}
                   className="p-3.5 rounded-[22px] bg-gradient-to-b from-[#F0FDF4] to-[#DCFCE7] border border-[#BBF7D0] hover:border-emerald-300 text-left flex flex-col justify-between shadow-2xs hover:shadow-xs active:scale-[0.97] transition-all h-28"
@@ -794,8 +851,10 @@ export default function TableMenuClient({
                     <Wallet size={20} />
                   </div>
                 </button>
+                )}
 
                 {/* Gọi nhân viên */}
+                {branding.enableStaffCall !== false && (
                 <button
                   onClick={() => setShowCallStaffModal(true)}
                   className="p-3.5 rounded-[22px] bg-gradient-to-b from-[#EFF6FF] to-[#DBEAFE] border border-[#BFDBFE] hover:border-blue-300 text-left flex flex-col justify-between shadow-2xs hover:shadow-xs active:scale-[0.97] transition-all h-28"
@@ -807,6 +866,7 @@ export default function TableMenuClient({
                     <UserCheck size={20} />
                   </div>
                 </button>
+                )}
 
                 {/* Đánh giá */}
                 <button
@@ -912,9 +972,7 @@ export default function TableMenuClient({
         <button
           type="button"
           onClick={() => setShowOrderHistoryModal(true)}
-          className={`fixed z-40 w-13 h-13 rounded-full bg-white hover:bg-slate-50 border-2 border-[#00A389] text-[#00A389] shadow-xl flex items-center justify-center active:scale-95 transition-all duration-300 ease-in-out right-4 ${
-            totalCartCount > 0 ? 'bottom-22' : 'bottom-6'
-          }`}
+          className="fixed z-40 w-13 h-13 rounded-full bg-white hover:bg-slate-50 border-2 border-[#00A389] text-[#00A389] shadow-xl flex items-center justify-center active:scale-95 transition-all duration-300 ease-in-out right-4 bottom-6"
           title="Lịch sử"
           aria-label="Lịch sử"
         >
@@ -925,30 +983,6 @@ export default function TableMenuClient({
             </span>
           )}
         </button>
-
-        {/* Thanh Giỏ Hàng Sticky Bottom */}
-        {totalCartCount > 0 && (
-          <div className="fixed bottom-4 inset-x-4 max-w-md mx-auto z-40 animate-in slide-in-from-bottom duration-300">
-            <button
-              type="button"
-              onClick={() => setIsCartOpen(true)}
-              className="w-full py-3.5 px-5 rounded-2xl font-black text-white bg-[#00A389] hover:bg-[#008f77] flex items-center justify-between shadow-xl shadow-[#00A389]/30 active:scale-[0.98] transition-all"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="relative">
-                  <ShoppingBag className="w-5 h-5" />
-                  <span className="absolute -top-1.5 -right-2 bg-amber-400 text-slate-900 font-black text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-white">
-                    {totalCartCount}
-                  </span>
-                </div>
-                <span className="text-[13.5px] font-black">{t('cart.viewCart', 'Xem giỏ hàng')}</span>
-              </div>
-              <span className="text-[14px] font-mono font-black tracking-wide">
-                {totalCartAmount.toLocaleString('vi-VN')}đ
-              </span>
-            </button>
-          </div>
-        )}
       </div>
 
       {/* ========================================================= */}
@@ -1363,8 +1397,8 @@ export default function TableMenuClient({
         tenantId={tenantId}
         branchId={branchId}
         onGoToMenu={handleGoToMenu}
-        onCallPayment={() => setShowCallPaymentModal(true)}
         primaryColor={branding.primaryColor}
+        paymentEnabled={branding.enablePaymentCall !== false}
       />
     </div>
   );

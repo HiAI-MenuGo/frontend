@@ -10,7 +10,6 @@ import {
   Utensils,
   Receipt,
   ChevronRight,
-  CreditCard,
 } from 'lucide-react';
 import {
   getOrderHistoryFromCookie,
@@ -23,6 +22,12 @@ import {
 import { formatDisplayDateTime } from '@/lib/date';
 import { fetchActiveTableSession } from '@/lib/api/sessions.api';
 import { formatVND } from '@/lib/format';
+import {
+  createMoMoQrPayment,
+  createVNPayQrPayment,
+  fetchQrPaymentStatus,
+  type QrWalletCreateResult,
+} from '@/lib/api/qrPayment.api';
 
 interface CustomerOrderHistoryModalProps {
   isOpen: boolean;
@@ -32,8 +37,8 @@ interface CustomerOrderHistoryModalProps {
   tenantId?: string;
   branchId?: string;
   onGoToMenu?: () => void;
-  onCallPayment?: () => void;
   primaryColor?: string;
+  paymentEnabled?: boolean;
 }
 
 export function CustomerOrderHistoryModal({
@@ -44,12 +49,20 @@ export function CustomerOrderHistoryModal({
   tenantId,
   branchId,
   onGoToMenu,
-  onCallPayment,
   primaryColor = '#00A389',
+  paymentEnabled = true,
 }: CustomerOrderHistoryModalProps) {
   const [activeTab, setActiveTab] = useState<'aggregated' | 'batches'>('batches');
   const [orders, setOrders] = useState<CustomerOrderHistoryRecord[]>([]);
   const [activeSession, setActiveSession] = useState<any | null>(null);
+
+  // Chọn phương thức thanh toán ở bước bấm Thanh toán (QR khách)
+  const [showPayOptions, setShowPayOptions] = useState(false);
+  const [walletLoading, setWalletLoading] = useState<'MOMO' | 'VNPAY' | null>(null);
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const [walletData, setWalletData] = useState<QrWalletCreateResult | null>(null);
+  const [walletProvider, setWalletProvider] = useState<'MOMO' | 'VNPAY' | null>(null);
+  const [walletPaid, setWalletPaid] = useState(false);
 
   const basePath = tenantId && branchId
     ? `/${tenantId}/${branchId}/table/${tableId}`
@@ -98,7 +111,25 @@ export function CustomerOrderHistoryModal({
       reloadHistory();
       fetchActiveTableSession(tableId)
         .then((sess) => {
-          if (sess) setActiveSession(sess);
+          if (sess) {
+            setActiveSession(sess);
+            if (sess.orders && Array.isArray(sess.orders)) {
+              sess.orders.forEach((so: any) => {
+                if (so.status) {
+                  updateOrderStatusInCookie(tableId, so.orderCode || so.id, so.status);
+                }
+              });
+              reloadHistory();
+            }
+          } else {
+            // Không có phiên đang mở tại bàn này (bàn trống) -> dọn sạch bộ nhớ đệm của khách cũ
+            setActiveSession(null);
+            clearOrderHistoryCookie(tableId);
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem(`menugo_order_${tableId}`);
+            }
+            setOrders([]);
+          }
         })
         .catch(() => {});
     }
@@ -106,12 +137,23 @@ export function CustomerOrderHistoryModal({
 
   useEffect(() => {
     const handleUpdate = () => {
-      reloadHistory();
       fetchActiveTableSession(tableId)
         .then((sess) => {
-          if (sess) setActiveSession(sess);
+          if (sess) {
+            setActiveSession(sess);
+            reloadHistory();
+          } else {
+            setActiveSession(null);
+            clearOrderHistoryCookie(tableId);
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem(`menugo_order_${tableId}`);
+            }
+            setOrders([]);
+          }
         })
-        .catch(() => {});
+        .catch(() => {
+          reloadHistory();
+        });
     };
     if (typeof window !== 'undefined') {
       window.addEventListener('menugo:order_history_changed', handleUpdate);
@@ -124,19 +166,28 @@ export function CustomerOrderHistoryModal({
   // Phân loại các đợt gọi món: Đã xong vs Đang thực hiện
   const isRecordDone = (ord: CustomerOrderHistoryRecord) => {
     if (ord.status === 'DONE') return true;
+
+    // Nếu bàn không có phiên active nào -> toàn bộ đơn trong cookie đều là đơn của phiên cũ đã đóng/hoàn thành
+    if (!activeSession) return true;
+
     if (activeSession?.orders && Array.isArray(activeSession.orders)) {
       const match = activeSession.orders.find(
         (so: any) => so.orderCode === ord.orderCode || so.id === ord.id
       );
       if (match) {
-        if (match.status === 'DONE' || match.status === 'READY') return true;
+        if (match.status === 'DONE' || match.status === 'READY' || match.status === 'SERVED') return true;
         if (Array.isArray(match.items) && match.items.length > 0) {
           return match.items.every(
             (it: any) => it.status === 'DONE' || it.status === 'READY' || it.status === 'SERVED'
           );
         }
+        return false;
+      } else {
+        // Đơn trong cookie không thuộc phiên active hiện tại (thuộc phiên cũ đã đóng) -> đã xong
+        return true;
       }
     }
+
     // Nếu activeSession có items phẳng và toàn bộ items trong phiên đều DONE / READY / SERVED
     if (activeSession?.items && Array.isArray(activeSession.items) && activeSession.items.length > 0) {
       const allSessionItemsDone = activeSession.items.every(
@@ -144,6 +195,7 @@ export function CustomerOrderHistoryModal({
       );
       if (allSessionItemsDone) return true;
     }
+
     return false;
   };
 
@@ -157,9 +209,9 @@ export function CustomerOrderHistoryModal({
   const doneItemCount = doneAggregatedItems.reduce((sum, item) => sum + item.totalQuantity, 0);
   const doneTotalAmount = doneOrders.reduce((sum, ord) => sum + (ord.totalAmount || 0), 0);
 
-  // Điều kiện chỉ cho phép thanh toán: Có món, và TOÀN BỘ món đã xong (không còn đợt nào đang làm)
+  // Điều kiện chỉ cho phép thanh toán: Có món, toàn bộ món đã xong, và quán đang bật tính năng gọi thanh toán
   const hasOrders = orders.length > 0;
-  const allOrdersDone = hasOrders && pendingOrders.length === 0 && doneOrders.length > 0;
+  const allOrdersDone = hasOrders && pendingOrders.length === 0 && doneOrders.length > 0 && paymentEnabled;
 
   // Tự động chọn tab phù hợp với tiến độ
   useEffect(() => {
@@ -181,11 +233,56 @@ export function CustomerOrderHistoryModal({
   };
 
   const handleCheckout = () => {
-    if (!allOrdersDone) return;
-    onClose();
-    if (onCallPayment) {
-      onCallPayment();
+    if (!allOrdersDone || !paymentEnabled) return;
+    // Mở bước chọn phương thức: MoMo / VNPay sandbox (không nối sang gọi thanh toán)
+    setWalletError(null);
+    setWalletData(null);
+    setWalletProvider(null);
+    setWalletPaid(false);
+    setShowPayOptions(true);
+  };
+
+  // Poll trạng thái IPN 3s/lần sau khi đã sinh QR ví
+  useEffect(() => {
+    if (!walletData?.referenceNo || walletPaid) return;
+    const ref = walletData.referenceNo;
+    const timer = setInterval(async () => {
+      try {
+        const st = await fetchQrPaymentStatus(ref);
+        if (st.status === 'PAID') {
+          setWalletPaid(true);
+          clearInterval(timer);
+        } else if (st.status === 'FAILED') {
+          setWalletError('Giao dịch thất bại hoặc đã hết hạn. Bạn bấm Tạo lại để sinh mã mới.');
+          clearInterval(timer);
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [walletData?.referenceNo, walletPaid]);
+
+  const handleCreateWallet = async (provider: 'MOMO' | 'VNPAY') => {
+    setWalletLoading(provider);
+    setWalletError(null);
+    setWalletData(null);
+    setWalletProvider(provider);
+    setWalletPaid(false);
+    try {
+      const data =
+        provider === 'MOMO' ? await createMoMoQrPayment(tableId) : await createVNPayQrPayment(tableId);
+      setWalletData(data);
+    } catch (err: any) {
+      setWalletError(err?.message || 'Không tạo được thanh toán. Quán cần điền key sandbox trước.');
+    } finally {
+      setWalletLoading(null);
     }
+  };
+
+  const handleWalletDone = () => {
+    clearOrderHistoryCookie(tableId);
+    setOrders([]);
+    setShowPayOptions(false);
+    onClose();
   };
 
   const handleClear = () => {
@@ -342,16 +439,8 @@ export function CustomerOrderHistoryModal({
           ) : (
             /* TAB 2: THEO ĐỢT (CÁC ĐỢT ĐANG THỰC HIỆN - CHƯA XONG) */
             pendingOrders.length === 0 ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center space-y-2.5 text-[#94A3B8]">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200/60 text-emerald-600 flex items-center justify-center">
-                  <CheckCircle2 size={28} />
-                </div>
-                <div>
-                  <h5 className="text-[14px] font-extrabold text-[#0F172A]">Toàn bộ món đã hoàn thành!</h5>
-                  <p className="text-[12px] text-[#64748B] mt-1 max-w-xs leading-relaxed">
-                    Tất cả các đợt gọi món đã xong và chuyển sang tab <strong className="text-[#00A389] font-bold">Tổng đơn</strong> để thanh toán.
-                  </p>
-                </div>
+              <div className="py-12 flex items-center justify-center text-center">
+                <span className="text-[14px] font-bold text-[#94A3B8]">Trống</span>
               </div>
             ) : (
               <div className="space-y-3">
@@ -443,18 +532,163 @@ export function CustomerOrderHistoryModal({
                   : 'bg-slate-200 text-slate-400 border border-slate-300/50 cursor-not-allowed shadow-none'
               }`}
               title={
-                allOrdersDone
+                !paymentEnabled
+                  ? 'Quán đã tắt tính năng gọi thanh toán'
+                  : allOrdersDone
                   ? 'Bấm để thanh toán'
                   : `Cần đợi tất cả món hoàn thành trước khi thanh toán (còn ${pendingOrders.length} đợt đang làm)`
               }
             >
-              <CreditCard size={15} />
               <span>
-                {allOrdersDone
+                {!paymentEnabled
+                  ? 'Đã tắt thanh toán'
+                  : allOrdersDone
                   ? `Thanh toán (${formatVND(doneTotalAmount)})`
                   : `Chờ món xong (${pendingOrders.length} đợt)`}
               </span>
             </button>
+          </div>
+        )}
+
+        {/* Bước chọn phương thức thanh toán (MoMo / VNPay sandbox) */}
+        {showPayOptions && (
+          <div className="absolute inset-0 z-10 bg-white rounded-t-[28px] sm:rounded-3xl flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-[#F1F5F9] flex items-center justify-between shrink-0">
+              <div>
+                <h4 className="text-[15px] font-black text-[#0F172A]">Chọn cách thanh toán</h4>
+                <p className="text-[11.5px] text-[#64748B]">
+                  Tổng cần trả: <strong className="font-mono text-[#008770]">{formatVND(doneTotalAmount)}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPayOptions(false)}
+                className="w-9 h-9 rounded-xl bg-[#F1F5F9] text-[#64748B] hover:text-[#0F172A] flex items-center justify-center"
+                aria-label="Quay lại"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+              {walletPaid ? (
+                <div className="py-10 text-center space-y-3">
+                  <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
+                    <CheckCircle2 size={28} />
+                  </div>
+                  <h5 className="text-[15px] font-black text-[#0F172A]">Đã thanh toán thành công!</h5>
+                  <p className="text-[12px] text-[#64748B]">IPN từ ví đã xác nhận. Bạn có thể rời bàn.</p>
+                  <button
+                    type="button"
+                    onClick={handleWalletDone}
+                    className="mt-2 px-5 py-2.5 rounded-xl text-white font-extrabold text-[13px]"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    Hoàn tất
+                  </button>
+                </div>
+              ) : !walletData ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleCreateWallet('MOMO')}
+                    disabled={walletLoading !== null}
+                    className="w-full p-3.5 rounded-2xl border border-pink-200 bg-pink-50/60 hover:bg-pink-50 text-left transition-all disabled:opacity-50"
+                  >
+                    <span className="block font-black text-[13.5px] text-[#BE185D]">
+                      {walletLoading === 'MOMO' ? 'Đang tạo MoMo...' : 'Ví MoMo (sandbox)'}
+                    </span>
+                    <span className="block text-[11.5px] text-[#64748B] mt-0.5">
+                      Hiện QR + nút mở app, tự xác nhận qua IPN
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCreateWallet('VNPAY')}
+                    disabled={walletLoading !== null}
+                    className="w-full p-3.5 rounded-2xl border border-blue-200 bg-blue-50/60 hover:bg-blue-50 text-left transition-all disabled:opacity-50"
+                  >
+                    <span className="block font-black text-[13.5px] text-[#1D4ED8]">
+                      {walletLoading === 'VNPAY' ? 'Đang tạo VNPay...' : 'VNPay (sandbox)'}
+                    </span>
+                    <span className="block text-[11.5px] text-[#64748B] mt-0.5">
+                      Hiện QR + nút mở app, tự xác nhận qua IPN
+                    </span>
+                  </button>
+                  {walletError && (
+                    <p className="text-[12px] font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3">
+                      {walletError}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-[12px] text-[#334155]">
+                    <div className="flex justify-between">
+                      <span className="text-[#64748B]">Cổng:</span>
+                      <strong>{walletProvider}</strong>
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-[#64748B]">Số tiền:</span>
+                      <strong className="font-mono text-[#008770]">{formatVND(walletData.amount)}</strong>
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-[#64748B]">Mã GD:</span>
+                      <strong className="font-mono">{walletData.referenceNo}</strong>
+                    </div>
+                  </div>
+
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={
+                      walletData.qrCodeUrl ||
+                      `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(walletData.payUrl)}`
+                    }
+                    alt={`QR ${walletProvider}`}
+                    className="w-55 h-55 max-w-full mx-auto rounded-2xl border border-[#E2E8F0] bg-white p-2"
+                    width={220}
+                    height={220}
+                  />
+                  <p className="text-center text-[11.5px] text-[#64748B]">
+                    Không muốn chuyển app? Tắt popup trình duyệt rồi dùng app ví quét QR này — vẫn tự xác nhận.
+                  </p>
+
+                  <a
+                    href={walletData.deeplink || walletData.payUrl}
+                    className="block text-center px-5 py-2.5 rounded-xl text-white font-extrabold text-[13px]"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    Mở app {walletProvider} (đã điền sẵn tiền)
+                  </a>
+                  <p className="text-center text-[11px] text-[#94A3B8] animate-pulse">
+                    Đang chờ IPN tự xác nhận (poll 3s/lần)...
+                  </p>
+
+                  {walletError && (
+                    <p className="text-[12px] font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3">
+                      {walletError}
+                    </p>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => (setWalletData(null), setWalletProvider(null))}
+                      className="flex-1 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#0F172A] font-bold text-[12.5px]"
+                    >
+                      Đổi cách khác
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => walletProvider && handleCreateWallet(walletProvider)}
+                      className="flex-1 h-10 rounded-xl border border-[#E2E8F0] font-bold text-[12.5px] text-[#475569]"
+                    >
+                      Tạo lại mã
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

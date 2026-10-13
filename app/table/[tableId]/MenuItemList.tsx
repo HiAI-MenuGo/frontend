@@ -110,13 +110,13 @@ export function MenuItemList({
         </div>
       </div>
 
-      {/* Horizontal Category Filter Pills chuẩn Mobile */}
-      <div className="py-1 border-b border-[#F1F5F9] -mx-4 px-4 overflow-x-auto scrollbar-none">
-        <div className="flex items-center gap-2 w-max pb-1">
+      {/* Horizontal Category Filter Pills chuẩn Mobile - Cân đối thẳng hàng */}
+      <div className="overflow-x-auto scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden py-0.5">
+        <div className="flex items-center gap-2 w-max">
           <button
             type="button"
             onClick={() => setSelectedCategory('all')}
-            className={`px-3.5 py-[7px] rounded-full text-[12.5px] transition-all whitespace-nowrap active:scale-95 ${
+            className={`h-8 px-3.5 rounded-full text-[12.5px] transition-all whitespace-nowrap active:scale-95 inline-flex items-center justify-center shrink-0 ${
               selectedCategory === 'all'
                 ? 'bg-[#00A389] text-white font-bold shadow-xs'
                 : 'bg-[#F1F5F9] hover:bg-slate-200 text-[#475569] font-semibold'
@@ -131,7 +131,7 @@ export function MenuItemList({
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3.5 py-[7px] rounded-full text-[12.5px] transition-all whitespace-nowrap active:scale-95 ${
+                className={`h-8 px-3.5 rounded-full text-[12.5px] transition-all whitespace-nowrap active:scale-95 inline-flex items-center justify-center shrink-0 ${
                   isActive
                     ? 'bg-[#00A389] text-white font-bold shadow-xs'
                     : 'bg-[#F1F5F9] hover:bg-slate-200 text-[#475569] font-semibold'

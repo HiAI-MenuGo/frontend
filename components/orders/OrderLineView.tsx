@@ -183,8 +183,7 @@ export default function OrderLineView() {
         cart.map((c) => ({ menuItemId: c.dishId, quantity: c.quantity, note: c.note })),
         orderNote
       );
-      // Backend trả về { session: { id, ... }, order: { ... } }
-      const sessionId = result?.session?.id ?? selectedTable?.currentSessionId;
+      const sessionId = result?.session?.id;
       console.log('[OrderLineView] Session order created:', { sessionId, result });
 
       const effectiveBranchId = selectedBranchId === 'ALL' ? selectedTable?.branchId : selectedBranchId;
@@ -505,7 +504,7 @@ export default function OrderLineView() {
           setAppliedDiscount(0);
         }}
         onSuccess={async () => {
-          const sessId = lastSessionId ?? selectedTable?.currentSessionId;
+          const sessId = lastSessionId;
           const effectiveBranchId = selectedBranchId === 'ALL' ? selectedTable?.branchId : selectedBranchId;
           if (sessId) {
             try {
@@ -535,7 +534,7 @@ export default function OrderLineView() {
         totalVnd={confirmedTotal ?? total}
         orderNumber="Mới"
         tableNumber={selectedTable?.tableName ?? ''}
-        sessionId={lastSessionId ?? selectedTable?.currentSessionId}
+        sessionId={lastSessionId}
       />
       <ItemOptionsModal
         key={customizingDish?.id ?? 'none'}
