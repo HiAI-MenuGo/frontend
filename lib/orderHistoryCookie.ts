@@ -31,7 +31,61 @@ export interface AggregatedOrderedItem {
   imageUrl?: string | null;
 }
 
-const COOKIE_NAME = 'menugo_order_history';
+export const COOKIE_NAME = 'menugo_order_history';
+
+/**
+ * Đồng bộ danh sách đơn hàng từ ActiveSession (server) vào cookie lịch sử khách
+ */
+export function syncOrdersWithServer(
+  currentList: CustomerOrderHistoryRecord[],
+  serverOrders: any[],
+  tableId: string,
+  tableName?: string
+): CustomerOrderHistoryRecord[] {
+  if (!serverOrders || !Array.isArray(serverOrders) || serverOrders.length === 0) {
+    return currentList;
+  }
+
+  return serverOrders.map((so: any) => {
+    const existing = currentList.find(
+      (c) => c.orderCode === so.orderCode || c.id === so.id
+    );
+
+    const rawStatus = String(so.status || '').toUpperCase();
+    const mappedStatus: 'PENDING' | 'PREPARING' | 'DONE' =
+      rawStatus === 'DONE'
+        ? 'DONE'
+        : rawStatus === 'PREPARING' || rawStatus === 'READY' || rawStatus === 'CONFIRMED'
+        ? 'PREPARING'
+        : 'PENDING';
+
+    if (existing) {
+      return {
+        ...existing,
+        status: mappedStatus,
+        totalAmount: so.totalAmount ?? existing.totalAmount,
+      };
+    }
+
+    return {
+      id: so.id || `ord-${so.orderCode || Date.now()}`,
+      orderCode: so.orderCode || 'H-001',
+      tableId,
+      tableName: tableName || so.tableName || 'Bàn phục vụ',
+      totalAmount: so.totalAmount || 0,
+      note: so.note || undefined,
+      createdAt: so.createdAt || new Date().toISOString(),
+      status: mappedStatus,
+      items: (so.items || []).map((it: any) => ({
+        name: it.name || it.itemName || 'Món ăn',
+        quantity: it.quantity || 1,
+        unitPrice: it.unitPrice || it.price || 0,
+        note: it.note || undefined,
+        status: it.status,
+      })),
+    };
+  });
+}
 
 /**
  * Đọc cookie client-side an toàn
@@ -116,7 +170,8 @@ export function addOrderToCookie(
 export function updateOrderStatusInCookie(
   tableId: string,
   orderId: string,
-  status: string
+  status: string,
+  skipEvent = false
 ): boolean {
   try {
     const current = getOrderHistoryFromCookie();
@@ -125,19 +180,21 @@ export function updateOrderStatusInCookie(
     let updated = false;
     const updatedList = current.map((ord) => {
       // Match by tableId AND orderCode/id
-      const matchTable = (ord.tableId || '').trim().toLowerCase() === cleanTable;
+      const matchTable = !ord.tableId || (ord.tableId || '').trim().toLowerCase() === cleanTable;
       const matchId = ord.orderCode === orderId || ord.id === orderId;
       
       if (matchTable && matchId) {
-        updated = true;
-        return { ...ord, status: status as 'PENDING' | 'PREPARING' | 'DONE' };
+        if (ord.status !== status) {
+          updated = true;
+          return { ...ord, status: status as 'PENDING' | 'PREPARING' | 'DONE' };
+        }
       }
       return ord;
     });
 
     if (updated) {
-      setCookie('menugo_order_history', JSON.stringify(updatedList));
-      if (typeof window !== 'undefined') {
+      setCookie(COOKIE_NAME, JSON.stringify(updatedList));
+      if (!skipEvent && typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('menugo:order_history_changed', { detail: updatedList }));
       }
     }
@@ -151,18 +208,21 @@ export function updateOrderStatusInCookie(
 /**
  * Xoá lịch sử món đã gọi trong cookie (có thể xoá theo bàn hoặc toàn bộ)
  */
-export function clearOrderHistoryCookie(tableId?: string): void {
+export function clearOrderHistoryCookie(tableId?: string, skipEvent = false): void {
   try {
+    const current = getOrderHistoryFromCookie();
+    if (current.length === 0) return;
+
     if (!tableId) {
       setCookie(COOKIE_NAME, JSON.stringify([]));
     } else {
-      const current = getOrderHistoryFromCookie();
       const cleanTable = tableId.trim().toLowerCase();
       const remaining = current.filter((ord) => (ord.tableId || '').trim().toLowerCase() !== cleanTable);
+      if (remaining.length === current.length) return; // Không có gì thay đổi
       setCookie(COOKIE_NAME, JSON.stringify(remaining));
     }
 
-    if (typeof window !== 'undefined') {
+    if (!skipEvent && typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('menugo:order_history_changed', { detail: [] }));
     }
   } catch (err) {
