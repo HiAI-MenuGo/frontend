@@ -18,6 +18,9 @@ import {
   addOrderToCookie,
   updateOrderStatusInCookie,
   CustomerOrderHistoryRecord,
+  COOKIE_NAME,
+  setCookie,
+  syncOrdersWithServer,
 } from '@/lib/orderHistoryCookie';
 import { formatDisplayDateTime } from '@/lib/date';
 import { fetchActiveTableSession } from '@/lib/api/sessions.api';
@@ -68,11 +71,24 @@ export function CustomerOrderHistoryModal({
     ? `/${tenantId}/${branchId}/table/${tableId}`
     : `/table/${tableId}`;
 
-  // Tải danh sách đơn hàng từ cookie
+  // Tải danh sách đơn hàng từ cookie (và fallback từ server nếu cookie chưa có)
   const reloadHistory = () => {
     let list = getOrderHistoryFromCookie(tableId);
 
-    // Nếu cookie chưa có dữ liệu, thử khôi phục từ localStorage của phiên đặt trước đó
+    // Nếu cookie chưa có dữ liệu nhưng activeSession đã nạp từ server, dùng luôn dữ liệu server
+    if (
+      list.length === 0 &&
+      activeSession?.orders &&
+      Array.isArray(activeSession.orders) &&
+      activeSession.orders.length > 0
+    ) {
+      list = syncOrdersWithServer([], activeSession.orders, tableId, displayTableName);
+      try {
+        setCookie(COOKIE_NAME, JSON.stringify(list));
+      } catch {}
+    }
+
+    // Nếu cookie vẫn chưa có dữ liệu, thử khôi phục từ localStorage của phiên đặt trước đó
     if (list.length === 0 && typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem(`menugo_order_${tableId}`);
@@ -113,18 +129,20 @@ export function CustomerOrderHistoryModal({
         .then((sess) => {
           if (sess) {
             setActiveSession(sess);
-            if (sess.orders && Array.isArray(sess.orders)) {
-              sess.orders.forEach((so: any) => {
-                if (so.status) {
-                  updateOrderStatusInCookie(tableId, so.orderCode || so.id, so.status);
-                }
-              });
+            if (sess.orders && Array.isArray(sess.orders) && sess.orders.length > 0) {
+              const current = getOrderHistoryFromCookie(tableId);
+              const synced = syncOrdersWithServer(current, sess.orders, tableId, displayTableName);
+              setOrders(synced);
+              try {
+                setCookie(COOKIE_NAME, JSON.stringify(synced));
+              } catch {}
+            } else {
               reloadHistory();
             }
           } else {
             // Không có phiên đang mở tại bàn này (bàn trống) -> dọn sạch bộ nhớ đệm của khách cũ
             setActiveSession(null);
-            clearOrderHistoryCookie(tableId);
+            clearOrderHistoryCookie(tableId, true);
             if (typeof window !== 'undefined') {
               localStorage.removeItem(`menugo_order_${tableId}`);
             }
@@ -136,24 +154,9 @@ export function CustomerOrderHistoryModal({
   }, [isOpen, tableId]);
 
   useEffect(() => {
+    // Khi lịch sử đơn trong cookie thay đổi cục bộ, chỉ cần tải lại dữ liệu hiển thị (không gọi lại BE tránh lặp vô tận)
     const handleUpdate = () => {
-      fetchActiveTableSession(tableId)
-        .then((sess) => {
-          if (sess) {
-            setActiveSession(sess);
-            reloadHistory();
-          } else {
-            setActiveSession(null);
-            clearOrderHistoryCookie(tableId);
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem(`menugo_order_${tableId}`);
-            }
-            setOrders([]);
-          }
-        })
-        .catch(() => {
-          reloadHistory();
-        });
+      reloadHistory();
     };
     if (typeof window !== 'undefined') {
       window.addEventListener('menugo:order_history_changed', handleUpdate);

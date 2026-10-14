@@ -40,6 +40,9 @@ import {
   getAggregatedItemsFromHistory,
   updateOrderStatusInCookie,
   clearOrderHistoryCookie,
+  COOKIE_NAME,
+  setCookie,
+  syncOrdersWithServer,
 } from '@/lib/orderHistoryCookie';
 import { fetchActiveTableSession } from '@/lib/api/sessions.api';
 import { useI18n } from '../../../context/i18nContext';
@@ -173,16 +176,20 @@ export default function TableMenuClient({
     fetchActiveTableSession(tableId)
       .then((sess) => {
         if (!sess) {
-          clearOrderHistoryCookie(tableId);
+          clearOrderHistoryCookie(tableId, true);
           if (typeof window !== 'undefined') {
             localStorage.removeItem(`menugo_order_${tableId}`);
           }
           useCartStore.getState().clearCart();
           setHistoryItemsCount(0);
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('menugo:order_history_changed'));
-          }
         } else {
+          if (sess.orders && Array.isArray(sess.orders) && sess.orders.length > 0) {
+            const current = getOrderHistoryFromCookie(tableId);
+            const synced = syncOrdersWithServer(current, sess.orders, tableId, displayTableName);
+            try {
+              setCookie(COOKIE_NAME, JSON.stringify(synced));
+            } catch {}
+          }
           updateCount();
         }
       })
@@ -257,7 +264,7 @@ export default function TableMenuClient({
     };
 
     const clearCustomerData = () => {
-      clearOrderHistoryCookie(tableId);
+      clearOrderHistoryCookie(tableId, true);
       if (typeof window !== 'undefined') {
         localStorage.removeItem(`menugo_order_${tableId}`);
       }
@@ -265,9 +272,6 @@ export default function TableMenuClient({
       setHistoryItemsCount(0);
       setShowOrderHistoryModal(false);
       setIsCartOpen(false);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('menugo:order_history_changed'));
-      }
       showToast('Bàn đã được chuyển về trống. Bộ nhớ tạm đã được làm mới!');
     };
 

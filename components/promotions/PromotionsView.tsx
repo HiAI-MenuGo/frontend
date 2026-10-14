@@ -513,7 +513,7 @@ export default function PromotionsView() {
                 : 'Hãy bắt đầu tạo mã khuyến mãi đầu tiên để thu hút và giữ chân khách hàng.'}
             </p>
           </div>
-          {search || typeFilter !== 'ALL' || statusFilter !== 'ALL' ? (
+          {(search || typeFilter !== 'ALL' || statusFilter !== 'ALL') && (
             <button
               onClick={() => {
                 setSearch('');
@@ -523,14 +523,6 @@ export default function PromotionsView() {
               className="px-4 py-2 text-sm font-medium text-emerald-600 hover:underline"
             >
               Xóa bộ lọc
-            </button>
-          ) : (
-            <button
-              onClick={openCreateModal}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium shadow-md transition"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Tạo Mã Mới Ngay</span>
             </button>
           )}
         </div>
