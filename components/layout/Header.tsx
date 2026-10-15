@@ -65,6 +65,14 @@ export default function Header({ unreadCount = 0, onOpenSidebar }: HeaderProps) 
     };
   }, [showBranchMenu]);
 
+  const isInventoryPage = pathname === '/inventory' || pathname.startsWith('/inventory/');
+
+  useEffect(() => {
+    if (isInventoryPage && (selectedBranchId === 'ALL' || !selectedBranchId) && branches.length > 0) {
+      setBranchId(branches[0].id);
+    }
+  }, [isInventoryPage, selectedBranchId, branches, setBranchId]);
+
   const displayTitle = customTitle || getRouteTitle(pathname);
   const currentBranchName = getSelectedBranchName();
   const isAllBranches = selectedBranchId === 'ALL' || !selectedBranchId;
@@ -106,36 +114,40 @@ export default function Header({ unreadCount = 0, onOpenSidebar }: HeaderProps) 
                 Chi nhánh hoạt động
               </div>
 
-              {/* Lựa chọn Tổng chi nhánh */}
-              <button
-                onClick={() => {
-                  setBranchId('ALL');
-                  setShowBranchMenu(false);
-                }}
-                className={`w-full flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer text-left ${
-                  isAllBranches
-                    ? 'bg-[#E6F7F4] text-[#00A389] font-black'
-                    : 'text-[#0F172A] hover:bg-[#F8FAFC] font-bold'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isAllBranches ? 'bg-[#00A389] text-white' : 'bg-slate-100 text-slate-600'}`}>
-                    <Layers size={15} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[13px] leading-tight flex items-center gap-1.5">
-                      <span>Tổng chi nhánh</span>
-                      <span className="text-[9.5px] font-extrabold px-1.5 py-0.2 rounded-md bg-emerald-100 text-[#00A389]">
-                        Toàn hệ thống
-                      </span>
+              {/* Lựa chọn Tổng chi nhánh - Không cho phép ở trang quản lý nguyên liệu */}
+              {!isInventoryPage && (
+                <>
+                  <button
+                    onClick={() => {
+                      setBranchId('ALL');
+                      setShowBranchMenu(false);
+                    }}
+                    className={`w-full flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer text-left ${
+                      isAllBranches
+                        ? 'bg-[#E6F7F4] text-[#00A389] font-black'
+                        : 'text-[#0F172A] hover:bg-[#F8FAFC] font-bold'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isAllBranches ? 'bg-[#00A389] text-white' : 'bg-slate-100 text-slate-600'}`}>
+                        <Layers size={15} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[13px] leading-tight flex items-center gap-1.5">
+                          <span>Tổng chi nhánh</span>
+                          <span className="text-[9.5px] font-extrabold px-1.5 py-0.2 rounded-md bg-emerald-100 text-[#00A389]">
+                            Toàn hệ thống
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-[#64748B] truncate mt-0.5">Dữ liệu tổng hợp toàn công ty</div>
+                      </div>
                     </div>
-                    <div className="text-[11px] text-[#64748B] truncate mt-0.5">Dữ liệu tổng hợp toàn công ty</div>
-                  </div>
-                </div>
-                {isAllBranches && <Check size={16} className="text-[#00A389] shrink-0" />}
-              </button>
+                    {isAllBranches && <Check size={16} className="text-[#00A389] shrink-0" />}
+                  </button>
 
-              <div className="my-1 border-t border-[#F1F5F9]" />
+                  <div className="my-1 border-t border-[#F1F5F9]" />
+                </>
+              )}
 
               {/* Danh sách các chi nhánh con */}
               <div className="overflow-y-auto space-y-1 min-h-0">

@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useI18n } from '../../../context/i18nContext';
 import Image from 'next/image';
 import { addOrderToCookie } from '@/lib/orderHistoryCookie';
+import { createTaggedLogger } from '@/lib/logger';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ interface CartDrawerProps {
   onOrderSuccess?: () => void;
 }
 
+const log = createTaggedLogger('CART');
 export function CartDrawer({
   isOpen,
   onClose,
@@ -129,7 +131,7 @@ export function CartDrawer({
           })),
         });
       } catch (err) {
-        console.warn('Lỗi lưu đơn vào cookie:', err);
+        log.warn('Lỗi lưu đơn vào cookie:', err);
       }
 
       // Lưu đơn hàng vào localStorage để trang theo dõi trạng thái hiển thị đúng món vừa gọi

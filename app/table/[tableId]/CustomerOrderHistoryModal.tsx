@@ -25,6 +25,7 @@ import {
 import { formatDisplayDateTime } from '@/lib/date';
 import { fetchActiveTableSession } from '@/lib/api/sessions.api';
 import { formatVND } from '@/lib/format';
+import { createTaggedLogger } from '@/lib/logger';
 import {
   createMoMoQrPayment,
   createVNPayQrPayment,
@@ -44,6 +45,7 @@ interface CustomerOrderHistoryModalProps {
   paymentEnabled?: boolean;
 }
 
+const log = createTaggedLogger('CART');
 export function CustomerOrderHistoryModal({
   isOpen,
   onClose,
@@ -115,7 +117,7 @@ export function CustomerOrderHistoryModal({
           }
         }
       } catch (err) {
-        console.warn('Lỗi khôi phục từ localStorage:', err);
+        log.warn('Lỗi khôi phục từ localStorage:', err);
       }
     }
 

@@ -34,7 +34,9 @@ import { useBranchStore } from '@/stores/branch.store';
 import { useHeaderStore } from '@/stores/header.store';
 import { useSocket } from '@/context/SocketContext';
 import { formatDisplayDate, formatDisplayDateTime } from '@/lib/date';
+import { createTaggedLogger } from '@/lib/logger';
 
+const log = createTaggedLogger('REQ');
 export interface CustomerRequestsViewProps {
   activeTab?: 'calls' | 'reviews';
   onTabChange?: (tab: 'calls' | 'reviews') => void;
@@ -140,7 +142,7 @@ export default function CustomerRequestsView({
       setCalls(Array.from(uniqueCallsMap.values()));
       setCallsSummary(res.summary);
     } catch (err) {
-      console.warn('Lỗi tải yêu cầu gọi bàn:', err);
+      log.warn('Lỗi tải yêu cầu gọi bàn:', err);
     } finally {
       setLoadingCalls(false);
     }
@@ -157,7 +159,7 @@ export default function CustomerRequestsView({
       setReviews(res.reviews);
       setReviewSummary(res.summary);
     } catch (err) {
-      console.warn('Lỗi tải đánh giá khách hàng:', err);
+      log.warn('Lỗi tải đánh giá khách hàng:', err);
     } finally {
       setLoadingReviews(false);
     }

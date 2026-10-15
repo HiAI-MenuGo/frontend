@@ -4,7 +4,9 @@ import React, { createContext, useContext, useEffect, useRef, useState, useCallb
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '@/stores/auth.store';
 import { useBranchStore } from '@/stores/branch.store';
+import { createTaggedLogger } from '@/lib/logger';
 
+const log = createTaggedLogger('SOCKET');
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
 
 interface SocketContextType {
@@ -53,7 +55,7 @@ export function SocketProvider({ children, config = {} }: {
     const branchId = selectedBranchId && selectedBranchId !== 'ALL' ? selectedBranchId : user?.branchId || 'default-branch';
     const tableId = configRef.current?.tableId;
 
-    console.log('[SocketContext] Initializing socket:', { tenantId, branchId, tableId, hasToken: !!token });
+    log.info('[SocketContext] Initializing socket:', { tenantId, branchId, tableId, hasToken: !!token });
 
     // Build auth object - send token in both auth and query for compatibility
     const auth = {
@@ -80,32 +82,32 @@ export function SocketProvider({ children, config = {} }: {
     });
 
     newSocket.on('connect', () => {
-      console.log('[SocketContext] Connected:', newSocket.id, 'transport:', newSocket.io.engine.transport.name);
+      log.info(`[SocketContext] Connected: ${newSocket.id}, transport: ${newSocket.io.engine.transport.name}`);
       setIsConnected(true);
     });
 
     newSocket.on('disconnect', (reason) => {
-      console.log('[SocketContext] Disconnected:', reason);
+      log.info(`[SocketContext] Disconnected: ${reason}`);
       setIsConnected(false);
     });
 
     newSocket.on('connect_error', (err) => {
-      console.error('[SocketContext] Connection error:', err.message, 'details:', err);
+      log.error(`[SocketContext] Connection error: ${err.message}`, { details: err });
     });
 
     newSocket.io.on('reconnect_attempt', (attemptNumber) => {
-      console.log('[SocketContext] Reconnect attempt:', attemptNumber);
+      log.info(`[SocketContext] Reconnect attempt: ${attemptNumber}`);
     });
 
     newSocket.io.on('reconnect', (attemptNumber) => {
-      console.log('[SocketContext] Reconnected after', attemptNumber, 'attempts');
+      log.info(`[SocketContext] Reconnected after ${attemptNumber} attempts`);
     });
 
     socketRef.current = newSocket;
     setSocket(newSocket);
 
     return () => {
-      console.log('[SocketContext] Cleaning up socket');
+      log.info('SOCKET', '[SocketContext] Cleaning up socket');
       newSocket.disconnect();
       socketRef.current = null;
       setSocket(null);
@@ -134,7 +136,7 @@ export function SocketProvider({ children, config = {} }: {
       currentAuth.tableId !== tableId;
 
     if (authChanged && socketRef.current.connected) {
-      console.log('[SocketContext] Auth changed, reconnecting...', { 
+      log.info('[SocketContext] Auth changed, reconnecting...', {
         old: { token: !!currentAuth.token, tenantId: currentAuth.tenantId, branchId: currentAuth.branchId },
         new: { token: !!token, tenantId, branchId, tableId }
       });
@@ -151,14 +153,14 @@ export function SocketProvider({ children, config = {} }: {
   const joinTable = useCallback((tableId: string) => {
     if (socketRef.current?.connected) {
       socketRef.current.emit('join:table', { tableId });
-      console.log('[SocketContext] Joined table:', tableId);
+      log.info(`[SocketContext] Joined table: ${tableId}`);
     }
   }, []);
 
   const leaveTable = useCallback((tableId: string) => {
     if (socketRef.current?.connected) {
       socketRef.current.emit('leave:table', { tableId });
-      console.log('[SocketContext] Left table:', tableId);
+      log.info(`[SocketContext] Left table: ${tableId}`);
     }
   }, []);
 

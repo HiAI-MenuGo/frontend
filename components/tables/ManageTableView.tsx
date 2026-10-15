@@ -682,8 +682,8 @@ export default function ManageTableView() {
         isOpen={!!qrTable}
         onClose={() => setQrTable(null)}
         table={qrTable}
-        tenantId={user?.tenantId}
-        branchId={user?.branchId || qrTable?.branchId}
+        tenantId={qrTable?.tenantId || user?.tenantId}
+        branchId={qrTable?.branchId || (selectedBranchId !== 'ALL' ? selectedBranchId : user?.branchId)}
       />
     </div>
   );
