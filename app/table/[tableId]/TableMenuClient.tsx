@@ -6,6 +6,7 @@ import MenuItemList from './MenuItemList';
 import { MenuItemView, useMenuSoldOut } from '../hooks/useMenuSoldOut';
 import useCartStore, { SelectedModifier } from '../../../stores/cart.store';
 
+const log = createTaggedLogger('MENU');
 const CustomerItemOptionsModal = dynamic(() => import('./CustomerItemOptionsModal'), {
   ssr: false,
 });
@@ -54,6 +55,7 @@ import type { LoyaltyCustomerDTO } from '@/lib/api/types';
 import { sendCustomerCall, sendCustomerReview } from '@/lib/api/customerRequests.api';
 import { useSocket } from '@/context/SocketContext';
 import { getSocket } from '@/lib/socket';
+import { createTaggedLogger } from '@/lib/logger';
 
 // Memory cache module để chống chớp giật layout khi chuyển trang/lướt lại menu
 const menuCache = new Map<string, MenuItemView[]>();
@@ -220,7 +222,7 @@ export default function TableMenuClient({
 
     // Handle order status updates (order-level: PENDING -> PREPARING -> READY -> DONE)
     const handleOrderUpdated = (payload: { orderId: string; status: string; branchId?: string }) => {
-      console.log('[TableMenuClient] Received order:updated', payload);
+      log.info('[TableMenuClient] Received order:updated', payload);
       // Update the order status in cookie for this table
       const updated = updateOrderStatusInCookie(tableId, payload.orderId, payload.status);
       if (updated) {
@@ -234,7 +236,7 @@ export default function TableMenuClient({
 
     // Handle item status updates (item-level: PENDING -> PREPARING -> READY -> DONE)
     const handleItemStatusUpdated = (payload: { orderId: string; itemId: string; status: string; branchId?: string }) => {
-      console.log('[TableMenuClient] Received order:item-status', payload);
+      log.info('[TableMenuClient] Received order:item-status', payload);
       // For item status, we also update the order status if needed
       const updated = updateOrderStatusInCookie(tableId, payload.orderId, payload.status);
       if (updated) {
@@ -250,14 +252,14 @@ export default function TableMenuClient({
 
     // Xử lý khi bàn được chuyển về trống từ nhân viên / quản lý
     const handleTableReset = (payload?: { tableId?: string; status?: string }) => {
-      console.log('[TableMenuClient] Received table:reset', payload);
+      log.info('[TableMenuClient] Received table:reset', payload);
       if (!payload?.tableId || payload.tableId === tableId) {
         clearCustomerData();
       }
     };
 
     const handleTableStatusChanged = (payload: { tableId?: string; status?: string }) => {
-      console.log('[TableMenuClient] Received table:status-changed', payload);
+      log.info('[TableMenuClient] Received table:status-changed', payload);
       if (payload.status === 'EMPTY' && (!payload.tableId || payload.tableId === tableId)) {
         clearCustomerData();
       }
@@ -320,13 +322,19 @@ export default function TableMenuClient({
 
   // Chuẩn hóa tên bàn hiển thị
   const displayTableName = useMemo(() => {
+    if ((branding as any)?.tableName) {
+      return (branding as any).tableName;
+    }
     const clean = tableId.trim().toUpperCase();
+    if (clean.length > 20) {
+      return (branding as any)?.tableCode || 'BÀN ĂN';
+    }
     if (clean.startsWith('BÀN ')) {
       return clean;
     }
     const stripped = clean.replace(/^(BÀN|BAN|TABLE)[_\s-]*/i, '');
     return stripped ? `BÀN ${stripped}` : `BÀN ${clean}`;
-  }, [tableId]);
+  }, [tableId, (branding as any)?.tableName, (branding as any)?.tableCode]);
 
   useEffect(() => {
     // Tải thông tin khách nếu có lưu trong local storage
@@ -360,7 +368,7 @@ export default function TableMenuClient({
           }
         }
       } catch (err) {
-        console.warn('Could not resolve table token:', err);
+        log.warn('Could not resolve table token:', err);
       }
     };
     resolveTableToken();
@@ -377,15 +385,30 @@ export default function TableMenuClient({
     const fetchMenu = async () => {
       try {
         setIsMenuLoading(true);
-        // Scope menu theo đúng bàn QR (chặn leak menu cross-tenant)
+        // Scope menu theo đúng bàn QR và chi nhánh/quán (chặn leak menu cross-tenant)
+        const menuParams = new URLSearchParams();
+        menuParams.set('tableId', tableId);
+        const effectiveBranch = branchId || initialBranchId;
+        const effectiveTenant = tenantId || initialTenantId;
+        if (effectiveBranch && effectiveBranch !== 'default-branch') {
+          menuParams.set('branchId', effectiveBranch);
+        }
+        if (effectiveTenant && effectiveTenant !== 'default-tenant') {
+          menuParams.set('tenantId', effectiveTenant);
+        }
         const res = await apiFetch<Array<Record<string, unknown>>>(
-          `/menu/items?tableId=${encodeURIComponent(tableId)}`
+          `/menu/items?${menuParams.toString()}`
         );
         let list = res?.data || (Array.isArray(res) ? res : []);
 
-        // Fallback: nếu gọi theo tableId không có món, gọi không tham số tableId
+        // Fallback: nếu gọi theo tableId không có món, gọi kèm tenantId/branchId để đảm bảo không leak
         if (!Array.isArray(list) || list.length === 0) {
-          const fallbackRes = await apiFetch<Array<Record<string, unknown>>>('/menu/items');
+          const fallbackParams = new URLSearchParams();
+          if (effectiveBranch && effectiveBranch !== 'default-branch') fallbackParams.set('branchId', effectiveBranch);
+          if (effectiveTenant && effectiveTenant !== 'default-tenant') fallbackParams.set('tenantId', effectiveTenant);
+          const fallbackRes = await apiFetch<Array<Record<string, unknown>>>(
+            `/menu/items${fallbackParams.toString() ? `?${fallbackParams.toString()}` : ''}`
+          );
           list = fallbackRes?.data || (Array.isArray(fallbackRes) ? fallbackRes : []);
         }
 
@@ -434,7 +457,7 @@ export default function TableMenuClient({
           }
         }
       } catch (err) {
-        console.warn('Fallback mock menu items:', err);
+        log.warn('Fallback mock menu items:', err);
       } finally {
         setIsMenuLoading(false);
       }
@@ -459,6 +482,8 @@ export default function TableMenuClient({
         if (bData) {
           const brandObj = {
             restaurantName: bData.restaurantName || bData.name || 'MenuGO',
+            tableName: bData.tableName || '',
+            tableCode: bData.tableCode || '',
             address: bData.address || '',
             primaryColor: bData.primaryColor || '#00A389',
             logoUrl: bData.logoUrl || '',
@@ -467,6 +492,8 @@ export default function TableMenuClient({
             enablePaymentCall: bData.enablePaymentCall ?? true,
             enableStaffCall: bData.enableStaffCall ?? true,
           };
+          if (bData.tenantId) setTenantId(bData.tenantId);
+          if (bData.branchId) setBranchId(bData.branchId);
           brandingCache.set(tableId, brandObj);
           setBranding((prev) => ({
             ...prev,
@@ -474,7 +501,7 @@ export default function TableMenuClient({
           }));
         }
       } catch (err) {
-        console.warn('Fallback mock branding:', err);
+        log.warn('Fallback mock branding:', err);
       }
     };
 

@@ -11,6 +11,7 @@ import type { StaffUser, StaffRole } from '@/lib/api/users.api';
 import { fetchBranches, type Branch } from '@/lib/api/branches.api';
 import { fetchTables } from '@/lib/api/tables.api';
 import type { UiTable } from '@/lib/api/types';
+import { sendCustomerCall } from '@/lib/api/customerRequests.api';
 import { useAuthStore } from '@/stores/auth.store';
 import { useHeaderStore } from '@/stores/header.store';
 import { formatDisplayDate, formatDisplayDateTime } from '@/lib/date';
@@ -68,7 +69,6 @@ export default function StaffView() {
 
   const [callStaffTarget, setCallStaffTarget] = useState<StaffUser | null>(null);
   const [dispatchTable, setDispatchTable] = useState('Bàn 01');
-  const [dispatchReason, setDispatchReason] = useState('Khách gọi phục vụ tại bàn');
   const [dispatchNote, setDispatchNote] = useState('');
   const [dispatching, setDispatching] = useState(false);
   const [tablesList, setTablesList] = useState<UiTable[]>([]);
@@ -78,18 +78,27 @@ export default function StaffView() {
     if (tablesList.length > 0) {
       setDispatchTable(tablesList[0].tableName);
     }
-    setDispatchReason('Khách gọi phục vụ tại bàn');
     setDispatchNote('');
   };
 
-  const handleConfirmCallStaff = () => {
+  const handleConfirmCallStaff = async () => {
     if (!callStaffTarget) return;
     setDispatching(true);
-    setTimeout(() => {
-      setDispatching(false);
+    try {
+      const tObj = tablesList.find((t) => t.tableName === dispatchTable);
+      await sendCustomerCall({
+        tableId: tObj ? tObj.id : (dispatchTable || 'table-default'),
+        tableName: dispatchTable,
+        type: 'STAFF',
+        reason: `Điều phối: ${callStaffTarget.name} phục vụ ${dispatchTable}${dispatchNote.trim() ? ` (${dispatchNote.trim()})` : ''}`,
+      });
       showToast(`🛎️ Đã gửi thông báo gọi nhân viên "${callStaffTarget.name}" phục vụ [${dispatchTable}]!`);
       setCallStaffTarget(null);
-    }, 450);
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Không thể gửi lệnh gọi nhân viên');
+    } finally {
+      setDispatching(false);
+    }
   };
 
   const load = async () => {
@@ -716,26 +725,6 @@ export default function StaffView() {
                         <option value="Bàn VIP 01">Bàn VIP 01</option>
                       </>
                     )}
-                  </select>
-                  <ChevronDown size={16} className="text-[#64748B] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[12px] font-bold text-slate-700 mb-1.5">
-                  Nhiệm vụ / Yêu cầu *
-                </label>
-                <div className="relative">
-                  <select
-                    value={dispatchReason}
-                    onChange={(e) => setDispatchReason(e.target.value)}
-                    className="w-full h-11 pl-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-2xl text-[13px] font-bold text-slate-800 focus:outline-none focus:border-[#00A389] appearance-none cursor-pointer"
-                  >
-                    <option value="Khách gọi phục vụ tại bàn">🛎️ Khách gọi phục vụ tại bàn</option>
-                    <option value="Khách yêu cầu thanh toán / in bill">💳 Khách yêu cầu thanh toán / in bill</option>
-                    <option value="Dọn dẹp bàn & chuẩn bị đón khách">🧹 Dọn dẹp bàn & sắp xếp bàn</option>
-                    <option value="Tiếp thực / Lên món ăn">🍽️ Tiếp thực / Ra món cho khách</option>
-                    <option value="Hỗ trợ gấp cho khách tại bàn">⚡ Yêu cầu hỗ trợ gấp</option>
                   </select>
                   <ChevronDown size={16} className="text-[#64748B] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>

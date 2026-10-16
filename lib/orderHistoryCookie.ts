@@ -1,3 +1,5 @@
+import { createTaggedLogger } from '@/lib/logger';
+const log = createTaggedLogger('CART');
 export interface OrderedItemDetail {
   name: string;
   quantity: number;
@@ -110,7 +112,7 @@ export function setCookie(name: string, value: string, days = 7): void {
     const maxAge = Math.floor(days * 24 * 60 * 60);
     document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
   } catch (err) {
-    console.warn('Lỗi ghi cookie:', err);
+    log.warn('Lỗi ghi cookie:', err);
   }
 }
 
@@ -130,7 +132,7 @@ export function getOrderHistoryFromCookie(tableId?: string): CustomerOrderHistor
     }
     return list;
   } catch (err) {
-    console.warn('Lỗi phân tích lịch sử món từ cookie:', err);
+    log.warn('Lỗi phân tích lịch sử món từ cookie:', err);
     return [];
   }
 }
@@ -157,7 +159,7 @@ export function addOrderToCookie(
       window.dispatchEvent(new CustomEvent('menugo:order_history_changed', { detail: updated }));
     }
   } catch (err) {
-    console.error('Lỗi lưu đơn vào cookie:', err);
+    log.error('Lỗi lưu đơn vào cookie:', err);
   }
 
   return fullOrder;
@@ -200,7 +202,7 @@ export function updateOrderStatusInCookie(
     }
     return updated;
   } catch (err) {
-    console.warn('Lỗi cập nhật trạng thái đơn trong cookie:', err);
+    log.warn('Lỗi cập nhật trạng thái đơn trong cookie:', err);
     return false;
   }
 }
@@ -226,7 +228,7 @@ export function clearOrderHistoryCookie(tableId?: string, skipEvent = false): vo
       window.dispatchEvent(new CustomEvent('menugo:order_history_changed', { detail: [] }));
     }
   } catch (err) {
-    console.error('Lỗi xoá lịch sử cookie:', err);
+    log.error('Lỗi xoá lịch sử cookie:', err);
   }
 }
 

@@ -13,6 +13,7 @@ import { formatVND } from '@/lib/format';
 import { BillPrintModal } from '@/components/payment/BillPrintModal';
 import { VietQRModal } from '@/components/payment/VietQRModal';
 import { ItemOptionsModal } from '@/components/orders/ItemOptionsModal';
+import { createTaggedLogger } from '@/lib/logger';
 import { PaymentDetailModal, type PaymentDiscountInfo } from './PaymentDetailModal';
 
 interface CartItem {
@@ -23,6 +24,7 @@ interface CartItem {
   note?: string;
 }
 
+const log = createTaggedLogger('ORDERS');
 export default function OrderLineView() {
   const router = useRouter();
   const globalSearch = useSearchStore((s) => s.query);
@@ -174,7 +176,7 @@ export default function OrderLineView() {
     setAppliedDiscount(discountAmount);
 
     try {
-      console.log('[OrderLineView] Creating session order...', { selectedTableId, cartItems: cart.length, payTotal, discountAmount });
+      log.info('[OrderLineView] Creating session order...', { selectedTableId, cartItems: cart.length, payTotal, discountAmount });
       const orderNote = `Đặt món - ${selectedTable?.tableName ?? ''}${
         discountInfo?.reason ? ` (CK: ${discountInfo.reason})` : ''
       }`;
@@ -184,14 +186,14 @@ export default function OrderLineView() {
         orderNote
       );
       const sessionId = result?.session?.id;
-      console.log('[OrderLineView] Session order created:', { sessionId, result });
+      log.info('[OrderLineView] Session order created:', { sessionId, result });
 
       const effectiveBranchId = selectedBranchId === 'ALL' ? selectedTable?.branchId : selectedBranchId;
 
       if (method === 'cash') {
         if (sessionId) {
           try {
-            console.log('[OrderLineView] Processing cash payment...', { sessionId, cashReceived, branchId: effectiveBranchId });
+            log.info('[OrderLineView] Processing cash payment...', { sessionId, cashReceived, branchId: effectiveBranchId });
             await payCash(
               sessionId,
               cashReceived > 0 ? cashReceived : payTotal,
@@ -200,9 +202,9 @@ export default function OrderLineView() {
               discountAmount,
               discountInfo?.reason
             );
-            console.log('[OrderLineView] Cash payment success');
+            log.info('[OrderLineView] Cash payment success');
           } catch (payErr) {
-            console.error('[OrderLineView] Cash payment failed:', payErr);
+            log.error('[OrderLineView] Cash payment failed:', payErr);
             alert(payErr instanceof Error ? payErr.message : 'Thanh toán tiền mặt thất bại. Vui lòng kiểm tra lại!');
             return;
           }
@@ -210,7 +212,7 @@ export default function OrderLineView() {
         setIsPaymentDetailOpen(false);
         setCart([]);
         setLastSessionId(sessionId);
-        console.log('[OrderLineView] Navigating to /order-management...');
+        log.info('[OrderLineView] Navigating to /order-management...');
         router.push('/order-management');
       } else {
         // Phương thức Quét VietQR
@@ -220,7 +222,7 @@ export default function OrderLineView() {
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Lỗi đặt đơn món';
-      console.error('[OrderLineView] Order creation failed:', e);
+      log.error('[OrderLineView] Order creation failed:', e);
       alert(msg);
     } finally {
       setIsSubmitting(false);
@@ -508,7 +510,7 @@ export default function OrderLineView() {
           const effectiveBranchId = selectedBranchId === 'ALL' ? selectedTable?.branchId : selectedBranchId;
           if (sessId) {
             try {
-              console.log('[OrderLineView] Settle VietQR payment in backend...', { sessId, total: confirmedTotal ?? total });
+              log.info('[OrderLineView] Settle VietQR payment in backend...', { sessId, total: confirmedTotal ?? total });
               await payCash(
                 sessId,
                 confirmedTotal ?? total,
@@ -516,14 +518,14 @@ export default function OrderLineView() {
                 'VIETQR',
                 appliedDiscount
               );
-              console.log('[OrderLineView] VietQR payment settled successfully');
+              log.info('[OrderLineView] VietQR payment settled successfully');
             } catch (payErr) {
-              console.error('[OrderLineView] VietQR settlement failed:', payErr);
+              log.error('[OrderLineView] VietQR settlement failed:', payErr);
               alert(payErr instanceof Error ? payErr.message : 'Lỗi cập nhật thanh toán VietQR');
               return;
             }
           }
-          console.log('[OrderLineView] QR payment success, navigating to /order-management');
+          log.info('[OrderLineView] QR payment success, navigating to /order-management');
           setIsQRopen(false);
           setConfirmedTotal(null);
           setAppliedDiscount(0);

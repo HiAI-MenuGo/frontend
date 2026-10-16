@@ -38,7 +38,9 @@ import {
 import type { MembershipTierDTO } from '@/lib/api/types';
 import { formatVND } from '@/lib/format';
 import { useHeaderStore } from '@/stores/header.store';
+import { createTaggedLogger } from '@/lib/logger';
 
+const log = createTaggedLogger('CUSTOMER');
 export type CustomersTabType = 'members' | 'calls' | 'reviews';
 
 export interface CustomersViewProps {
@@ -178,7 +180,7 @@ export default function CustomersView({ initialTab = 'members' }: CustomersViewP
         );
       }
     } catch (err) {
-      console.warn('Could not load customers list from API:', err);
+      log.warn('Could not load customers list from API:', err);
     } finally {
       setLoadingCustomers(false);
     }

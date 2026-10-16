@@ -116,6 +116,7 @@ export function MenuItemList({
           <button
             type="button"
             onClick={() => setSelectedCategory('all')}
+            style={selectedCategory === 'all' ? { backgroundColor: primaryColor } : undefined}
             className={`h-8 px-3.5 rounded-full text-[12.5px] transition-all whitespace-nowrap active:scale-95 inline-flex items-center justify-center shrink-0 ${
               selectedCategory === 'all'
                 ? 'bg-[#00A389] text-white font-bold shadow-xs'
@@ -131,6 +132,7 @@ export function MenuItemList({
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
+                style={isActive ? { backgroundColor: primaryColor } : undefined}
                 className={`h-8 px-3.5 rounded-full text-[12.5px] transition-all whitespace-nowrap active:scale-95 inline-flex items-center justify-center shrink-0 ${
                   isActive
                     ? 'bg-[#00A389] text-white font-bold shadow-xs'

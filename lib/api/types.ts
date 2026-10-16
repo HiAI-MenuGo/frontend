@@ -22,6 +22,7 @@ export interface TableDTO {
   id: string;
   name: string;
   status: BackendTableStatus;
+  tenantId?: string;
   branchId: string;
   branchName?: string;
   branchCode?: string;
@@ -67,6 +68,7 @@ export function adaptTable(t: TableDTO): UiTable {
     capacity: defaultCapacity,
     chairs: status === 'AVAILABLE' ? defaultCapacity : (customerCount || 1),
     customerCount,
+    tenantId: t?.tenantId,
     branchId: t?.branchId,
     branchName: t?.branchName,
     branchCode: t?.branchCode,

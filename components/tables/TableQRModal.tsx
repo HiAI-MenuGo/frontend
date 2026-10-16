@@ -20,8 +20,8 @@ interface TableQRModalProps {
   onClose: () => void;
   table: UiTable | null;
   restaurantName?: string;
-  tenantId?: string;
-  branchId?: string;
+  tenantId?: string | null;
+  branchId?: string | null;
 }
 
 export default function TableQRModal({
@@ -39,10 +39,10 @@ export default function TableQRModal({
   if (!isOpen || !table) return null;
 
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-  const effectiveTenantId = tenantId || table.tenantId || user?.tenantId || 'default-tenant';
-  const effectiveBranchId = branchId || table.branchId || user?.branchId || 'default-branch';
-  // Dùng tableNumber hoặc id của bàn làm slug gọi món
-  const tableSlug = table.tableNumber ? String(table.tableNumber) : table.id;
+  const effectiveTenantId = table.tenantId || tenantId || user?.tenantId || 'default-tenant';
+  const effectiveBranchId = table.branchId || branchId || user?.branchId || 'default-branch';
+  // Luôn dùng ID duy nhất của bàn (UUID) để đảm bảo không bị trùng lặp giữa các chi nhánh hoặc công ty
+  const tableSlug = table.backendId || table.id;
   const qrUrl = `${origin}/${effectiveTenantId}/${effectiveBranchId}/table/${tableSlug}`;
 
   const handleCopyLink = async () => {

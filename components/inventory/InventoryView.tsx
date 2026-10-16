@@ -75,13 +75,34 @@ export default function InventoryView() {
   }, []);
 
   const selectedBranchId = useBranchStore((s) => s.selectedBranchId);
+  const branches = useBranchStore((s) => s.branches);
+  const setBranchId = useBranchStore((s) => s.setBranchId);
+  const fetchBranches = useBranchStore((s) => s.fetchBranches);
+
+  // Quản lý nguyên liệu không có xem từ tổng -> tự động chọn chi nhánh cụ thể đầu tiên
+  useEffect(() => {
+    if (branches.length === 0) {
+      void fetchBranches();
+    }
+  }, [branches.length, fetchBranches]);
+
+  useEffect(() => {
+    if ((selectedBranchId === 'ALL' || !selectedBranchId) && branches.length > 0) {
+      setBranchId(branches[0].id);
+    }
+  }, [selectedBranchId, branches, setBranchId]);
 
   // Tải danh sách nguyên liệu
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const data = await fetchIngredients(selectedBranchId === 'ALL' ? 'ALL' : selectedBranchId);
+      const activeBranch = selectedBranchId === 'ALL' ? (branches[0]?.id || '') : selectedBranchId;
+      if (!activeBranch) {
+        setIngredients([]);
+        return;
+      }
+      const data = await fetchIngredients(activeBranch);
       setIngredients(data);
     } catch (err: unknown) {
       if (!silent) {
@@ -90,7 +111,7 @@ export default function InventoryView() {
     } finally {
       setLoading(false);
     }
-  }, [selectedBranchId]);
+  }, [selectedBranchId, branches]);
 
   const setCustomAction = useHeaderStore((s) => s.setCustomAction);
 
@@ -445,15 +466,6 @@ export default function InventoryView() {
                             </div>
                             <div>
                               <p className="font-extrabold text-[#0F172A]">{item.name}</p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[11.5px] text-[#94A3B8]">Mã: {item.id}</span>
-                                {item.branchName && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-md border border-teal-200">
-                                    <Building2 size={10} className="shrink-0" />
-                                    <span>{item.branchName}</span>
-                                  </span>
-                                )}
-                              </div>
                             </div>
                           </div>
                         </td>
@@ -553,9 +565,6 @@ export default function InventoryView() {
                     </span>
                   )}
                 </div>
-                <p className="text-[12px] text-[#94A3B8] mt-0.5">
-                  Mã định danh: <span className="font-mono text-[#475569]">{activeDetailItem.id}</span>
-                </p>
               </div>
             </div>
 

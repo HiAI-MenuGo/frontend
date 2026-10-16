@@ -1,5 +1,7 @@
 import { create } from 'zustand';
+import { createTaggedLogger } from '@/lib/logger';
 
+const log = createTaggedLogger('CART');
 export interface SelectedModifier {
   groupId: string;
   groupName: string;
@@ -73,7 +75,7 @@ function saveCartToCookie(tableId: string | null, items: CartItem[]): void {
     // Lưu trong 3 ngày (259200 giây)
     document.cookie = `${key}=${value}; path=/; max-age=259200; SameSite=Lax`;
   } catch (err) {
-    console.warn('Lỗi lưu giỏ hàng vào cookie:', err);
+    log.warn('Lỗi lưu giỏ hàng vào cookie:', err);
   }
 }
 

@@ -1,7 +1,9 @@
 import { apiFetch } from '../api';
+import { createTaggedLogger } from '@/lib/logger';
 import type { MenuItemDTO } from './types';
 import { ALL_BRANCHES_ID, DEFAULT_BRANCH_ID } from './types';
 
+const log = createTaggedLogger('API');
 export async function fetchMenuItems(branchId = ALL_BRANCHES_ID): Promise<MenuItemDTO[]> {
   const res = await apiFetch<any[]>(`/menu/items?branchId=${encodeURIComponent(branchId)}`);
   if (!res.success) throw new Error(res.message || 'Không tải được thực đơn');
@@ -101,7 +103,7 @@ export async function renameCategory(oldName: string, newName: string) {
     });
     return res;
   } catch (e) {
-    console.warn('API renameCategory warning:', e);
+    log.warn('API renameCategory warning:', e);
     return null;
   }
 }
